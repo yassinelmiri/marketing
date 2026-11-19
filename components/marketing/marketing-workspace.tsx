@@ -46,7 +46,6 @@ import {
 } from '@/lib/supabase/marketing-data'
 
 import {
-  DEFAULT_MEMBER_PERMISSIONS,
   GRANTABLE_PAGES,
   type ViewKey,
 } from '@/lib/permissions'
@@ -230,27 +229,25 @@ export function MarketingWorkspace() {
         // 4. Transformer les permissions DB en pages de l'interface.
         const isAdmin = roleId === 1
 
+        // Principe du moindre privilège : aucun accès métier par défaut.
+        // Les pages sont ajoutées uniquement si le rôle possède la permission DB.
         const pagePermissions = new Set<ViewKey>(
-          isAdmin
-            ? GRANTABLE_PAGES.map((page) => page.key)
-            : DEFAULT_MEMBER_PERMISSIONS,
+          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : [],
         )
 
         if (!isAdmin) {
           if (permissionCodes.includes('campagne.read')) {
             pagePermissions.add('campagnes')
           }
-
           if (permissionCodes.includes('user.manage')) {
             pagePermissions.add('admin-users')
           }
-
           if (permissionCodes.includes('role.manage')) {
             pagePermissions.add('settings')
           }
         }
 
-        // Le dashboard reste accessible à tout utilisateur connecté.
+        // Le tableau de bord est le seul accès garanti à tout compte connecté.
         pagePermissions.add('dashboard')
 
         // 5. Construire le User attendu par les composants existants.
