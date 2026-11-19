@@ -9,8 +9,6 @@ import {
   MessageCircle,
   Pencil,
   X,
-  NotebookPen,
-  Save,
   UsersRound,
   ContactRound,
   ListChecks,
@@ -21,7 +19,7 @@ import {
   type User,
   type TypeCampagne,
 } from '@/lib/storage'
-import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
+import { STATUS_COLORS, STATUS_LABELS } from './shared'
 
 interface DashboardViewProps {
   user: User
