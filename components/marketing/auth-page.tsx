@@ -408,14 +408,11 @@ export function AuthPage({ mode }: AuthPageProps) {
           <footer className="auth-card-footer">
             {isLogin ? (
               <p>
-                Pas encore de compte ?{' '}
-                <Link className="auth-link" href="/register">
-                  Créer un compte
-                </Link>
+                Les comptes sont créés par l’administrateur. Contactez votre responsable pour obtenir un accès.
               </p>
             ) : (
               <p>
-                Déjà un compte ?{' '}
+                La création de compte est réservée aux administrateurs.{' '}
                 <Link className="auth-link" href="/login">
                   Se connecter
                 </Link>
