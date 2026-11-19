@@ -106,7 +106,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   },
   email: {
     title: 'Envoi e-mail',
-    subtitle: 'Simulation d’envoi e-mail.',
+    subtitle: 'Gérez plusieurs expéditeurs SMTP et envoyez vos campagnes e-mail.',
   },
   sms: {
     title: 'Envoi SMS',
@@ -774,7 +774,7 @@ export function MarketingWorkspace() {
 
           {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
 
-          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} />}
+          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} isAdmin={currentUser.role_id === 1} />}
 
           {activeView === 'sms' && <SmsSenderView listes={listes} listeContacts={listeContacts} />}
 
