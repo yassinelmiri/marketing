@@ -763,11 +763,11 @@ export function MarketingWorkspace() {
             <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
           )}
 
-          {activeView === 'whatsapp' && <WhatsAppBotView />}
+          {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
 
-          {activeView === 'email' && <EmailSenderView />}
+          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} />}
 
-          {activeView === 'sms' && <SmsSenderView />}
+          {activeView === 'sms' && <SmsSenderView listes={listes} listeContacts={listeContacts} />}
 
           {activeView === 'admin-users' && (
             <AdminUsersView
