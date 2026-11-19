@@ -103,7 +103,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
     const nom = form.nom.trim()
     const email = form.email.trim().toLowerCase()
 
-    if (!prenom || !nom || (!editing && !email)) {
+    if (!prenom || !nom || !email) {
       toast.error('Champs requis', 'Prénom, nom et e-mail sont obligatoires.')
       return
     }
@@ -118,7 +118,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...(editing ? { id: editing.id } : { email, password: form.password }),
+          ...(editing ? { id: editing.id, email } : { email, password: form.password }),
           prenom,
           nom,
           telephone: form.telephone,
@@ -276,7 +276,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                 <label><span>Nom</span><input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} /></label>
                 <label className="form-grid-full">
                   <span>E-mail</span>
-                  <input type="email" value={form.email} disabled={!!editing} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </label>
                 <label className="form-grid-full">
                   <span>{editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe temporaire (12 caractères minimum)'}</span>
