@@ -9,8 +9,6 @@ import type {
 } from '@/lib/storage'
 import { createClient } from '@/lib/supabase/client'
 
-type DbResult<T> = { data: T; error: null } | { data: null; error: Error }
-
 function throwIfError(error: { message: string } | null): void {
   if (error) throw new Error(error.message)
 }
@@ -56,7 +54,7 @@ export async function loadMarketingData(): Promise<MarketingData> {
     typesResult.error,
   ]
   const firstError = errors.find(Boolean)
-  throwIfError(firstError)
+  throwIfError(firstError ?? null)
 
   return {
     campagnes: (campagnesResult.data ?? []).map((row) => ({
