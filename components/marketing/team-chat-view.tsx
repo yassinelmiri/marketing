@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { MessageCircle, Send, Users, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -11,7 +11,7 @@ function initials(name:string){return name.split(' ').filter(Boolean).slice(0,2)
 function clock(value:string){return new Date(value).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
 export function TeamChatView({user}:{user:User}){
  const [messages,setMessages]=useState<ChatMessage[]>([]),[text,setText]=useState(''),[loading,setLoading]=useState(true),[sending,setSending]=useState(false),[error,setError]=useState('')
- const supabase=createClient(),bottom=useRef<HTMLDivElement|null>(null)
+ const supabase=useMemo(()=>createClient(),[]),bottom=useRef<HTMLDivElement|null>(null)
  async function load(){try{const r=await fetch('/api/chat',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Chat indisponible.');setMessages(d.messages??[]);setError('')}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
  useEffect(()=>{void load();const channel=supabase.channel('team-chat-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'team_chat_messages'},()=>{void load()}).subscribe();return()=>{void supabase.removeChannel(channel)}},[])
  useEffect(()=>{bottom.current?.scrollIntoView({behavior:'smooth'})},[messages])
