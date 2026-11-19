@@ -2633,7 +2633,7 @@ button { font-family: inherit; }
   .preview-metrics > div,
   .preview-chart,
   .workspace-import-preview th,
-  .landing-steps { background: var(--surface-dark-2); }
+  
   .form-grid input,
   .form-grid select,
   .form-grid textarea,
@@ -2648,7 +2648,7 @@ button { font-family: inherit; }
   .permission-card,
   .permission-chip,
   .workspace-menu-toggle {
-    background: var(--surface-dark);
+    
     color: var(--text-dark);
     border-color: var(--border-dark);
   }
@@ -2962,7 +2962,7 @@ button { font-family: inherit; }
 }
 .dashboard-secondary-metrics article {
   display: flex; align-items: center; gap: 13px; padding: 15px 17px;
-  border: 1px solid var(--border); border-radius: 14px; background: #fff;
+  border: 1px solid var(--border); border-radius: 14px;
 }
 .dashboard-secondary-icon {
   width: 39px; height: 39px; flex: 0 0 39px; display: grid; place-items: center;
@@ -2998,7 +2998,6 @@ button { font-family: inherit; }
 .settings-hero {
   display: flex; align-items: center; gap: 16px; padding: 23px 25px;
   border: 1px solid #dbeafe; border-radius: 18px;
-  background: radial-gradient(circle at 90% 10%, rgba(59,130,246,.13), transparent 32%), linear-gradient(120deg, #fff 0%, #f6faff 100%);
 }
 .settings-hero-icon {
   width: 54px; height: 54px; flex: 0 0 54px; display: grid; place-items: center;
