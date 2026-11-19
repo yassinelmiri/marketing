@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest) {
   const address = clean(body.address, 240)
   const password = typeof body.password === 'string' ? body.password : ''
 
-  if (!prenom || !nom || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!prenom || !nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Prénom, nom et adresse e-mail valides obligatoires.' }, { status: 400 })
   }
   if (password && (password.length < 12 || password.length > 128)) {
