@@ -30,7 +30,7 @@ async function requireAdmin() {
 
 function checkRequestOrigin(request: NextRequest) {
   const origin = request.headers.get('origin')
-  if (origin && origin !== request.nextUrl.origin) {
+  if (!origin || origin !== request.nextUrl.origin) {
     return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
   }
   return null
