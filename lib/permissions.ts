@@ -7,7 +7,10 @@
 export type ViewKey =
   | 'dashboard'
   | 'campagnes'
+  | 'listes'
   | 'equipe'
+  | 'tasks'
+  | 'chat'
   | 'whatsapp'
   | 'email'
   | 'sms'
@@ -21,6 +24,7 @@ export type ViewKey =
 export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
   { key: 'dashboard', label: 'Tableau de bord' },
   { key: 'campagnes', label: 'Campagnes' },
+  { key: 'listes', label: 'Listes & contacts' },
   { key: 'equipe', label: 'Équipe' },
   { key: 'whatsapp', label: 'Bot WhatsApp' },
   { key: 'email', label: 'E-mail' },
@@ -30,14 +34,7 @@ export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
 ]
 
 /** Permissions par défaut d'un nouveau membre. */
-export const DEFAULT_MEMBER_PERMISSIONS: ViewKey[] = [
-  'dashboard',
-  'campagnes',
-  'equipe',
-  'whatsapp',
-  'email',
-  'sms',
-]
+export const DEFAULT_MEMBER_PERMISSIONS: ViewKey[] = ['dashboard']
 
 /** Nettoie un tableau de permissions (retire les doublons et les valeurs invalides). */
 export function sanitizePermissions(input: unknown): ViewKey[] {

@@ -2,10 +2,15 @@
 
 import { useState } from 'react'
 import { Send, Smartphone, Users } from 'lucide-react'
-import { listesRepo } from '@/lib/storage'
+import type { ListeContact, ListeContactContact } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 
-export function SmsSenderView() {
+interface SmsSenderViewProps {
+  listes: ListeContact[]
+  listeContacts: ListeContactContact[]
+}
+
+export function SmsSenderView({ listes: allListes, listeContacts }: SmsSenderViewProps) {
   const toast = useToast()
   const [text, setText] = useState('')
   const [listeId, setListeId] = useState<number | ''>('')
@@ -13,9 +18,8 @@ export function SmsSenderView() {
     { id: number; text: string; listeNom: string; date: string }[]
   >([])
 
-  const allListes = listesRepo.all()
-  const selectedListe = listeId === '' ? null : listesRepo.byId(listeId)
-  const contactCount = selectedListe ? listesRepo.contactsOf(selectedListe.id).length : 0
+  const selectedListe = listeId === '' ? null : allListes.find((liste) => liste.id === listeId) ?? null
+  const contactCount = selectedListe ? listeContacts.filter((link) => link.liste_id === selectedListe.id).length : 0
   const remaining = 160 - text.length
 
   function send() {
@@ -70,7 +74,7 @@ export function SmsSenderView() {
               <option value="">— Sélectionner une liste —</option>
               {allListes.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.nom} ({listesRepo.contactsOf(l.id).length} contacts)
+                  {l.nom} ({listeContacts.filter((link) => link.liste_id === l.id).length} contacts)
                 </option>
               ))}
             </select>

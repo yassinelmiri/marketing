@@ -1,15 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Pencil, ShieldCheck, Trash2, UserPlus, X } from 'lucide-react'
-import {
-  ADMIN_ROLE_ID,
-  SUPER_ADMIN_EMAIL,
-  rolesRepo,
-  usersRepo,
-  type User,
-} from '@/lib/storage'
-import { GRANTABLE_PAGES, type ViewKey } from '@/lib/permissions'
+import { useEffect, useState } from 'react'
+import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, X, Check, LockKeyhole } from 'lucide-react'
+import { ADMIN_ROLE_ID, SUPER_ADMIN_EMAIL, type User, type Role } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
 
@@ -18,352 +11,414 @@ interface AdminUsersViewProps {
   onChange: () => void
 }
 
+type ModulePermission = {
+  code: string
+  label: string
+  description: string
+}
+
+type AdminUser = Pick<User, 'id' | 'prenom' | 'nom' | 'email' | 'telephone' | 'address' | 'role_id' | 'date_creation'> & {
+  permissions: string[]
+}
+
+const MODULE_PERMISSIONS: ModulePermission[] = [
+  { code: 'campagne.read', label: 'Campagnes', description: 'Accéder au module et consulter les campagnes.' },
+  { code: 'listes.read', label: 'Listes & contacts', description: 'Accéder aux listes et aux fiches contacts.' },
+  { code: 'equipe.read', label: 'Équipe', description: 'Consulter l’espace équipe.' },
+  { code: 'whatsapp.access', label: 'Bot WhatsApp', description: 'Accéder au module WhatsApp.' },
+  { code: 'email.access', label: 'Envoi e-mail', description: 'Accéder au module d’envoi e-mail.' },
+  { code: 'sms.access', label: 'Envoi SMS', description: 'Accéder au module d’envoi SMS.' },
+]
+
+const emptyForm = {
+  prenom: '',
+  nom: '',
+  email: '',
+  password: '',
+  telephone: '',
+  address: '',
+  role_id: 3,
+}
+
 export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   const toast = useToast()
-  const users = usersRepo.all()
-  const roles = rolesRepo.all()
-  const [showCreate, setShowCreate] = useState(false)
-  const [editing, setEditing] = useState<User | null>(null)
-  const [form, setForm] = useState({
-    prenom: '',
-    nom: '',
-    email: '',
-    password: '',
-    telephone: '',
-    address: '',
-    role_id: 3,
-    permissions: [] as ViewKey[],
-  })
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [permissionUser, setPermissionUser] = useState<AdminUser | null>(null)
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
+  const [savingPermissions, setSavingPermissions] = useState(false)
+
+  async function loadUsers() {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}: chargement impossible.`)
+
+      const rows = Array.isArray(result.users) ? result.users : []
+      const roleRows = Array.isArray(result.roles) ? result.roles : []
+      setUsers(rows.map((u: AdminUser) => ({
+        ...u,
+        id: Number(u.id),
+        role_id: Number(u.role_id),
+        permissions: Array.isArray(u.permissions) ? u.permissions : [],
+      })))
+      setRoles(roleRows.map((role: Role) => ({ ...role, id: Number(role.id) })))
+      setLoadError(null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Chargement impossible.'
+      setLoadError(message)
+      toast.error('Erreur de chargement des utilisateurs', message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadUsers()
+    // Chargement initial à l'ouverture du module.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function openCreate() {
     setEditing(null)
+    setForm({ ...emptyForm })
+    setShowForm(true)
+  }
+
+  function openEdit(user: AdminUser) {
+    setEditing(user)
     setForm({
-      prenom: '',
-      nom: '',
-      email: '',
+      prenom: user.prenom,
+      nom: user.nom,
+      email: user.email,
       password: '',
-      telephone: '',
-      address: '',
-      role_id: 3,
-      permissions: ['dashboard'],
+      telephone: user.telephone,
+      address: user.address,
+      role_id: user.role_id,
     })
-    setShowCreate(true)
+    setShowForm(true)
   }
 
-  function openEdit(u: User) {
-    setEditing(u)
-    setForm({
-      prenom: u.prenom,
-      nom: u.nom,
-      email: u.email,
-      password: '',
-      telephone: u.telephone,
-      address: u.address,
-      role_id: u.role_id,
-      permissions: [...u.permissions],
-    })
-    setShowCreate(true)
+  function openPermissions(user: AdminUser) {
+    setPermissionUser(user)
+    setSelectedPermissions([...user.permissions])
   }
 
-  function togglePermission(key: ViewKey) {
-    setForm((f) => {
-      const has = f.permissions.includes(key)
-      let next: ViewKey[]
-      if (has) {
-        if (key === 'dashboard') return f
-        next = f.permissions.filter((k) => k !== key)
-      } else {
-        next = [...f.permissions, key]
-      }
-      return { ...f, permissions: next }
-    })
+  function togglePermission(code: string) {
+    setSelectedPermissions((current) =>
+      current.includes(code)
+        ? current.filter((item) => item !== code)
+        : [...current, code],
+    )
   }
 
-  function submit() {
-    if (!form.prenom.trim() || !form.nom.trim() || !form.email.trim()) {
+  async function savePermissions() {
+    if (!permissionUser) return
+    setSavingPermissions(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          id: permissionUser.id,
+          prenom: permissionUser.prenom,
+          nom: permissionUser.nom,
+          email: permissionUser.email,
+          telephone: permissionUser.telephone,
+          address: permissionUser.address,
+          role_id: permissionUser.role_id,
+          permission_codes: selectedPermissions,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? 'Enregistrement des autorisations impossible.')
+      toast.success('Autorisations enregistrées', 'Les accès de cet utilisateur ont été mis à jour.')
+      setPermissionUser(null)
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Échec de mise à jour', error instanceof Error ? error.message : 'Erreur inconnue.')
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
+
+  async function submit() {
+    const prenom = form.prenom.trim()
+    const nom = form.nom.trim()
+    const email = form.email.trim().toLowerCase()
+
+    if (!prenom || !nom || !email) {
       toast.error('Champs requis', 'Prénom, nom et e-mail sont obligatoires.')
       return
     }
-    if (editing) {
-      const patch: Partial<User> = {
-        prenom: form.prenom.trim(),
-        nom: form.nom.trim(),
-        telephone: form.telephone,
-        address: form.address,
-      }
-      if (form.password) patch.password = form.password
-      if (editing.email !== SUPER_ADMIN_EMAIL) patch.permissions = form.permissions
-      const updated = usersRepo.update(editing.id, patch)
-      if (!updated) {
-        toast.error('Échec', 'Impossible de mettre à jour cet utilisateur.')
-        return
-      }
-      toast.success('Utilisateur mis à jour', `${updated.prenom} ${updated.nom}`)
-    } else {
-      if (!form.password || form.password.length < 8) {
-        toast.error('Mot de passe invalide', 'Au moins 8 caractères requis.')
-        return
-      }
-      if (usersRepo.byEmail(form.email)) {
-        toast.error('E-mail déjà utilisé', 'Un compte existe déjà avec cet e-mail.')
-        return
-      }
-      usersRepo.create({
-        prenom: form.prenom.trim(),
-        nom: form.nom.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        telephone: form.telephone,
-        address: form.address,
-        role_id: form.role_id,
-        permissions: form.permissions,
+    if (!editing && form.password.length < 12) {
+      toast.error('Mot de passe invalide', 'Utilisez au moins 12 caractères.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: editing ? 'PATCH' : 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          ...(editing ? { id: editing.id, email } : { email, password: form.password }),
+          prenom,
+          nom,
+          telephone: form.telephone,
+          address: form.address,
+          role_id: form.role_id,
+          ...(editing && form.password ? { password: form.password } : {}),
+        }),
       })
-      toast.success('Utilisateur créé', `${form.prenom} ${form.nom}`)
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? 'Enregistrement impossible.')
+      toast.success(editing ? 'Utilisateur mis à jour' : 'Utilisateur créé')
+      setShowForm(false)
+      setForm({ ...emptyForm })
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Échec', error instanceof Error ? error.message : 'Enregistrement impossible.')
+    } finally {
+      setSaving(false)
     }
-    setShowCreate(false)
-    onChange()
   }
 
-  function changeRole(u: User, roleId: number) {
-    const res = usersRepo.setRole(u.id, roleId)
-    if (!res.ok) {
-      toast.error('Changement refusé', res.error ?? 'Erreur inconnue.')
-      return
+  async function changeRole(user: AdminUser, roleId: number) {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          prenom: user.prenom,
+          nom: user.nom,
+          email: user.email,
+          telephone: user.telephone,
+          address: user.address,
+          role_id: roleId,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}.`)
+      toast.success('Rôle mis à jour')
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Changement refusé', error instanceof Error ? error.message : 'Erreur inconnue.')
     }
-    toast.success('Rôle mis à jour', `${u.prenom} ${u.nom}`)
-    onChange()
   }
 
-  function removeUser(u: User) {
-    if (!confirm(`Supprimer définitivement ${u.prenom} ${u.nom} ?`)) return
-    const res = usersRepo.remove(u.id)
-    if (!res.ok) {
-      toast.error('Suppression refusée', res.error ?? 'Erreur inconnue.')
-      return
+  async function removeUser(user: AdminUser) {
+    if (!confirm(`Supprimer définitivement ${user.prenom} ${user.nom} ?`)) return
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ id: user.id }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}.`)
+      toast.success('Utilisateur supprimé')
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Suppression refusée', error instanceof Error ? error.message : 'Erreur inconnue.')
     }
-    toast.success('Utilisateur supprimé', `${u.prenom} ${u.nom}`)
-    onChange()
-  }
-
-  function quickToggle(u: User, key: ViewKey) {
-    if (u.email === SUPER_ADMIN_EMAIL) return
-    const has = u.permissions.includes(key)
-    const next = has ? u.permissions.filter((k) => k !== key) : [...u.permissions, key]
-    const res = usersRepo.setPermissions(u.id, next)
-    if (!res.ok) {
-      toast.error('Accès refusé', res.error ?? 'Erreur inconnue.')
-      return
-    }
-    toast.success(
-      has ? 'Permission retirée' : 'Permission accordée',
-      `${u.prenom} ${u.nom} · ${key}`,
-    )
-    onChange()
   }
 
   return (
     <section className="workspace-section">
       <div className="workspace-panel">
         <div className="workspace-panel-header">
-          <h2><ShieldCheck aria-hidden="true" /> Administration — Utilisateurs</h2>
+          <div>
+            <h2><ShieldCheck aria-hidden="true" /> Administration — Utilisateurs & accès</h2>
+            <p className="campagne-table-desc">Gérez les comptes, les rôles et les modules accessibles à chaque membre.</p>
+          </div>
           <button type="button" className="workspace-primary" onClick={openCreate}>
             <UserPlus aria-hidden="true" /> Nouvel utilisateur
           </button>
         </div>
-        <div className="campagne-table-wrap">
-          <table className="campagne-table">
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>E-mail</th>
-                <th>Rôle</th>
-                <th>Accès</th>
-                <th>Créé le</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => {
-                const isSuper = u.email === SUPER_ADMIN_EMAIL
-                return (
-                  <tr key={u.id}>
-                    <td>
-                      <strong>{u.prenom} {u.nom}</strong>
-                      {u.id === currentUser.id && (
-                        <span className="campagne-table-desc">vous</span>
-                      )}
-                    </td>
-                    <td>
-                      {u.email}
-                      {isSuper && (
-                        <span className="campagne-table-desc">administrateur principal</span>
-                      )}
-                    </td>
-                    <td>
-                      <select
-                        className="role-select"
-                        value={u.role_id}
-                        disabled={isSuper}
-                        onChange={(e) => changeRole(u, Number(e.target.value))}
-                      >
-                        {roles.map((r) => (
-                          <option key={r.id} value={r.id} disabled={r.id === ADMIN_ROLE_ID && !isSuper}>
-                            {r.nom}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      {isSuper ? (
-                        <span className="permissions-admin-tag">Tous les accès</span>
-                      ) : (
-                        <div className="permissions-checkboxes">
-                          {GRANTABLE_PAGES.map((p) => {
-                            const checked = u.permissions.includes(p.key)
-                            return (
-                              <label
-                                key={p.key}
-                                className={`permission-chip${checked ? ' is-on' : ''}`}
-                                title={p.label}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled={p.key === 'dashboard'}
-                                  onChange={() => quickToggle(u, p.key)}
-                                />
-                                <span>{p.label}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </td>
-                    <td>{formatDate(u.date_creation)}</td>
-                    <td className="campagne-table-actions">
-                      <button type="button" onClick={() => openEdit(u)} aria-label="Modifier">
-                        <Pencil aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() => removeUser(u)}
-                        aria-label="Supprimer"
-                        disabled={isSuper}
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+
+        <div className="workspace-metrics" style={{ marginBottom: 18 }}>
+          <article className="metric-card">
+            <div><span>Comptes utilisateurs</span><strong>{users.length}</strong></div>
+          </article>
+          <article className="metric-card">
+            <div><span>Modules contrôlables</span><strong>{MODULE_PERMISSIONS.length}</strong></div>
+          </article>
+          <article className="metric-card">
+            <div><span>Rôles disponibles</span><strong>{roles.length}</strong></div>
+          </article>
         </div>
+
+        {loading ? (
+          <div className="workspace-empty"><p>Chargement des utilisateurs…</p></div>
+        ) : loadError ? (
+          <div className="workspace-empty">
+            <p>La liste des utilisateurs n’a pas pu être chargée.</p>
+            <p className="campagne-table-desc">{loadError}</p>
+            <button type="button" className="workspace-primary" onClick={() => void loadUsers()}>Réessayer</button>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="workspace-empty">
+            <p>Aucun utilisateur trouvé.</p>
+            <p className="campagne-table-desc">La connexion à l’API fonctionne, mais aucun profil n’est retourné par Supabase.</p>
+          </div>
+        ) : (
+          <div className="campagne-table-wrap">
+            <table className="campagne-table">
+              <thead>
+                <tr><th>Utilisateur</th><th>E-mail</th><th>Rôle</th><th>Modules actifs</th><th>Créé le</th><th aria-label="Actions" /></tr>
+              </thead>
+              <tbody>
+                {users.map((user) => {
+                  const isRoot = user.email.toLowerCase() === SUPER_ADMIN_EMAIL
+                  const isAdmin = user.role_id === ADMIN_ROLE_ID
+                  return (
+                    <tr key={user.id}>
+                      <td>
+                        <strong>{user.prenom} {user.nom}</strong>
+                        {user.id === currentUser.id && <span className="campagne-table-desc">Vous</span>}
+                      </td>
+                      <td>
+                        {user.email}
+                        {isRoot && <span className="campagne-table-desc">Administrateur principal</span>}
+                      </td>
+                      <td>
+                        <select
+                          className="role-select"
+                          value={user.role_id}
+                          disabled={isRoot}
+                          onChange={(event) => void changeRole(user, Number(event.target.value))}
+                          aria-label={`Rôle de ${user.prenom} ${user.nom}`}
+                        >
+                          {roles.map((role) => (
+                            <option key={role.id} value={role.id} disabled={role.id === ADMIN_ROLE_ID && !isRoot}>
+                              {role.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        {isAdmin ? (
+                          <span className="campagne-table-desc">Tous les modules</span>
+                        ) : (
+                          <span className="campagne-table-desc">{user.permissions.length} / {MODULE_PERMISSIONS.length} autorisés</span>
+                        )}
+                      </td>
+                      <td>{formatDate(user.date_creation)}</td>
+                      <td className="campagne-table-actions">
+                        {!isAdmin && (
+                          <button type="button" onClick={() => openPermissions(user)} aria-label="Gérer les autorisations" title="Gérer les autorisations">
+                            <KeyRound aria-hidden="true" />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => openEdit(user)} aria-label="Modifier" disabled={isRoot}>
+                          <Pencil aria-hidden="true" />
+                        </button>
+                        <button type="button" className="danger" onClick={() => void removeUser(user)} aria-label="Supprimer" disabled={isRoot || user.id === currentUser.id}>
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {showCreate && (
-        <div className="workspace-modal-backdrop" onClick={() => setShowCreate(false)}>
-          <div
-            className="workspace-modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {permissionUser && (
+        <div className="workspace-modal-backdrop" onClick={() => !savingPermissions && setPermissionUser(null)}>
+          <div className="workspace-modal" role="dialog" aria-modal="true" aria-labelledby="permission-dialog-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <h3 id="permission-dialog-title"><LockKeyhole aria-hidden="true" /> Autorisations d’accès</h3>
+                <p className="campagne-table-desc">{permissionUser.prenom} {permissionUser.nom} · {permissionUser.email}</p>
+              </div>
+              <button type="button" className="workspace-icon-button" onClick={() => setPermissionUser(null)} aria-label="Fermer" disabled={savingPermissions}><X aria-hidden="true" /></button>
+            </header>
+            <div className="workspace-modal-body">
+              <div className="permissions-modal-toolbar">
+                <p className="form-hint">Activez uniquement les modules nécessaires à cet utilisateur.</p>
+                <button type="button" className="workspace-secondary" onClick={() => setSelectedPermissions(MODULE_PERMISSIONS.map((item) => item.code))}>Tout autoriser</button>
+              </div>
+              <div className="permissions-modal-list">
+                {MODULE_PERMISSIONS.map((permission) => {
+                  const checked = selectedPermissions.includes(permission.code)
+                  return (
+                    <label key={permission.code} className={`permissions-modal-option${checked ? ' is-selected' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => togglePermission(permission.code)} />
+                      <span className="permissions-modal-copy">
+                        <strong>{permission.label}{checked && <Check size={15} aria-hidden="true" />}</strong>
+                        <span>{permission.description}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="form-hint">Les choix enregistrés remplacent les autorisations héritées du rôle pour ces modules. Le compte administrateur principal reste protégé.</p>
+            </div>
+            <footer>
+              <button type="button" className="workspace-secondary" onClick={() => setPermissionUser(null)} disabled={savingPermissions}>Annuler</button>
+              <button type="button" className="workspace-primary" onClick={() => void savePermissions()} disabled={savingPermissions}>
+                {savingPermissions ? 'Enregistrement…' : 'Enregistrer les accès'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="workspace-modal-backdrop" onClick={() => !saving && setShowForm(false)}>
+          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
             <header>
               <h3>{editing ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}</h3>
-              <button
-                type="button"
-                className="workspace-icon-button"
-                onClick={() => setShowCreate(false)}
-                aria-label="Fermer"
-              >
-                <X aria-hidden="true" />
-              </button>
+              <button type="button" className="workspace-icon-button" onClick={() => setShowForm(false)} aria-label="Fermer" disabled={saving}><X aria-hidden="true" /></button>
             </header>
             <div className="workspace-modal-body">
               <div className="form-grid">
-                <label>
-                  <span>Prénom</span>
-                  <input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} />
-                </label>
-                <label>
-                  <span>Nom</span>
-                  <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
-                </label>
+                <label><span>Prénom</span><input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} /></label>
+                <label><span>Nom</span><input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} /></label>
+                <label className="form-grid-full"><span>E-mail</span><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
                 <label className="form-grid-full">
-                  <span>E-mail</span>
-                  <input
-                    type="email"
-                    value={form.email}
-                    disabled={!!editing}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
+                  <span>{editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe temporaire (12 caractères minimum)'}</span>
+                  <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 </label>
-                <label>
-                  <span>{editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe'}</span>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>Rôle</span>
-                  <select
-                    value={form.role_id}
-                    disabled={!!editing && editing.email === SUPER_ADMIN_EMAIL}
-                    onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}
-                  >
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id} disabled={r.id === ADMIN_ROLE_ID}>
-                        {r.nom}
-                      </option>
-                    ))}
+                <label><span>Rôle</span>
+                  <select value={form.role_id} disabled={!!editing && editing.email === SUPER_ADMIN_EMAIL} onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}>
+                    {roles.filter((role) => role.id !== ADMIN_ROLE_ID).map((role) => <option key={role.id} value={role.id}>{role.nom}</option>)}
                   </select>
                 </label>
-                <label>
-                  <span>Téléphone</span>
-                  <input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />
-                </label>
-                <label className="form-grid-full">
-                  <span>Adresse</span>
-                  <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-                </label>
-                <div className="form-grid-full">
-                  <span style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 8 }}>
-                    Pages autorisées
-                  </span>
-                  <div className="permissions-grid">
-                    {GRANTABLE_PAGES.map((p) => {
-                      const checked = form.permissions.includes(p.key)
-                      const locked = p.key === 'dashboard'
-                      return (
-                        <label
-                          key={p.key}
-                          className={`permission-card${checked ? ' is-on' : ''}${locked ? ' is-locked' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={locked}
-                            onChange={() => togglePermission(p.key)}
-                          />
-                          <span>{p.label}</span>
-                          {locked && <em>(toujours)</em>}
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
+                <label><span>Téléphone</span><input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></label>
+                <label className="form-grid-full"><span>Adresse</span><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
               </div>
+              <p className="form-hint">Après création, ouvrez « Gérer les autorisations » pour choisir les modules accessibles. Le mot de passe n’est jamais enregistré dans la base applicative.</p>
             </div>
             <footer>
-              <button type="button" className="workspace-secondary" onClick={() => setShowCreate(false)}>
-                Annuler
-              </button>
-              <button type="button" className="workspace-primary" onClick={submit}>
-                {editing ? 'Enregistrer' : 'Créer l’utilisateur'}
+              <button type="button" className="workspace-secondary" onClick={() => setShowForm(false)} disabled={saving}>Annuler</button>
+              <button type="button" className="workspace-primary" onClick={() => void submit()} disabled={saving}>
+                {saving ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer l’utilisateur'}
               </button>
             </footer>
           </div>

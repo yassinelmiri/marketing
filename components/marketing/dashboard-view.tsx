@@ -9,32 +9,37 @@ import {
   MessageCircle,
   Pencil,
   X,
+  UsersRound,
+  ContactRound,
+  ListChecks,
 } from 'lucide-react'
 import {
-  typeCampagnesRepo,
-  usersRepo,
   type Campagne,
   type Commentaire,
   type User,
+  type TypeCampagne,
 } from '@/lib/storage'
-import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
 
 interface DashboardViewProps {
   user: User
-  stats: { total: number; enCours: number; terminees: number; brouillons: number }
+  stats: { total: number; enCours: number; terminees: number; brouillons: number; listes: number; contacts: number; membres: number }
   campagnes: Campagne[]
   commentaires: Commentaire[]
+  typesCampagnes: TypeCampagne[]
+  teamUsers: User[]
   onAddComment: (campagneId: number, contenu: string) => void
 }
 
 export function DashboardView({
+  user,
   stats,
   campagnes,
   commentaires,
+  typesCampagnes,
+  teamUsers,
   onAddComment,
 }: DashboardViewProps) {
-  const toast = useToast()
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -50,7 +55,15 @@ export function DashboardView({
   )
 
   return (
-    <section className="workspace-section">
+    <section className="workspace-section dashboard-page">
+      <div className="dashboard-welcome">
+        <div>
+          <span className="settings-eyebrow">VOTRE ESPACE DE PILOTAGE</span>
+          <h2>Bonjour {user.prenom} 👋</h2>
+          <p>Voici un aperçu de votre activité et de vos dernières opérations.</p>
+        </div>
+        <div className="dashboard-date-chip"><CalendarDays aria-hidden="true" /> Espace de travail</div>
+      </div>
       <div className="workspace-metrics">
         <article className="metric-card">
           <span className="metric-icon"><BarChart3 aria-hidden="true" /></span>
@@ -70,6 +83,12 @@ export function DashboardView({
         </article>
       </div>
 
+      <div className="dashboard-secondary-metrics">
+        <article><span className="dashboard-secondary-icon"><ListChecks aria-hidden="true" /></span><div><strong>{stats.listes}</strong><span>Listes</span></div></article>
+        <article><span className="dashboard-secondary-icon"><ContactRound aria-hidden="true" /></span><div><strong>{stats.contacts}</strong><span>Contacts</span></div></article>
+        <article><span className="dashboard-secondary-icon"><UsersRound aria-hidden="true" /></span><div><strong>{stats.membres}</strong><span>Membres visibles</span></div></article>
+      </div>
+
       <div className="workspace-panels">
         <div className="workspace-panel">
           <div className="workspace-panel-header">
@@ -85,7 +104,7 @@ export function DashboardView({
           ) : (
             <ul className="campagne-list">
               {recent.map((c) => {
-                const type = typeCampagnesRepo.byId(c.type_campagne_id)
+                const type = typesCampagnes.find((item) => item.id === c.type_campagne_id)
                 return (
                   <li key={c.id}>
                     <button
@@ -145,7 +164,7 @@ export function DashboardView({
               <dl className="campagne-detail-grid">
                 <div>
                   <dt>Type</dt>
-                  <dd>{typeCampagnesRepo.byId(selectedCampagne.type_campagne_id)?.nom ?? '—'}</dd>
+                  <dd>{typesCampagnes.find((item) => item.id === selectedCampagne.type_campagne_id)?.nom ?? '—'}</dd>
                 </div>
                 <div><dt>Créée le</dt><dd>{formatDate(selectedCampagne.date_creation)}</dd></div>
                 <div><dt>Cible</dt><dd>{selectedCampagne.cible || '—'}</dd></div>
@@ -159,7 +178,7 @@ export function DashboardView({
                 ) : (
                   <ul>
                     {selectedComments.map((cm) => {
-                      const author = usersRepo.byId(cm.user_id)
+                      const author = teamUsers.find((item) => item.id === cm.user_id)
                       return (
                         <li key={cm.id}>
                           <div className="comment-meta">

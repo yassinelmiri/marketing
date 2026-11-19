@@ -1,11 +1,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // TypeScript
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
+  poweredByHeader: false,
   // Images
   images: {
     unoptimized: true,
@@ -47,6 +43,10 @@ const nextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on',
+          },
+          {
+            key: 'X-Permitted-Cross-Domain-Policies',
+            value: 'none',
           },
         ],
       },

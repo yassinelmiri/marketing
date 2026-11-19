@@ -1,6 +1,8 @@
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   BarChart3,
   ChevronDown,
@@ -13,6 +15,10 @@ import {
   Smartphone,
   Users,
   UsersRound,
+  ListTodo,
+  MessagesSquare,
+  Sun,
+  Moon,
 } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
@@ -23,23 +29,36 @@ import { AdminUsersView } from './admin-users-view'
 import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
+import { SettingsView } from './settings-view'
+import { NotificationBell } from './notification-bell'
+import { TasksView } from './tasks-view'
+import { TeamChatView } from './team-chat-view'
 
 import {
-  campagnesRepo,
-  commentairesRepo,
-  contactsRepo,
-  listesRepo,
-  logoutUser,
-  rolesRepo,
-  sessionRepo,
-  usersRepo,
   type Campagne,
   type Commentaire,
   type Contact,
   type ListeContact,
+  type TypeCampagne,
+  type Role,
+  type ListeContactContact,
   type User,
 } from '@/lib/storage'
-import { GRANTABLE_PAGES, type ViewKey } from '@/lib/permissions'
+import {
+  loadMarketingData,
+  createCampagne,
+  updateCampagne,
+  deleteCampagne,
+  setCampagneListes,
+  addCampagneComment,
+} from '@/lib/supabase/marketing-data'
+
+import {
+  GRANTABLE_PAGES,
+  type ViewKey,
+} from '@/lib/permissions'
+
+import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 
 type NavigationItem = {
@@ -49,162 +68,604 @@ type NavigationItem = {
   adminOnly?: boolean
 }
 
+type WorkspaceProfile = {
+  id: number | string
+  prenom: string | null
+  nom: string | null
+  email: string | null
+  telephone: string | null
+  address: string | null
+  role_id: number | string
+}
+
 const NAV_ITEMS: NavigationItem[] = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
   { key: 'equipe', label: 'Équipe', icon: UsersRound },
+  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
+  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
-  { key: 'admin-users', label: 'Utilisateurs', icon: ShieldCheck, adminOnly: true },
-  { key: 'settings', label: 'Paramètres', icon: Settings, adminOnly: true },
+  { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
+  { key: 'settings', label: 'Paramètres', icon: Settings },
 ]
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Tableau de bord', subtitle: 'Vue d’ensemble des campagnes.' },
-  campagnes: { title: 'Campagnes', subtitle: 'Créez et suivez vos campagnes multicanal.' },
-  listes: { title: 'Listes & contacts', subtitle: 'Organisez vos contacts par liste.' },
-  equipe: { title: 'Équipe', subtitle: 'Membres de votre espace.' },
-  whatsapp: { title: 'Bot WhatsApp', subtitle: 'Simulation d’envoi WhatsApp.' },
-  email: { title: 'Envoi e-mail', subtitle: 'Simulation d’envoi e-mail.' },
-  sms: { title: 'Envoi SMS', subtitle: 'Simulation d’envoi SMS.' },
-  'admin-users': { title: 'Administration', subtitle: 'Utilisateurs et permissions.' },
-  settings: { title: 'Paramètres', subtitle: 'Configuration de l’espace.' },
+  dashboard: {
+    title: 'Tableau de bord',
+    subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
+  },
+  campagnes: {
+    title: 'Campagnes',
+    subtitle: 'Créez vos campagnes, associez vos listes de contacts et suivez leur avancement.',
+  },
+  listes: {
+    title: 'Listes & contacts',
+    subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
+  },
+  equipe: {
+    title: 'Équipe',
+    subtitle: 'Consultez les membres de l’équipe et identifiez clairement leur rôle.',
+  },
+  tasks: {
+    title: 'Gestion des tâches',
+    subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
+  },
+  chat: {
+    title: 'Chat d’équipe',
+    subtitle: 'Discutez avec votre équipe et partagez des fichiers dans un espace commun.',
+  },
+  whatsapp: {
+    title: 'Bot WhatsApp',
+    subtitle: 'Accédez à l’espace de gestion des envois WhatsApp.',
+  },
+  email: {
+    title: 'Envoi e-mail',
+    subtitle: 'Configurez vos expéditeurs, choisissez une liste et consultez l’historique des envois.',
+  },
+  sms: {
+    title: 'Envoi SMS',
+    subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
+  },
+  'admin-users': {
+    title: 'Administration',
+    subtitle: 'Gérez les comptes utilisateurs, attribuez les rôles et contrôlez les accès à chaque module.',
+  },
+  settings: {
+    title: 'Paramètres',
+    subtitle: 'Mettez à jour votre profil et modifiez votre mot de passe en toute sécurité.',
+  },
 }
 
 export function MarketingWorkspace() {
+  const router = useRouter()
   const toast = useToast()
+
+  const supabase = useMemo(() => createClient(), [])
+
   const [mounted, setMounted] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
+
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [roleName, setRoleName] = useState('Membre')
 
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [version, setVersion] = useState(0)
+  const [campagnes, setCampagnes] = useState<Campagne[]>([])
+  const [commentaires, setCommentaires] = useState<Commentaire[]>([])
+  const [listes, setListes] = useState<ListeContact[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
+  const [campagneListes, setCampagneListes] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
+  const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
+  const [teamRoles, setTeamRoles] = useState<Role[]>([])
+  const [teamUsers, setTeamUsers] = useState<User[]>([])
+
+  // ============================================================
+  // INITIALISATION
+  // ============================================================
 
   useEffect(() => {
     setMounted(true)
+    try {
+      const savedTheme = window.localStorage.getItem('anntel-workspace-theme')
+      if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme)
+    } catch {
+      // Le thème reste utilisable même si le stockage local est indisponible.
+    }
   }, [])
 
-  function refresh() {
-    setVersion((v) => v + 1)
+  useEffect(() => {
+    if (!mounted) return
+    document.documentElement.dataset.workspaceTheme = theme
+    try {
+      window.localStorage.setItem('anntel-workspace-theme', theme)
+    } catch {
+      // Le changement de thème reste actif pour la session courante.
+    }
+  }, [theme, mounted])
+
+  function toggleTheme() {
+    setTheme((current) => current === 'dark' ? 'light' : 'dark')
   }
 
-  const currentUser = useMemo<User | null>(() => {
-    void version
-    if (!mounted) return null
-    return sessionRepo.currentUser()
-  }, [version, mounted])
+  // ============================================================
+  // SUPABASE AUTH + USER PROFILE
+  // ============================================================
 
-  const campagnes = useMemo<Campagne[]>(() => {
-    void version
-    if (!mounted) return []
-    return campagnesRepo.all()
-  }, [version, mounted])
+  useEffect(() => {
+    let active = true
 
-  const commentaires = useMemo<Commentaire[]>(() => {
-    void version
-    if (!mounted) return []
-    return commentairesRepo.all()
-  }, [version, mounted])
+    async function loadWorkspaceUser(
+      authUser: { id: string; email?: string },
+    ) {
+      try {
+        setAuthError(null)
 
-  const listes = useMemo<ListeContact[]>(() => {
-    void version
-    if (!mounted) return []
-    return listesRepo.all()
-  }, [version, mounted])
+        // 1. Récupérer le profil lié à l'utilisateur Supabase.
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select(
+            'id, prenom, nom, email, telephone, address, role_id',
+          )
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle()
 
-  const contacts = useMemo<Contact[]>(() => {
-    void version
-    if (!mounted) return []
-    return contactsRepo.all()
-  }, [version, mounted])
+        if (profileError) throw profileError
+
+        if (!profile) {
+          throw new Error(
+            'Profil utilisateur introuvable dans user_profiles.',
+          )
+        }
+
+        const typedProfile = profile as WorkspaceProfile
+        const roleId = Number(typedProfile.role_id)
+
+        // 2. Récupérer le nom du rôle.
+        const { data: role, error: roleError } = await supabase
+          .from('roles')
+          .select('nom')
+          .eq('id', roleId)
+          .maybeSingle()
+
+        if (roleError) throw roleError
+
+        // 3. Charger les permissions héritées du rôle et les dérogations individuelles.
+        const { data: roleLinks, error: linksError } = await supabase
+          .from('role_permissions')
+          .select('permission_id')
+          .eq('role_id', roleId)
+
+        if (linksError) throw linksError
+
+        const { data: userLinks, error: userLinksError } = await supabase
+          .from('user_permissions')
+          .select('permission_id, granted')
+          .eq('user_id', Number(typedProfile.id))
+
+        if (userLinksError) throw userLinksError
+
+        const permissionIds = Array.from(new Set([
+          ...(roleLinks ?? []).map((item) => Number(item.permission_id)),
+          ...(userLinks ?? []).map((item) => Number(item.permission_id)),
+        ]))
+
+        let effectivePermissionCodes: string[] = []
+
+        if (permissionIds.length > 0) {
+          const { data: permissions, error: permissionsError } = await supabase
+            .from('permissions')
+            .select('id, code')
+            .in('id', permissionIds)
+
+          if (permissionsError) throw permissionsError
+
+          const inheritedIds = new Set((roleLinks ?? []).map((item) => Number(item.permission_id)))
+          const overrides = new Map((userLinks ?? []).map((item) => [Number(item.permission_id), Boolean(item.granted)]))
+          effectivePermissionCodes = (permissions ?? [])
+            .filter((permission) => {
+              const permissionId = Number(permission.id)
+              return overrides.has(permissionId)
+                ? overrides.get(permissionId) === true
+                : inheritedIds.has(permissionId)
+            })
+            .map((permission) => permission.code)
+        }
+
+        if (!active) return
+
+        // 4. Transformer les codes DB en pages accessibles.
+        const isAdmin = roleId === 1
+        const permissionToPage: Record<string, ViewKey> = {
+          'campagne.read': 'campagnes',
+          'listes.read': 'listes',
+          'equipe.read': 'equipe',
+          'whatsapp.access': 'whatsapp',
+          'email.access': 'email',
+          'sms.access': 'sms',
+        }
+
+        // Aucun accès métier par défaut : seuls les modules explicitement autorisés sont affichés.
+        const pagePermissions = new Set<ViewKey>(
+          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : ['dashboard'],
+        )
+
+        if (!isAdmin) {
+          for (const code of effectivePermissionCodes) {
+            const page = permissionToPage[code]
+            if (page) pagePermissions.add(page)
+          }
+        }
+
+        // Le tableau de bord et les paramètres personnels restent accessibles à tout compte connecté.
+        pagePermissions.add('dashboard')
+        pagePermissions.add('settings')
+
+        // 5. Construire le User attendu par les composants existants.
+        // Le mot de passe n'est jamais récupéré depuis Supabase.
+        const workspaceUser: User = {
+          id: Number(typedProfile.id),
+          prenom: typedProfile.prenom ?? '',
+          nom: typedProfile.nom ?? '',
+          email: authUser.email ?? typedProfile.email ?? '',
+          telephone: typedProfile.telephone ?? '',
+          address: typedProfile.address ?? '',
+          role_id: roleId,
+          date_creation: new Date().toISOString(),
+          date_dernier_login: null,
+          ip_address: null,
+          permissions: Array.from(new Set([...pagePermissions, 'tasks', 'chat'] as ViewKey[])),
+        }
+
+        setCurrentUser(workspaceUser)
+        setRoleName(role?.nom ?? 'Membre')
+        setAuthError(null)
+      } catch (error) {
+        console.error('[Workspace] Erreur Supabase:', error)
+
+        if (!active) return
+
+        setCurrentUser(null)
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : 'Impossible de charger votre profil.',
+        )
+      } finally {
+        if (active) setAuthLoading(false)
+      }
+    }
+
+    async function initializeAuth() {
+      const { data, error } = await supabase.auth.getUser()
+
+      if (!active) return
+
+      if (error || !data.user) {
+        setCurrentUser(null)
+        setAuthLoading(false)
+        router.replace('/login')
+        return
+      }
+
+      await loadWorkspaceUser({
+        id: data.user.id,
+        email: data.user.email,
+      })
+    }
+
+    void initializeAuth()
+
+    // Garder le Workspace synchronisé avec les changements de session.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return
+
+      if (event === 'SIGNED_OUT' || !session?.user) {
+        setCurrentUser(null)
+        setAuthLoading(false)
+        router.replace('/login')
+        return
+      }
+
+      if (
+        event === 'SIGNED_IN' ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'USER_UPDATED'
+      ) {
+        setAuthLoading(true)
+
+        void loadWorkspaceUser({
+          id: session.user.id,
+          email: session.user.email,
+        })
+      }
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [supabase, router])
+
+  // ============================================================
+  // DONNÉES MÉTIER — SUPABASE UNIQUEMENT
+  // ============================================================
+
+  async function refresh() {
+    if (!currentUser) return
+    try {
+      const result = await loadMarketingData()
+      setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
+      setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
+      setListes(Array.isArray(result.listes) ? result.listes : [])
+      setContacts(Array.isArray(result.contacts) ? result.contacts : [])
+      setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
+      setCampagneListes(Array.isArray(result.campagneListes) ? result.campagneListes : [])
+      setListeContacts(Array.isArray(result.listeContacts) ? result.listeContacts : [])
+      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
+      if (rolesError) throw rolesError
+      setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
+
+      // Les membres ne voient que leur propre profil; seul l'admin charge toute l'équipe.
+      let membersQuery = supabase
+        .from('user_profiles')
+        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+        .order('date_creation', { ascending: false })
+      if (currentUser.role_id !== 1) {
+        const { data: authData, error: authError } = await supabase.auth.getUser()
+        if (authError || !authData.user) throw authError ?? new Error('Session expirée.')
+        membersQuery = membersQuery.eq('auth_user_id', authData.user.id)
+      }
+      const { data: members, error } = await membersQuery
+      if (error) throw error
+      setTeamUsers((members ?? []).map((member) => ({
+        id: Number(member.id),
+        prenom: member.prenom ?? '',
+        nom: member.nom ?? '',
+        email: member.email ?? '',
+        telephone: member.telephone ?? '',
+        address: member.address ?? '',
+        role_id: Number(member.role_id ?? 3),
+        date_creation: member.date_creation,
+        date_dernier_login: null,
+        ip_address: null,
+        permissions: [],
+      })))
+    } catch (error) {
+      toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
+    } finally {
+    }
+  }
+
+  useEffect(() => {
+    if (currentUser) void refresh()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id])
+
+  // ============================================================
+  // STATISTIQUES
+  // ============================================================
 
   const stats = useMemo(() => {
     const total = campagnes.length
-    const enCours = campagnes.filter((c) => c.status === 'en_cours').length
-    const terminees = campagnes.filter((c) => c.status === 'terminee').length
-    const brouillons = campagnes.filter((c) => c.status === 'brouillon').length
-    return { total, enCours, terminees, brouillons }
-  }, [campagnes])
+    const enCours = campagnes.filter(
+      (campagne) => campagne.status === 'en_cours',
+    ).length
+    const terminees = campagnes.filter(
+      (campagne) => campagne.status === 'terminee',
+    ).length
+    const brouillons = campagnes.filter(
+      (campagne) => campagne.status === 'brouillon',
+    ).length
+
+    return { total, enCours, terminees, brouillons, listes: listes.length, contacts: contacts.length, membres: teamUsers.length }
+  }, [campagnes, listes.length, contacts.length, teamUsers.length])
+
+  // ============================================================
+  // NAVIGATION & PERMISSIONS
+  // ============================================================
+
+  const isAdmin = currentUser?.role_id === 1
 
   const visibleNav = useMemo(() => {
-    if (!currentUser) return NAV_ITEMS
-    const isSuper = usersRepo.isAdmin(currentUser)
+    if (!currentUser) return []
+
     return NAV_ITEMS.filter((item) => {
-      if (isSuper) return true
+      if (isAdmin) return true
+
       if (item.adminOnly) return false
-      if (item.key === 'listes') return currentUser.permissions.includes('campagnes')
+
       return currentUser.permissions.includes(item.key as ViewKey)
     })
-  }, [currentUser])
+  }, [currentUser, isAdmin])
+
+  // Si l'utilisateur n'a plus accès à une page, revenir au dashboard.
+  useEffect(() => {
+    if (!currentUser) return
+
+    const allowed = visibleNav.some(
+      (item) => item.key === activeView,
+    )
+
+    if (!allowed) {
+      setActiveView('dashboard')
+    }
+  }, [currentUser, visibleNav, activeView])
 
   const currentPage = PAGE_TITLES[activeView] ?? PAGE_TITLES.dashboard
-  const userRole = currentUser ? rolesRepo.byId(currentUser.role_id) : null
-  const userName = currentUser ? `${currentUser.prenom} ${currentUser.nom}`.trim() : 'Invité'
 
-  // ── Campagnes ─────────────────────────────────────────
-  function handleCreateCampagne(
+  const userName = currentUser
+    ? `${currentUser.prenom} ${currentUser.nom}`.trim()
+    : 'Invité'
+
+  // ============================================================
+  // CAMPAGNES
+  // ============================================================
+
+  async function handleCreateCampagne(
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
-  ): Campagne | null {
+  ): Promise<Campagne | null> {
     if (!currentUser) return null
-    const created = campagnesRepo.create({ ...data, user_id: currentUser.id })
-    refresh()
-    return created
+    try {
+      const created = await createCampagne({ ...data, user_id: currentUser.id })
+      await refresh()
+      return created
+    } catch (error) {
+      toast.error('Création impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+      return null
+    }
   }
 
-  function handleUpdateCampagne(
+  async function handleUpdateCampagne(
     id: number,
-    patch: Partial<Omit<Campagne, 'id' | 'user_id' | 'date_creation'>>,
+    patch: Partial<Pick<Campagne, 'type_campagne_id' | 'titre' | 'cible' | 'note' | 'status'>>,
   ) {
-    campagnesRepo.update(id, patch)
-    refresh()
-  }
-
-  function handleDeleteCampagne(id: number) {
-    campagnesRepo.remove(id)
-    refresh()
-  }
-
-  function handleSetCampagneListes(campagneId: number, listeIds: number[]) {
-    const current = campagnesRepo.listesOf(campagneId).map((l) => l.id)
-    for (const id of current) {
-      if (!listeIds.includes(id)) campagnesRepo.detachListe(campagneId, id)
+    try {
+      await updateCampagne(id, patch)
+      await refresh()
+    } catch (error) {
+      toast.error('Modification impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
     }
-    for (const id of listeIds) {
-      if (!current.includes(id)) campagnesRepo.attachListe(campagneId, id)
-    }
-    refresh()
   }
 
-  function handleAddComment(campagneId: number, contenu: string) {
+  async function handleDeleteCampagne(id: number) {
+    try {
+      await deleteCampagne(id)
+      await refresh()
+    } catch (error) {
+      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
+  async function handleSetCampagneListes(campagneId: number, listeIds: number[]) {
+    try {
+      await setCampagneListes(campagneId, listeIds)
+      await refresh()
+    } catch (error) {
+      toast.error('Affectation impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
+  async function handleAddComment(campagneId: number, contenu: string) {
     if (!currentUser) return
-    commentairesRepo.create({ campagne_id: campagneId, user_id: currentUser.id, contenu })
-    refresh()
+    try {
+      await addCampagneComment(campagneId, currentUser.id, contenu)
+      await refresh()
+    } catch (error) {
+      toast.error('Commentaire non publié', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
   }
 
-  function handleLogout() {
-    logoutUser()
-    toast.info('Déconnexion', 'Vous êtes déconnecté.')
-    window.location.href = '/login'
+  // ============================================================
+  // DÉCONNEXION SUPABASE
+  // ============================================================
+
+  async function handleLogout() {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('[Workspace] Erreur déconnexion:', error)
+
+      toast.error(
+        'Déconnexion impossible',
+        error.message,
+      )
+
+      return
+    }
+
+    setCurrentUser(null)
+
+    toast.info(
+      'Déconnexion',
+      'Vous êtes déconnecté.',
+    )
+
+    router.replace('/login')
   }
 
-  if (!mounted) {
+  // ============================================================
+  // ÉTATS DE CHARGEMENT
+  // ============================================================
+
+  if (!mounted || authLoading) {
     return (
       <div className="workspace-root">
         <aside className="workspace-sidebar">
           <div className="workspace-brand">
-            <span className="workspace-brand-mark"><span /><span /></span>
-            <span className="workspace-brand-name">anntel<span>marketing</span></span>
+            <span className="workspace-brand-mark">
+              <span />
+              <span />
+            </span>
+
+            <span className="workspace-brand-name">
+              anntel<span>marketing</span>
+            </span>
           </div>
         </aside>
+
         <main className="workspace-main">
           <div className="workspace-content">
-            <p style={{ padding: '2rem', color: '#64748b' }}>Chargement de l’espace…</p>
+            <p style={{ padding: '2rem', color: '#64748b' }}>
+              Chargement de votre espace…
+            </p>
           </div>
         </main>
       </div>
     )
   }
+
+  // ============================================================
+  // ERREUR DE PROFIL
+  // ============================================================
+
+  if (authError || !currentUser) {
+    return (
+      <div className="workspace-root">
+        <main
+          className="workspace-main"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+          }}
+        >
+          <div
+            className="workspace-panel"
+            style={{ maxWidth: '520px', width: '100%', padding: '2rem' }}
+          >
+            <h2>Impossible de charger votre espace</h2>
+
+            <p style={{ color: '#64748b', marginTop: '1rem' }}>
+              {authError ?? 'Utilisateur non connecté.'}
+            </p>
+
+            <button
+              type="button"
+              className="workspace-logout"
+              style={{ marginTop: '1.5rem' }}
+              onClick={handleLogout}
+            >
+              <LogOut aria-hidden="true" />
+              <span>Se déconnecter</span>
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ============================================================
+  // WORKSPACE
+  // ============================================================
 
   return (
     <div className="workspace-root">
@@ -217,28 +678,42 @@ export function MarketingWorkspace() {
         />
       )}
 
-      <aside className={`workspace-sidebar${mobileNavOpen ? ' is-open' : ''}`}>
+      <aside
+        className={`workspace-sidebar${mobileNavOpen ? ' is-open' : ''}`}
+      >
         <div className="workspace-brand">
-          <span className="workspace-brand-mark"><span /><span /></span>
-          <span className="workspace-brand-name">anntel<span>marketing</span></span>
+          <span className="workspace-brand-mark">
+            <span />
+            <span />
+          </span>
+
+          <span className="workspace-brand-name">
+            anntel<span>marketing</span>
+          </span>
         </div>
 
         <div className="workspace-user">
           <span className="workspace-user-avatar">
-            {currentUser?.prenom?.charAt(0).toUpperCase() ?? '?'}
-            {currentUser?.nom?.charAt(0).toUpperCase() ?? ''}
+            {currentUser.prenom?.charAt(0).toUpperCase() ?? '?'}
+            {currentUser.nom?.charAt(0).toUpperCase() ?? ''}
           </span>
+
           <div>
             <strong>{userName}</strong>
-            <span>{userRole?.nom ?? 'Membre'}</span>
+            <span>{roleName}</span>
           </div>
+
           <ChevronDown aria-hidden="true" />
         </div>
 
-        <nav className="workspace-nav" aria-label="Navigation principale">
+        <nav
+          className="workspace-nav"
+          aria-label="Navigation principale"
+        >
           {visibleNav.map((item) => {
             const Icon = item.icon
             const active = activeView === item.key
+
             return (
               <button
                 key={item.key}
@@ -258,7 +733,11 @@ export function MarketingWorkspace() {
         </nav>
 
         <div className="workspace-sidebar-footer">
-          <button type="button" className="workspace-logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="workspace-logout"
+            onClick={handleLogout}
+          >
             <LogOut aria-hidden="true" />
             <span>Se déconnecter</span>
           </button>
@@ -272,21 +751,38 @@ export function MarketingWorkspace() {
               type="button"
               className="workspace-menu-toggle"
               aria-label="Ouvrir la navigation"
-              onClick={() => setMobileNavOpen((v) => !v)}
+              onClick={() => setMobileNavOpen((value) => !value)}
             >
               <LayoutDashboard aria-hidden="true" />
             </button>
+
             <div>
               <h1>{currentPage.title}</h1>
               <p>{currentPage.subtitle}</p>
             </div>
           </div>
+          <div className="workspace-topbar-actions">
+            <button
+              type="button"
+              className="workspace-theme-toggle"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              title={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
+            >
+              {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+              <span>{theme === 'dark' ? 'Clair' : 'Sombre'}</span>
+            </button>
+            <NotificationBell userId={currentUser.id} />
+            <div className="workspace-topbar-user"><span>{userName}</span><small>{roleName}</small></div>
+          </div>
         </header>
 
         <div className="workspace-content">
-          {activeView === 'dashboard' && currentUser && (
+          {activeView === 'dashboard' && (
             <DashboardView
               user={currentUser}
+              typesCampagnes={typesCampagnes}
+              teamUsers={teamUsers}
               stats={stats}
               campagnes={campagnes}
               commentaires={commentaires}
@@ -294,10 +790,15 @@ export function MarketingWorkspace() {
             />
           )}
 
-          {activeView === 'campagnes' && currentUser && (
+          {activeView === 'campagnes' && (
             <CampagnesView
               user={currentUser}
               campagnes={campagnes}
+              listes={listes}
+              contacts={contacts}
+              typesCampagnes={typesCampagnes}
+              campagneListes={campagneListes}
+              listeContacts={listeContacts}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
@@ -306,44 +807,44 @@ export function MarketingWorkspace() {
             />
           )}
 
-          {activeView === 'listes' && currentUser && (
+          {activeView === 'listes' && (
             <ListesView
               user={currentUser}
               listes={listes}
               contacts={contacts}
+              campagnes={campagnes}
+              campagneListes={campagneListes}
+              listeContacts={listeContacts}
+              teamUsers={teamUsers}
               onRefresh={refresh}
             />
           )}
 
-          {activeView === 'equipe' && currentUser && <EquipeView user={currentUser} />}
-          {activeView === 'whatsapp' && <WhatsAppBotView />}
-          {activeView === 'email' && <EmailSenderView />}
-          {activeView === 'sms' && <SmsSenderView />}
-
-          {activeView === 'admin-users' && currentUser && (
-            <AdminUsersView currentUser={currentUser} onChange={refresh} />
+          {activeView === 'equipe' && (
+            <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
           )}
 
-          {activeView === 'settings' && <SettingsView />}
+          {activeView === 'tasks' && <TasksView user={currentUser} isAdmin={isAdmin} />}
+
+          {activeView === 'chat' && <TeamChatView user={currentUser} />}
+
+          {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
+
+          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} isAdmin={currentUser.role_id === 1} />}
+
+          {activeView === 'sms' && <SmsSenderView listes={listes} listeContacts={listeContacts} />}
+
+          {activeView === 'admin-users' && (
+            <AdminUsersView
+              currentUser={currentUser}
+              onChange={refresh}
+            />
+          )}
+
+          {activeView === 'settings' && <SettingsView user={currentUser} onSaved={() => window.location.reload()} />}
         </div>
       </main>
     </div>
   )
 }
 
-function SettingsView() {
-  return (
-    <section className="workspace-section">
-      <div className="workspace-panel">
-        <div className="workspace-panel-header">
-          <h2>Paramètres</h2>
-        </div>
-        <div className="workspace-empty">
-          <Settings aria-hidden="true" />
-          <p>Configuration à venir</p>
-          <span>La configuration sera disponible après intégration du backend.</span>
-        </div>
-      </div>
-    </section>
-  )
-}
