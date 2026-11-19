@@ -171,7 +171,7 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
               <div key={account.id} className="workspace-note" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Mail aria-hidden="true" />
-                  <div><strong>{account.name}</strong><div>{account.email} · {account.host}:{account.port}</div></div>
+                  <div><strong>{account.name}</strong><div>{account.email}{isAdmin && account.host ? ` · ${account.host}:${account.port}` : ''}</div></div>
                   <span className={account.is_active ? 'status-badge status-active' : 'status-badge'}>{account.is_active ? 'Actif' : 'Désactivé'}</span>
                 </div>
                 {isAdmin && <div style={{ display: 'flex', gap: 8 }}>
