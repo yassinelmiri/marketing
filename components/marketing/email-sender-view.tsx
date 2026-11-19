@@ -2,10 +2,15 @@
 
 import { useState } from 'react'
 import { Mail, Send, Users } from 'lucide-react'
-import { listesRepo } from '@/lib/storage'
+import type { ListeContact, ListeContactContact } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 
-export function EmailSenderView() {
+interface EmailSenderViewProps {
+  listes: ListeContact[]
+  listeContacts: ListeContactContact[]
+}
+
+export function EmailSenderView({ listes: allListes, listeContacts }: EmailSenderViewProps) {
   const toast = useToast()
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -14,9 +19,8 @@ export function EmailSenderView() {
     { id: number; subject: string; listeNom: string; date: string }[]
   >([])
 
-  const allListes = listesRepo.all()
-  const selectedListe = listeId === '' ? null : listesRepo.byId(listeId)
-  const contactCount = selectedListe ? listesRepo.contactsOf(selectedListe.id).length : 0
+  const selectedListe = listeId === '' ? null : allListes.find((liste) => liste.id === listeId) ?? null
+  const contactCount = selectedListe ? listeContacts.filter((link) => link.liste_id === selectedListe.id).length : 0
 
   function send() {
     if (!subject.trim() || !body.trim()) {
@@ -67,7 +71,7 @@ export function EmailSenderView() {
               <option value="">— Sélectionner une liste —</option>
               {allListes.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.nom} ({listesRepo.contactsOf(l.id).length} contacts)
+                  {l.nom} ({listeContacts.filter((link) => link.liste_id === l.id).length} contacts)
                 </option>
               ))}
             </select>
