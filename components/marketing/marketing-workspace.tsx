@@ -379,13 +379,13 @@ export function MarketingWorkspace() {
     if (!currentUser) return
     try {
       const result = await loadMarketingData()
-      setCampagnes(result.campagnes)
-      setCommentaires(result.commentaires)
-      setListes(result.listes)
-      setContacts(result.contacts)
-      setTypesCampagnes(result.typesCampagnes)
-      setCampagneListes(result.campagneListes)
-      setListeContacts(result.listeContacts)
+      setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
+      setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
+      setListes(Array.isArray(result.listes) ? result.listes : [])
+      setContacts(Array.isArray(result.contacts) ? result.contacts : [])
+      setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
+      setCampagneListes(Array.isArray(result.campagneListes) ? result.campagneListes : [])
+      setListeContacts(Array.isArray(result.listeContacts) ? result.listeContacts : [])
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError
       setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
