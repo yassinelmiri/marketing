@@ -187,7 +187,6 @@ export function CampagnesView({
               Gérer les listes
             </button>
           </div>
-        </div>
 
         {filtered.length === 0 ? (
           <div className="workspace-empty">
