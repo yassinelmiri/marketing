@@ -366,20 +366,35 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   }
 
   return (
-    <section className="workspace-section">
-      <div className="bases-layout">
-        {/* Colonne 1 : listes */}
-        <div className="workspace-panel">
-          <div className="workspace-panel-header">
-            <h2><FolderPlus aria-hidden="true" /> Listes</h2>
-            <button type="button" className="workspace-primary" onClick={openCreateListe}>
-              <Plus aria-hidden="true" /> Nouvelle liste
-            </button>
+    <section className="workspace-section data-section">
+      <div className="data-page">
+        <header className="data-page-heading">
+          <div>
+            <span className="data-eyebrow">BASE DE DONNÉES</span>
+            <h1>Listes &amp; contacts</h1>
+            <p>Organisez vos audiences, centralisez vos contacts et préparez vos campagnes.</p>
           </div>
-          <div className="workspace-toolbar" style={{ marginBottom: 14, display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) repeat(2, minmax(130px, auto))', gap: 8 }}>
-            <label style={{ position: 'relative' }}>
-              <Search aria-hidden="true" style={{ position: 'absolute', left: 10, top: 11, width: 16, height: 16, color: '#64748b' }} />
-              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => setListeSearch(e.target.value)} placeholder="Rechercher une liste…" style={{ width: '100%', paddingLeft: 34 }} />
+          <button type="button" className="workspace-primary" onClick={openCreateListe}>
+            <Plus aria-hidden="true" /> Nouvelle liste
+          </button>
+        </header>
+        <div className="data-overview-grid">
+          <article className="data-overview-card"><span>Listes enregistrées</span><strong>{listes.length}</strong><small>Audiences disponibles</small></article>
+          <article className="data-overview-card"><span>Contacts au total</span><strong>{contacts.length}</strong><small>Contacts centralisés</small></article>
+          <article className="data-overview-card"><span>Contacts dans la liste</span><strong>{listeContacts.length}</strong><small>{selectedListe?.nom || 'Aucune liste sélectionnée'}</small></article>
+          <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListe ? campagneListes.filter((link) => link.liste_id === selectedListe.id).length : 0}</strong><small>Campagnes liées à la sélection</small></article>
+        </div>
+      <div className="bases-layout data-split-layout">
+        {/* Colonne 1 : listes */}
+        <div className="workspace-panel data-list-panel">
+          <div className="workspace-panel-header data-subpanel-heading">
+            <div><h2><FolderPlus aria-hidden="true" /> Vos listes</h2><p>Choisissez une audience pour consulter et gérer ses contacts.</p></div>
+            <span className="data-count-pill">{visibleListes.length} / {listes.length}</span>
+          </div>
+          <div className="workspace-toolbar data-list-toolbar">
+            <label className="data-search-field">
+              <Search aria-hidden="true" />
+              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => setListeSearch(e.target.value)} placeholder="Rechercher une liste…" />
             </label>
             <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => setListeDateFilter(e.target.value)} className="workspace-select">
               <option value="all">Toutes les dates</option>
@@ -436,12 +451,12 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
         </div>
 
         {/* Colonne 2 : contacts de la liste */}
-        <div className="workspace-panel">
-          <div className="workspace-panel-header">
-            <h2>
-              <Users aria-hidden="true" />
-              {selectedListe ? `Contacts · ${selectedListe.nom}` : 'Contacts'}
-            </h2>
+        <div className="workspace-panel data-contacts-panel">
+          <div className="workspace-panel-header data-subpanel-heading">
+            <div>
+              <h2><Users aria-hidden="true" /> Contacts de la sélection</h2>
+              <p>{selectedListe ? `Liste active : ${selectedListe.nom}` : 'Sélectionnez une liste pour afficher ses contacts.'}</p>
+            </div>
             <div className="workspace-toolbar">
               {selectedListe && (
                 <>
@@ -524,6 +539,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Modal liste */}
