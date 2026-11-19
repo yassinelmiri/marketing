@@ -144,11 +144,30 @@ export function CampagnesView({
   }
 
   return (
-    <section className="workspace-section">
-      <div className="workspace-panel">
-        <div className="workspace-panel-header">
-          <h2>Campagnes</h2>
-          <div className="workspace-toolbar">
+    <section className="workspace-section data-section">
+      <div className="data-page">
+        <header className="data-page-heading">
+          <div>
+            <span className="data-eyebrow">MARKETING &amp; PERFORMANCE</span>
+            <h1>Campagnes</h1>
+            <p>Planifiez vos actions, ciblez vos audiences et suivez l’avancement de chaque campagne.</p>
+          </div>
+          <button type="button" className="workspace-primary" onClick={openCreate}>
+            <Plus aria-hidden="true" /> Nouvelle campagne
+          </button>
+        </header>
+        <div className="data-overview-grid data-campaign-overview">
+          <article className="data-overview-card"><span>Total campagnes</span><strong>{campagnes.length}</strong><small>Toutes les campagnes</small></article>
+          <article className="data-overview-card"><span>En cours</span><strong>{campagnes.filter((item) => item.status === 'en_cours').length}</strong><small>Actions actives</small></article>
+          <article className="data-overview-card"><span>Brouillons</span><strong>{campagnes.filter((item) => item.status === 'brouillon').length}</strong><small>À préparer</small></article>
+          <article className="data-overview-card"><span>Terminées</span><strong>{campagnes.filter((item) => item.status === 'terminee').length}</strong><small>Actions finalisées</small></article>
+        </div>
+      <div className="workspace-panel data-content-panel">
+        <div className="data-panel-heading">
+          <div><h2>Suivi des campagnes</h2><p>Retrouvez les campagnes, leurs statuts et les listes ciblées.</p></div>
+          <span className="data-count-pill">{filtered.length} résultat(s)</span>
+        </div>
+        <div className="workspace-toolbar data-campaign-toolbar">
             <label className="campagne-search" htmlFor="campagnes-local-search">
               <Search size={17} aria-hidden="true" />
               <input id="campagnes-local-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher dans les campagnes…" />
@@ -166,9 +185,6 @@ export function CampagnesView({
             </div>
             <button type="button" className="workspace-secondary" onClick={onOpenListes}>
               Gérer les listes
-            </button>
-            <button type="button" className="workspace-primary" onClick={openCreate}>
-              <Plus aria-hidden="true" /> Nouvelle campagne
             </button>
           </div>
         </div>
@@ -227,6 +243,7 @@ export function CampagnesView({
             </table>
           </div>
         )}
+      </div>
       </div>
 
       {showForm && (
