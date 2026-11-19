@@ -30,8 +30,6 @@ import { SmsSenderView } from './sms-sender-view'
 import { SettingsView } from './settings-view'
 import { TasksView } from './tasks-view'
 import { TeamChatView } from './team-chat-view'
-import { TasksView } from './tasks-view'
-import { TeamChatView } from './team-chat-view'
 
 import {
   type Campagne,
@@ -82,8 +80,6 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
   { key: 'equipe', label: 'Équipe', icon: UsersRound },
-  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
-  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
   { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
