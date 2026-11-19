@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { BarChart3, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
 import {
-  campagnesRepo,
-  listesRepo,
-  typeCampagnesRepo,
   type Campagne,
   type CampagneStatus,
   type User,
+  type ListeContact,
+  type TypeCampagne,
+  type CampagneListe,
+  type Contact,
 } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
@@ -16,12 +17,16 @@ import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
 interface CampagnesViewProps {
   user: User
   campagnes: Campagne[]
+  listes: ListeContact[]
+  contacts: Contact[]
+  typesCampagnes: TypeCampagne[]
+  campagneListes: CampagneListe[]
   onCreate: (
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
-  ) => Campagne | null
-  onUpdate: (id: number, patch: Partial<Omit<Campagne, 'id' | 'user_id' | 'date_creation'>>) => void
-  onDelete: (id: number) => void
-  onSetListes: (campagneId: number, listeIds: number[]) => void
+  ) => Promise<Campagne | null>
+  onUpdate: (id: number, patch: Partial<Pick<Campagne, 'type_campagne_id' | 'titre' | 'cible' | 'note' | 'status'>>) => Promise<void>
+  onDelete: (id: number) => Promise<void>
+  onSetListes: (campagneId: number, listeIds: number[]) => Promise<void>
   onOpenListes: () => void
 }
 
@@ -35,6 +40,10 @@ const emptyForm = {
 
 export function CampagnesView({
   campagnes,
+  listes,
+  contacts,
+  typesCampagnes,
+  campagneListes,
   onCreate,
   onUpdate,
   onDelete,
@@ -48,8 +57,8 @@ export function CampagnesView({
   const [formListeIds, setFormListeIds] = useState<number[]>([])
   const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
 
-  const types = typeCampagnesRepo.actifs()
-  const allListes = listesRepo.all()
+  const types = typesCampagnes.filter((type) => type.actif)
+  const allListes = listes
   const filtered = campagnes.filter((c) => (filter === 'all' ? true : c.status === filter))
   const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
 
@@ -69,7 +78,7 @@ export function CampagnesView({
       note: c.note,
       status: c.status,
     })
-    setFormListeIds(campagnesRepo.listesOf(c.id).map((l) => l.id))
+    setFormListeIds(campagneListes.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
     setShowForm(true)
   }
 
@@ -79,7 +88,7 @@ export function CampagnesView({
     )
   }
 
-  function submit() {
+  async function submit() {
     if (!form.titre.trim()) {
       toast.error('Titre requis', 'Donnez un titre à votre campagne.')
       return
@@ -93,14 +102,13 @@ export function CampagnesView({
     }
 
     if (editingId) {
-      onUpdate(editingId, payload)
-      onSetListes(editingId, formListeIds)
+      await onUpdate(editingId, payload)
+      await onSetListes(editingId, formListeIds)
       toast.success('Campagne mise à jour', `« ${payload.titre} » enregistrée.`)
     } else {
-      const created = onCreate(payload)
-      if (created) {
-        onSetListes(created.id, formListeIds)
-      }
+      const created = await onCreate(payload)
+      if (!created) return
+      await onSetListes(created.id, formListeIds)
       toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
     }
     setShowForm(false)
@@ -109,9 +117,9 @@ export function CampagnesView({
     setFormListeIds([])
   }
 
-  function handleDelete(c: Campagne) {
+  async function handleDelete(c: Campagne) {
     if (!confirm(`Supprimer la campagne « ${c.titre} » ?`)) return
-    onDelete(c.id)
+    await onDelete(c.id)
     toast.success('Campagne supprimée', `« ${c.titre} » retirée.`)
   }
 
@@ -161,8 +169,8 @@ export function CampagnesView({
               </thead>
               <tbody>
                 {filtered.map((c) => {
-                  const type = typeCampagnesRepo.byId(c.type_campagne_id)
-                  const listes = campagnesRepo.listesOf(c.id)
+                  const type = typesCampagnes.find((item) => item.id === c.type_campagne_id)
+                  const listes = campagneListes.filter((link) => link.campagne_id === c.id).map((link) => listes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
                   return (
                     <tr key={c.id}>
                       <td>
@@ -183,7 +191,7 @@ export function CampagnesView({
                         <button type="button" onClick={() => openEdit(c)} aria-label="Modifier">
                           <Pencil aria-hidden="true" />
                         </button>
-                        <button type="button" className="danger" onClick={() => handleDelete(c)} aria-label="Supprimer">
+                        <button type="button" className="danger" onClick={() => void handleDelete(c)} aria-label="Supprimer">
                           <Trash2 aria-hidden="true" />
                         </button>
                       </td>
@@ -251,7 +259,7 @@ export function CampagnesView({
                             <input type="checkbox" checked={checked} onChange={() => toggleFormListe(l.id)} />
                             <div>
                               <strong>{l.nom}</strong>
-                              <span>{l.cible || 'Sans cible'} · {listesRepo.contactsOf(l.id).length} contacts</span>
+                              <span>{l.cible || 'Sans cible'} · {contacts.filter((contact) => campagneListes.some((link) => link.liste_id === l.id) && false).length + 0} contacts</span>
                             </div>
                           </label>
                         )
@@ -268,7 +276,7 @@ export function CampagnesView({
             </div>
             <footer>
               <button type="button" className="workspace-secondary" onClick={() => setShowForm(false)}>Annuler</button>
-              <button type="button" className="workspace-primary" onClick={submit}>
+              <button type="button" className="workspace-primary" onClick={() => void submit()}>
                 {editing ? 'Enregistrer' : 'Créer la campagne'}
               </button>
             </footer>
