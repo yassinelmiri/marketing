@@ -133,28 +133,31 @@ export async function PATCH(request: NextRequest) {
   const telephone = text(body.telephone, 40)
   const address = text(body.address, 240)
   const roleId = Number(body.role_id ?? target.role_id)
+  const password = typeof body.password === 'string' ? body.password : ''
 
   if (!prenom || !nom || !Number.isInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
     return NextResponse.json({ error: 'Données ou rôle invalides.' }, { status: 400 })
   }
+  if (password && (password.length < 12 || password.length > 128)) {
+    return NextResponse.json({ error: 'Mot de passe: 12 à 128 caractères requis.' }, { status: 400 })
+  }
+
   const { data: role } = await access.admin.from('roles').select('id').eq('id', roleId).maybeSingle()
   if (!role) return NextResponse.json({ error: 'Rôle inconnu.' }, { status: 400 })
+
+  // Valider toutes les entrées avant toute écriture pour éviter une mise à jour partielle.
+  if (password) {
+    const { error: passwordError } = await access.admin.auth.admin.updateUserById(
+      target.auth_user_id,
+      { password },
+    )
+    if (passwordError) return NextResponse.json({ error: 'Mot de passe non modifié.' }, { status: 400 })
+  }
 
   const { error } = await access.admin.from('user_profiles')
     .update({ prenom, nom, telephone: telephone || null, address: address || null, role_id: roleId })
     .eq('id', id)
-  if (error) return NextResponse.json({ error: 'Mise à jour impossible.' }, { status: 500 })
-
-  if (typeof body.password === 'string' && body.password.length > 0) {
-    if (body.password.length < 12 || body.password.length > 128) {
-      return NextResponse.json({ error: 'Mot de passe: 12 caractères minimum.' }, { status: 400 })
-    }
-    const { error: passwordError } = await access.admin.auth.admin.updateUserById(
-      target.auth_user_id,
-      { password: body.password },
-    )
-    if (passwordError) return NextResponse.json({ error: 'Mot de passe non modifié.' }, { status: 400 })
-  }
+  if (error) return NextResponse.json({ error: 'Mise à jour du profil impossible.' }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }
