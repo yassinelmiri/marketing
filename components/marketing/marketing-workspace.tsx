@@ -27,16 +27,21 @@ import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
 
 import {
-  campagnesRepo,
-  commentairesRepo,
-  contactsRepo,
-  listesRepo,
   type Campagne,
   type Commentaire,
   type Contact,
   type ListeContact,
+  type TypeCampagne,
   type User,
 } from '@/lib/storage'
+import {
+  loadMarketingData,
+  createCampagne,
+  updateCampagne,
+  deleteCampagne,
+  setCampagneListes,
+  addCampagneComment,
+} from '@/lib/supabase/marketing-data'
 
 import {
   DEFAULT_MEMBER_PERMISSIONS,
@@ -131,6 +136,13 @@ export function MarketingWorkspace() {
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [version, setVersion] = useState(0)
+  const [dataLoading, setDataLoading] = useState(false)
+  const [campagnes, setCampagnes] = useState<Campagne[]>([])
+  const [commentaires, setCommentaires] = useState<Commentaire[]>([])
+  const [listes, setListes] = useState<ListeContact[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
+  const [teamUsers, setTeamUsers] = useState<User[]>([])
 
   // ============================================================
   // INITIALISATION
@@ -328,36 +340,51 @@ export function MarketingWorkspace() {
   }, [supabase, router])
 
   // ============================================================
-  // LOCAL DATA — TEMPORAIREMENT CONSERVÉE
+  // DONNÉES MÉTIER — SUPABASE UNIQUEMENT
   // ============================================================
 
-  function refresh() {
-    setVersion((value) => value + 1)
+  async function refresh() {
+    if (!currentUser) return
+    setDataLoading(true)
+    try {
+      const result = await loadMarketingData()
+      setCampagnes(result.campagnes)
+      setCommentaires(result.commentaires)
+      setListes(result.listes)
+      setContacts(result.contacts)
+      setTypesCampagnes(result.typesCampagnes)
+      const { data: members, error } = await supabase
+        .from('user_profiles')
+        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+        .order('date_creation', { ascending: false })
+      if (error) throw error
+      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom')
+      if (rolesError) throw rolesError
+      setTeamUsers((members ?? []).map((member) => ({
+        id: Number(member.id),
+        prenom: member.prenom ?? '',
+        nom: member.nom ?? '',
+        email: member.email ?? '',
+        password: '',
+        telephone: member.telephone ?? '',
+        address: member.address ?? '',
+        role_id: Number(member.role_id ?? 3),
+        date_creation: member.date_creation,
+        date_dernier_login: null,
+        ip_address: null,
+        permissions: [],
+      })))
+    } catch (error) {
+      toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
+    } finally {
+      setDataLoading(false)
+    }
   }
 
-  const campagnes = useMemo<Campagne[]>(() => {
-    void version
-    if (!mounted) return []
-    return campagnesRepo.all()
-  }, [version, mounted])
-
-  const commentaires = useMemo<Commentaire[]>(() => {
-    void version
-    if (!mounted) return []
-    return commentairesRepo.all()
-  }, [version, mounted])
-
-  const listes = useMemo<ListeContact[]>(() => {
-    void version
-    if (!mounted) return []
-    return listesRepo.all()
-  }, [version, mounted])
-
-  const contacts = useMemo<Contact[]>(() => {
-    void version
-    if (!mounted) return []
-    return contactsRepo.all()
-  }, [version, mounted])
+  useEffect(() => {
+    if (currentUser) void refresh()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id])
 
   // ============================================================
   // STATISTIQUES
@@ -423,74 +450,58 @@ export function MarketingWorkspace() {
   // CAMPAGNES
   // ============================================================
 
-  function handleCreateCampagne(
-    data: Omit<
-      Campagne,
-      'id' | 'user_id' | 'date_creation' | 'date_modification'
-    >,
-  ): Campagne | null {
+  async function handleCreateCampagne(
+    data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
+  ): Promise<Campagne | null> {
     if (!currentUser) return null
-
-    const created = campagnesRepo.create({
-      ...data,
-      user_id: currentUser.id,
-    })
-
-    refresh()
-    return created
+    try {
+      const created = await createCampagne({ ...data, user_id: currentUser.id })
+      await refresh()
+      return created
+    } catch (error) {
+      toast.error('Création impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+      return null
+    }
   }
 
-  function handleUpdateCampagne(
+  async function handleUpdateCampagne(
     id: number,
-    patch: Partial<
-      Omit<Campagne, 'id' | 'user_id' | 'date_creation'>
-    >,
+    patch: Partial<Pick<Campagne, 'type_campagne_id' | 'titre' | 'cible' | 'note' | 'status'>>,
   ) {
-    campagnesRepo.update(id, patch)
-    refresh()
-  }
-
-  function handleDeleteCampagne(id: number) {
-    campagnesRepo.remove(id)
-    refresh()
-  }
-
-  function handleSetCampagneListes(
-    campagneId: number,
-    listeIds: number[],
-  ) {
-    const current = campagnesRepo
-      .listesOf(campagneId)
-      .map((liste) => liste.id)
-
-    for (const id of current) {
-      if (!listeIds.includes(id)) {
-        campagnesRepo.detachListe(campagneId, id)
-      }
+    try {
+      await updateCampagne(id, patch)
+      await refresh()
+    } catch (error) {
+      toast.error('Modification impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
     }
-
-    for (const id of listeIds) {
-      if (!current.includes(id)) {
-        campagnesRepo.attachListe(campagneId, id)
-      }
-    }
-
-    refresh()
   }
 
-  function handleAddComment(
-    campagneId: number,
-    contenu: string,
-  ) {
+  async function handleDeleteCampagne(id: number) {
+    try {
+      await deleteCampagne(id)
+      await refresh()
+    } catch (error) {
+      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
+  async function handleSetCampagneListes(campagneId: number, listeIds: number[]) {
+    try {
+      await setCampagneListes(campagneId, listeIds)
+      await refresh()
+    } catch (error) {
+      toast.error('Affectation impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
+  async function handleAddComment(campagneId: number, contenu: string) {
     if (!currentUser) return
-
-    commentairesRepo.create({
-      campagne_id: campagneId,
-      user_id: currentUser.id,
-      contenu,
-    })
-
-    refresh()
+    try {
+      await addCampagneComment(campagneId, currentUser.id, contenu)
+      await refresh()
+    } catch (error) {
+      toast.error('Commentaire non publié', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
   }
 
   // ============================================================
@@ -697,6 +708,8 @@ export function MarketingWorkspace() {
           {activeView === 'dashboard' && (
             <DashboardView
               user={currentUser}
+              typesCampagnes={typesCampagnes}
+              teamUsers={teamUsers}
               stats={stats}
               campagnes={campagnes}
               commentaires={commentaires}
@@ -708,6 +721,10 @@ export function MarketingWorkspace() {
             <CampagnesView
               user={currentUser}
               campagnes={campagnes}
+              listes={listes}
+              contacts={contacts}
+              typesCampagnes={typesCampagnes}
+              campagneListes={[]}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
@@ -726,7 +743,7 @@ export function MarketingWorkspace() {
           )}
 
           {activeView === 'equipe' && (
-            <EquipeView user={currentUser} />
+            <EquipeView user={currentUser} team={teamUsers} />
           )}
 
           {activeView === 'whatsapp' && <WhatsAppBotView />}
