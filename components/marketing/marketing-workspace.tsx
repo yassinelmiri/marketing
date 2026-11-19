@@ -235,16 +235,8 @@ export function MarketingWorkspace() {
           isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : [],
         )
 
-        if (!isAdmin) {
-          if (permissionCodes.includes('campagne.read')) {
-            pagePermissions.add('campagnes')
-          }
-          if (permissionCodes.includes('user.manage')) {
-            pagePermissions.add('admin-users')
-          }
-          if (permissionCodes.includes('role.manage')) {
-            pagePermissions.add('settings')
-          }
+        if (!isAdmin && permissionCodes.includes('campagne.read')) {
+          pagePermissions.add('campagnes')
         }
 
         // Le tableau de bord est le seul accès garanti à tout compte connecté.
