@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
   const { data, error } = await access.admin.auth.admin.createUser({
     email,
     password,
-    email_confirm: false,
+    // Le compte est provisionné par l'administrateur avec un mot de passe temporaire.
+    // La confirmation immédiate évite de bloquer l'accès lorsqu'aucun e-mail d'invitation n'est envoyé.
+    email_confirm: true,
     user_metadata: { full_name: prenom + ' ' + nom },
   })
   if (error || !data.user) {
