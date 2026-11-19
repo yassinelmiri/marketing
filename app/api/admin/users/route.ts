@@ -252,7 +252,7 @@ export async function PATCH(request: NextRequest) {
   const roleId = Number(body.role_id ?? target.role_id)
   const password = typeof body.password === 'string' ? body.password : ''
 
-  if (!prenom || !nom || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
+  if (!prenom || !nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
     return NextResponse.json({ error: 'Prénom, nom, e-mail ou rôle invalide.' }, { status: 400 })
   }
   if (password && (password.length < 12 || password.length > 128)) {
