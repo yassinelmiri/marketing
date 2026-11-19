@@ -3213,3 +3213,90 @@ button { font-family: inherit; }
 .campagne-search input::placeholder{color:#94a3b8}
 .campagne-search button{width:25px;height:25px;flex:0 0 25px;display:grid;place-items:center;border:0;border-radius:7px;background:#f1f5f9;color:#64748b;cursor:pointer}
 @media(max-width:760px){.campagne-search{width:100%;min-width:0}.workspace-toolbar{flex-wrap:wrap}}
+
+
+/* Team chat: polished attachments, accessible controls and mobile-first layout */
+.chatz-page{height:calc(100dvh - 184px);min-height:420px;max-height:900px}
+.chatz-header{gap:13px;padding:15px 18px;background:linear-gradient(180deg,#fff,#fbfdff)}
+.chatz-heading-copy{min-width:0}
+.chatz-heading-copy h2{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.chatz-heading-copy p{flex-wrap:wrap}
+.chatz-secure-label{display:inline-flex;align-items:center;gap:5px;margin-left:auto;padding:6px 9px;border:1px solid #dbeafe;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:750;white-space:nowrap}
+.chatz-header>button{margin-left:0;flex:0 0 36px}
+.chatz-messages{gap:18px;background:radial-gradient(ellipse at top,#f8fbff 0%,#fff 65%);overscroll-behavior:contain}
+.chatz-message{max-width:min(82%,720px);gap:10px}
+.chatz-message-content{max-width:100%;min-width:0}
+.chatz-bubble{font-size:13px;line-height:1.6;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.chatz-message.own .chatz-bubble{background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 3px 10px rgba(37,99,235,.13)}
+.chatz-attachments{display:grid;gap:8px;margin-top:8px;max-width:min(100%,480px)}
+.chatz-attachment{min-width:0;display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#334155;text-decoration:none;box-shadow:0 1px 2px rgba(15,23,42,.035);transition:border-color .15s,background .15s}
+.chatz-attachment:hover{border-color:#93c5fd;background:#f8fbff}
+.chatz-attachment.is-image{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:7px}
+.chatz-attachment.is-image img{grid-column:1/-1;width:100%;max-height:260px;object-fit:contain;border-radius:8px;background:#f1f5f9}
+.chatz-file-icon{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:10px;background:#eff6ff;color:#2563eb}
+.chatz-file-copy{min-width:0;flex:1;display:grid;gap:3px}
+.chatz-file-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#0f172a}
+.chatz-file-copy small{font-size:10px;color:#64748b}
+.chatz-download-icon{flex:0 0 auto;color:#64748b}
+.chatz-message.own .chatz-attachment{color:#334155}
+.chatz-pending-files{display:flex;flex-wrap:wrap;gap:7px;padding:9px 13px 0;background:#f8fafc}
+.chatz-pending-file{max-width:100%;display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid #dbeafe;border-radius:9px;background:#eff6ff;color:#1e40af;font-size:11px}
+.chatz-pending-file span{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}
+.chatz-pending-file small{color:#64748b;white-space:nowrap}
+.chatz-pending-file button{width:23px;height:23px;display:grid;place-items:center;border:0;border-radius:6px;background:transparent;color:#64748b;cursor:pointer}
+.chatz-pending-file button:hover{background:#dbeafe;color:#1d4ed8}
+.chatz-file-input{display:none}
+.chatz-compose{gap:8px;padding:12px;background:#fff}
+.chatz-compose textarea{min-height:42px;max-height:120px;padding:11px 13px;border-radius:13px;font-size:13px}
+.chatz-compose button[type=submit]{height:42px;min-width:104px;justify-content:center;border-radius:12px;box-shadow:0 3px 8px rgba(37,99,235,.15)}
+.chatz-compose button:focus-visible,.chatz-header>button:focus-visible,.chatz-attach-button:focus-visible{outline:3px solid rgba(37,99,235,.22);outline-offset:2px}
+.chatz-attach-button{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#475569;cursor:pointer}
+.chatz-attach-button:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
+.chatz-attach-button:disabled{opacity:.45;cursor:not-allowed}
+.chatz-spinner{animation:chatz-spin 1s linear infinite}
+@keyframes chatz-spin{to{transform:rotate(360deg)}}
+.chatz-empty-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:#eff6ff;color:#2563eb}
+.chatz-empty p{max-width:330px;line-height:1.55}
+.chatz-footer{padding:9px 12px;background:#fff}
+.chatz-error{padding:9px 13px}
+.chatz-message-actions{opacity:1}
+.chatz-message-actions button{width:29px;height:29px}
+.workspace-content{min-width:0}
+.workspace-root .workspace-content>*{min-width:0;max-width:100%}
+.workspace-root .workspace-content :is(table,.table-wrapper,.data-table-wrap){max-width:100%;overflow-x:auto}
+.workspace-root button,.workspace-root input,.workspace-root select,.workspace-root textarea{touch-action:manipulation}
+@media(max-width:768px){
+  .workspace-content{padding:16px!important}
+  .workspace-topbar{padding:13px 16px!important;gap:10px}
+  .workspace-topbar-left{min-width:0;gap:9px}
+  .workspace-topbar-left h1{font-size:17px!important}
+  .workspace-topbar-left p{max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .workspace-topbar-actions{gap:7px}
+  .chatz-page{height:calc(100dvh - 142px);min-height:390px;max-height:none}
+  .chatz-panel{border-radius:14px}
+  .chatz-header{padding:12px}
+  .chatz-icon{width:38px;height:38px;flex:0 0 38px}
+  .chatz-heading-copy h2{font-size:14px}
+  .chatz-heading-copy p{font-size:10px;line-height:1.35}
+  .chatz-secure-label{display:none}
+  .chatz-message{max-width:94%}
+  .chatz-messages{padding:12px;gap:14px}
+  .chatz-compose{padding:9px;gap:6px}
+  .chatz-compose textarea{min-width:0;padding:10px;font-size:16px}
+  .chatz-compose button[type=submit]{min-width:44px;width:44px;padding:0;font-size:0}
+  .chatz-compose button[type=submit] svg{width:18px;height:18px}
+  .chatz-attach-button{width:40px;height:40px;flex-basis:40px}
+  .chatz-footer{font-size:9px}
+}
+@media(max-width:420px){
+  .workspace-content{padding:11px!important}
+  .workspace-topbar{padding:11px!important}
+  .workspace-topbar-left h1{font-size:15px!important}
+  .workspace-topbar-left p{display:none}
+  .chatz-page{height:calc(100dvh - 122px);min-height:360px}
+  .chatz-avatar{width:28px;height:28px}
+  .chatz-message-head{gap:6px}
+  .chatz-message-head strong{font-size:11px}
+  .chatz-bubble{font-size:12px;padding:9px 10px}
+}
+@media(prefers-reduced-motion:reduce){.chatz-spinner{animation:none}.chatz-attachment,.chatz-attach-button{transition:none}}
