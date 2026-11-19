@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Pencil, ShieldCheck, Trash2, UserPlus, X } from 'lucide-react'
+import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, X, Check, LockKeyhole } from 'lucide-react'
 import { ADMIN_ROLE_ID, SUPER_ADMIN_EMAIL, type User, type Role } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
@@ -11,9 +11,24 @@ interface AdminUsersViewProps {
   onChange: () => void
 }
 
-type AdminUser = Pick<User, 'id' | 'prenom' | 'nom' | 'email' | 'telephone' | 'address' | 'role_id' | 'date_creation'> & {
-  permissions: User['permissions']
+type ModulePermission = {
+  code: string
+  label: string
+  description: string
 }
+
+type AdminUser = Pick<User, 'id' | 'prenom' | 'nom' | 'email' | 'telephone' | 'address' | 'role_id' | 'date_creation'> & {
+  permissions: string[]
+}
+
+const MODULE_PERMISSIONS: ModulePermission[] = [
+  { code: 'campagne.read', label: 'Campagnes', description: 'Créer, consulter et suivre les campagnes selon les droits métier.' },
+  { code: 'listes.read', label: 'Listes & contacts', description: 'Accéder aux listes et aux fiches contacts.' },
+  { code: 'equipe.read', label: 'Équipe', description: 'Consulter l’espace équipe.' },
+  { code: 'whatsapp.access', label: 'Bot WhatsApp', description: 'Accéder au module WhatsApp.' },
+  { code: 'email.access', label: 'Envoi e-mail', description: 'Accéder au module d’envoi e-mail.' },
+  { code: 'sms.access', label: 'Envoi SMS', description: 'Accéder au module d’envoi SMS.' },
+]
 
 const emptyForm = {
   prenom: '',
@@ -35,6 +50,9 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [permissionUser, setPermissionUser] = useState<AdminUser | null>(null)
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
+  const [savingPermissions, setSavingPermissions] = useState(false)
 
   async function loadUsers() {
     setLoading(true)
@@ -46,22 +64,17 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
         headers: { Accept: 'application/json' },
       })
       const result = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(result.error ?? `Erreur HTTP ${response.status}: chargement impossible.`)
-      }
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}: chargement impossible.`)
 
       const rows = Array.isArray(result.users) ? result.users : []
       const roleRows = Array.isArray(result.roles) ? result.roles : []
-      setUsers(rows.map((u: Omit<AdminUser, 'permissions'>) => ({
+      setUsers(rows.map((u: AdminUser) => ({
         ...u,
         id: Number(u.id),
         role_id: Number(u.role_id),
-        permissions: [],
+        permissions: Array.isArray(u.permissions) ? u.permissions : [],
       })))
-      setRoles(roleRows.map((role: Role) => ({
-        ...role,
-        id: Number(role.id),
-      })))
+      setRoles(roleRows.map((role: Role) => ({ ...role, id: Number(role.id) })))
       setLoadError(null)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Chargement impossible.'
@@ -98,6 +111,51 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
     setShowForm(true)
   }
 
+  function openPermissions(user: AdminUser) {
+    setPermissionUser(user)
+    setSelectedPermissions([...user.permissions])
+  }
+
+  function togglePermission(code: string) {
+    setSelectedPermissions((current) =>
+      current.includes(code)
+        ? current.filter((item) => item !== code)
+        : [...current, code],
+    )
+  }
+
+  async function savePermissions() {
+    if (!permissionUser) return
+    setSavingPermissions(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          id: permissionUser.id,
+          prenom: permissionUser.prenom,
+          nom: permissionUser.nom,
+          email: permissionUser.email,
+          telephone: permissionUser.telephone,
+          address: permissionUser.address,
+          role_id: permissionUser.role_id,
+          permission_codes: selectedPermissions,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? 'Enregistrement des autorisations impossible.')
+      toast.success('Autorisations enregistrées', 'Les accès de cet utilisateur ont été mis à jour.')
+      setPermissionUser(null)
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Échec de mise à jour', error instanceof Error ? error.message : 'Erreur inconnue.')
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
+
   async function submit() {
     const prenom = form.prenom.trim()
     const nom = form.nom.trim()
@@ -116,7 +174,8 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
     try {
       const response = await fetch('/api/admin/users', {
         method: editing ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           ...(editing ? { id: editing.id, email } : { email, password: form.password }),
           prenom,
@@ -127,7 +186,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
           ...(editing && form.password ? { password: form.password } : {}),
         }),
       })
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error ?? 'Enregistrement impossible.')
       toast.success(editing ? 'Utilisateur mis à jour' : 'Utilisateur créé')
       setShowForm(false)
@@ -145,12 +204,13 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           id: user.id,
           prenom: user.prenom,
           nom: user.nom,
+          email: user.email,
           telephone: user.telephone,
           address: user.address,
           role_id: roleId,
@@ -168,12 +228,11 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
 
   async function removeUser(user: AdminUser) {
     if (!confirm(`Supprimer définitivement ${user.prenom} ${user.nom} ?`)) return
-
     try {
       const response = await fetch('/api/admin/users', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ id: user.id }),
       })
       const result = await response.json().catch(() => ({}))
@@ -190,20 +249,40 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
     <section className="workspace-section">
       <div className="workspace-panel">
         <div className="workspace-panel-header">
-          <h2><ShieldCheck aria-hidden="true" /> Administration — Utilisateurs</h2>
+          <div>
+            <h2><ShieldCheck aria-hidden="true" /> Administration — Utilisateurs & accès</h2>
+            <p className="campagne-table-desc">Gérez les comptes, les rôles et les modules accessibles à chaque membre.</p>
+          </div>
           <button type="button" className="workspace-primary" onClick={openCreate}>
             <UserPlus aria-hidden="true" /> Nouvel utilisateur
           </button>
         </div>
+
+        <div className="workspace-stats-grid" style={{ marginBottom: 18 }}>
+          <div className="workspace-stat-card">
+            <span className="workspace-stat-label">Comptes</span>
+            <strong>{users.length}</strong>
+            <span className="campagne-table-desc">Utilisateurs enregistrés</span>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="workspace-stat-label">Modules contrôlables</span>
+            <strong>{MODULE_PERMISSIONS.length}</strong>
+            <span className="campagne-table-desc">Autorisations par utilisateur</span>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="workspace-stat-label">Rôles</span>
+            <strong>{roles.length}</strong>
+            <span className="campagne-table-desc">Niveaux d’accès disponibles</span>
+          </div>
+        </div>
+
         {loading ? (
           <div className="workspace-empty"><p>Chargement des utilisateurs…</p></div>
         ) : loadError ? (
           <div className="workspace-empty">
             <p>La liste des utilisateurs n’a pas pu être chargée.</p>
             <p className="campagne-table-desc">{loadError}</p>
-            <button type="button" className="workspace-primary" onClick={() => void loadUsers()}>
-              Réessayer
-            </button>
+            <button type="button" className="workspace-primary" onClick={() => void loadUsers()}>Réessayer</button>
           </div>
         ) : users.length === 0 ? (
           <div className="workspace-empty">
@@ -214,20 +293,21 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
           <div className="campagne-table-wrap">
             <table className="campagne-table">
               <thead>
-                <tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Créé le</th><th aria-label="Actions" /></tr>
+                <tr><th>Utilisateur</th><th>E-mail</th><th>Rôle</th><th>Modules actifs</th><th>Créé le</th><th aria-label="Actions" /></tr>
               </thead>
               <tbody>
                 {users.map((user) => {
                   const isRoot = user.email.toLowerCase() === SUPER_ADMIN_EMAIL
+                  const isAdmin = user.role_id === ADMIN_ROLE_ID
                   return (
                     <tr key={user.id}>
                       <td>
                         <strong>{user.prenom} {user.nom}</strong>
-                        {user.id === currentUser.id && <span className="campagne-table-desc">vous</span>}
+                        {user.id === currentUser.id && <span className="campagne-table-desc">Vous</span>}
                       </td>
                       <td>
                         {user.email}
-                        {isRoot && <span className="campagne-table-desc">administrateur principal</span>}
+                        {isRoot && <span className="campagne-table-desc">Administrateur principal</span>}
                       </td>
                       <td>
                         <select
@@ -235,16 +315,29 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                           value={user.role_id}
                           disabled={isRoot}
                           onChange={(event) => void changeRole(user, Number(event.target.value))}
+                          aria-label={`Rôle de ${user.prenom} ${user.nom}`}
                         >
                           {roles.map((role) => (
-                            <option key={role.id} value={role.id} disabled={role.id === ADMIN_ROLE_ID}>
+                            <option key={role.id} value={role.id} disabled={role.id === ADMIN_ROLE_ID && !isRoot}>
                               {role.nom}
                             </option>
                           ))}
                         </select>
                       </td>
+                      <td>
+                        {isAdmin ? (
+                          <span className="campagne-table-desc">Tous les modules</span>
+                        ) : (
+                          <span className="campagne-table-desc">{user.permissions.length} / {MODULE_PERMISSIONS.length} autorisés</span>
+                        )}
+                      </td>
                       <td>{formatDate(user.date_creation)}</td>
                       <td className="campagne-table-actions">
+                        {!isAdmin && (
+                          <button type="button" onClick={() => openPermissions(user)} aria-label="Gérer les autorisations" title="Gérer les autorisations">
+                            <KeyRound aria-hidden="true" />
+                          </button>
+                        )}
                         <button type="button" onClick={() => openEdit(user)} aria-label="Modifier" disabled={isRoot}>
                           <Pencil aria-hidden="true" />
                         </button>
@@ -261,23 +354,63 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
         )}
       </div>
 
+      {permissionUser && (
+        <div className="workspace-modal-backdrop" onClick={() => !savingPermissions && setPermissionUser(null)}>
+          <div className="workspace-modal" role="dialog" aria-modal="true" aria-labelledby="permission-dialog-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <h3 id="permission-dialog-title"><LockKeyhole aria-hidden="true" /> Autorisations d’accès</h3>
+                <p className="campagne-table-desc">{permissionUser.prenom} {permissionUser.nom} · {permissionUser.email}</p>
+              </div>
+              <button type="button" className="workspace-icon-button" onClick={() => setPermissionUser(null)} aria-label="Fermer" disabled={savingPermissions}><X aria-hidden="true" /></button>
+            </header>
+            <div className="workspace-modal-body">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 }}>
+                <p className="form-hint" style={{ margin: 0 }}>Activez uniquement les modules nécessaires à cet utilisateur.</p>
+                <button type="button" className="workspace-secondary" onClick={() => setSelectedPermissions(MODULE_PERMISSIONS.map((item) => item.code))}>Tout autoriser</button>
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {MODULE_PERMISSIONS.map((permission) => {
+                  const checked = selectedPermissions.includes(permission.code)
+                  return (
+                    <label key={permission.code} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
+                      border: `1px solid ${checked ? '#93c5fd' : '#e2e8f0'}`,
+                      borderRadius: 12, background: checked ? '#eff6ff' : '#fff', cursor: 'pointer',
+                    }}>
+                      <input type="checkbox" checked={checked} onChange={() => togglePermission(permission.code)} style={{ marginTop: 3, width: 17, height: 17 }} />
+                      <span style={{ display: 'grid', gap: 3 }}>
+                        <strong style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{permission.label}{checked && <Check size={15} aria-hidden="true" />}</strong>
+                        <span className="campagne-table-desc">{permission.description}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="form-hint">Les choix enregistrés remplacent les autorisations héritées du rôle pour ces modules. Le compte administrateur principal reste protégé.</p>
+            </div>
+            <footer>
+              <button type="button" className="workspace-secondary" onClick={() => setPermissionUser(null)} disabled={savingPermissions}>Annuler</button>
+              <button type="button" className="workspace-primary" onClick={() => void savePermissions()} disabled={savingPermissions}>
+                {savingPermissions ? 'Enregistrement…' : 'Enregistrer les accès'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div className="workspace-modal-backdrop" onClick={() => !saving && setShowForm(false)}>
           <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
             <header>
               <h3>{editing ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}</h3>
-              <button type="button" className="workspace-icon-button" onClick={() => setShowForm(false)} aria-label="Fermer" disabled={saving}>
-                <X aria-hidden="true" />
-              </button>
+              <button type="button" className="workspace-icon-button" onClick={() => setShowForm(false)} aria-label="Fermer" disabled={saving}><X aria-hidden="true" /></button>
             </header>
             <div className="workspace-modal-body">
               <div className="form-grid">
                 <label><span>Prénom</span><input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} /></label>
                 <label><span>Nom</span><input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} /></label>
-                <label className="form-grid-full">
-                  <span>E-mail</span>
-                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                </label>
+                <label className="form-grid-full"><span>E-mail</span><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
                 <label className="form-grid-full">
                   <span>{editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe temporaire (12 caractères minimum)'}</span>
                   <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
@@ -290,7 +423,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                 <label><span>Téléphone</span><input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></label>
                 <label className="form-grid-full"><span>Adresse</span><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
               </div>
-              <p className="form-hint">Les autorisations d’accès sont appliquées côté serveur selon le rôle attribué. Le mot de passe n’est jamais enregistré dans la base applicative.</p>
+              <p className="form-hint">Après création, ouvrez « Gérer les autorisations » pour choisir les modules accessibles. Le mot de passe n’est jamais enregistré dans la base applicative.</p>
             </div>
             <footer>
               <button type="button" className="workspace-secondary" onClick={() => setShowForm(false)} disabled={saving}>Annuler</button>
