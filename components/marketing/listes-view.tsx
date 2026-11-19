@@ -610,8 +610,8 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   <input value={contactForm.prenom} onChange={(e) => setContactForm({ ...contactForm, prenom: e.target.value })} />
                 </label>
                 <label className="form-grid-full">
-                  <span>Réseau social</span>
-                  <input value={contactForm.reseau_social} onChange={(e) => setContactForm({ ...contactForm, reseau_social: e.target.value })} placeholder="LinkedIn, Facebook…" />
+                  <span>Raison sociale</span>
+                  <input value={contactForm.reseau_social} onChange={(e) => setContactForm({ ...contactForm, reseau_social: e.target.value })} placeholder="B2B, B2C, C2C…" />
                 </label>
                 <label>
                   <span>Téléphone</span>
