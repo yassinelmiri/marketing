@@ -3717,7 +3717,10 @@ button { font-family: inherit; }
   border-radius:11px;
   background:#191e38;
   color:#e1e6ff;
-  font:600 12px/1 inherit;
+  font:inherit;
+  font-size:12px;
+  font-weight:600;
+  line-height:1;
   cursor:pointer;
   white-space:nowrap;
 }
@@ -3910,3 +3913,28 @@ button { font-family: inherit; }
 :root[data-workspace-theme="light"] .workspace-root .chatz-pending-files { background:#f8fafc!important; }
 :root[data-workspace-theme="light"] .workspace-root .workspace-overlay { background:rgba(15,23,42,.35)!important; }
 :root[data-workspace-theme="light"] .workspace-root .workspace-modal-backdrop { background:rgba(15,23,42,.48)!important; }
+
+
+/* Final dialog stacking and form layout safeguards */
+.workspace-root .workspace-modal-backdrop { isolation:isolate; }
+.workspace-root .workspace-modal :is(input,select,textarea) { min-width:0;max-width:100%; }
+.workspace-root .workspace-modal .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.workspace-root .workspace-modal .form-grid-full { grid-column:1/-1; }
+.workspace-root .workspace-modal :is(header,footer) { gap:12px; }
+.workspace-root .workspace-modal header h3 { min-width:0;overflow-wrap:anywhere; }
+.workspace-root .workspace-modal footer { position:relative; }
+@media(max-width:600px) {
+  .workspace-root .workspace-modal .form-grid { grid-template-columns:minmax(0,1fr); }
+  .workspace-root .workspace-modal .form-grid-full { grid-column:auto; }
+  .workspace-root .workspace-topbar-actions { gap:7px; }
+  .workspace-root .workspace-theme-toggle { flex:0 0 40px; }
+}
+:root[data-workspace-theme="light"] .workspace-root .workspace-modal {
+  background:#fff!important;border-color:#e2e7f1!important;
+}
+:root[data-workspace-theme="light"] .workspace-root .workspace-modal :is(header,footer) {
+  background:#f8faff!important;border-color:#e2e7f1!important;
+}
+:root[data-workspace-theme="light"] .workspace-root .workspace-modal header h3 { color:#172033!important; }
+:root[data-workspace-theme="light"] .workspace-root .workspace-modal .form-grid label>span,
+:root[data-workspace-theme="light"] .workspace-root .workspace-modal .form-label { color:#334155!important; }
