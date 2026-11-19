@@ -25,7 +25,7 @@ import { AdminUsersView } from './admin-users-view'
 import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
-import { SettingsView } from './settings-view'
+import { SettingsView } from './settings-view'\nimport { TasksView } from './tasks-view'\nimport { TeamChatView } from './team-chat-view'
 
 import {
   type Campagne,
@@ -75,7 +75,7 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
-  { key: 'equipe', label: 'Équipe', icon: UsersRound },
+  { key: 'equipe', label: 'Équipe', icon: UsersRound },\n  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },\n  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
@@ -281,7 +281,7 @@ export function MarketingWorkspace() {
           date_creation: new Date().toISOString(),
           date_dernier_login: null,
           ip_address: null,
-          permissions: Array.from(pagePermissions),
+          permissions: Array.from(new Set([...pagePermissions, 'tasks', 'chat'] as ViewKey[])),
         }
 
         setCurrentUser(workspaceUser)
