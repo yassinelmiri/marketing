@@ -32,6 +32,8 @@ import {
   type Contact,
   type ListeContact,
   type TypeCampagne,
+  type Role,
+  type ListeContactContact,
   type User,
 } from '@/lib/storage'
 import {
@@ -143,6 +145,8 @@ export function MarketingWorkspace() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
   const [campagneListes, setCampagneListes] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
+  const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
+  const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
 
   // ============================================================
@@ -355,13 +359,15 @@ export function MarketingWorkspace() {
       setContacts(result.contacts)
       setTypesCampagnes(result.typesCampagnes)
       setCampagneListes(result.campagneListes)
+      setListeContacts(result.listeContacts)
       const { data: members, error } = await supabase
         .from('user_profiles')
         .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
         .order('date_creation', { ascending: false })
       if (error) throw error
-      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom')
+      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError
+      setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
       setTeamUsers((members ?? []).map((member) => ({
         id: Number(member.id),
         prenom: member.prenom ?? '',
@@ -727,6 +733,7 @@ export function MarketingWorkspace() {
               contacts={contacts}
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
+              listeContacts={listeContacts}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
@@ -745,7 +752,7 @@ export function MarketingWorkspace() {
           )}
 
           {activeView === 'equipe' && (
-            <EquipeView user={currentUser} team={teamUsers} />
+            <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
           )}
 
           {activeView === 'whatsapp' && <WhatsAppBotView />}
