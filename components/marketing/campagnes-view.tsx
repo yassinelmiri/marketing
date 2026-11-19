@@ -194,7 +194,7 @@ export function CampagnesView({
               </thead>
               <tbody>
                 {filtered.map((c) => {
-                  const type = typesCampagnes.find((item) => item.id === c.type_campagne_id)
+                  const type = localTypes.find((item) => item.id === c.type_campagne_id)
                   const campaignListsForRow = campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => localListes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
                   return (
                     <tr key={c.id}>
