@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { KeyRound, Mail, MapPin, Phone, Save, ShieldCheck, UserRound } from 'lucide-react'
 import type { User } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
@@ -27,7 +27,7 @@ export function SettingsView({ user, onSaved }: SettingsViewProps) {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!form.prenom.trim() || !form.nom.trim() || !form.email.trim()) {
       toast.error('Informations manquantes', 'Le prénom, le nom et l’e-mail sont obligatoires.')
