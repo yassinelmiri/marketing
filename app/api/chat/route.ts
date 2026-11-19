@@ -20,20 +20,92 @@ export async function GET(){
  const ids=Array.from(new Set((messages??[]).map(m=>Number(m.user_id))))
  const {data:profiles}=ids.length?await auth.admin.from('user_profiles').select('id,prenom,nom').in('id',ids):{data:[]}
  const profileMap=new Map((profiles??[]).map(p=>[Number(p.id),p]))
- const rows=(messages??[]).reverse().map(m=>({...m,profile:profileMap.get(Number(m.user_id))??null}))
- return NextResponse.json({messages:rows},{headers:{'Cache-Control':'no-store'}})
+ const messageRows = (messages ?? []).reverse()
+ const messageIds = messageRows.map((message) => Number(message.id))
+ const { data: attachments, error: attachmentError } = messageIds.length
+   ? await auth.admin.from('team_chat_attachments')
+       .select('id,user_id,message_id,file_name,mime_type,file_size,storage_path,created_at')
+       .in('message_id', messageIds)
+   : { data: [], error: null }
+ if (attachmentError) return NextResponse.json({ error: 'Chargement des pièces jointes impossible.' }, { status: 500 })
+ const attachmentRows = await Promise.all((attachments ?? []).map(async (attachment) => {
+   const { data: signed } = await auth.admin.storage.from('team-chat-private')
+     .createSignedUrl(attachment.storage_path, 60 * 5)
+   return {
+     id: Number(attachment.id),
+     user_id: Number(attachment.user_id),
+     file_name: attachment.file_name,
+     mime_type: attachment.mime_type,
+     file_size: Number(attachment.file_size),
+     signed_url: signed?.signedUrl ?? null,
+   }
+ }))
+ const attachmentMap = new Map<number, typeof attachmentRows>()
+ for (const attachment of attachmentRows) {
+   const list = attachmentMap.get(Number((attachments ?? []).find((row) => Number(row.id) === attachment.id)?.message_id)) ?? []
+   list.push(attachment)
+   attachmentMap.set(Number((attachments ?? []).find((row) => Number(row.id) === attachment.id)?.message_id), list)
+ }
+ const rows = messageRows.map((message) => ({
+   ...message,
+   profile: profileMap.get(Number(message.user_id)) ?? null,
+   attachments: attachmentMap.get(Number(message.id)) ?? [],
+ }))
+ return NextResponse.json({ messages: rows }, { headers: { 'Cache-Control': 'no-store' } })
 }
 export async function POST(req:NextRequest){
  const check=originCheck(req);if(check)return check
  const auth=await authorize();if('response'in auth)return auth.response
- let body:{message?:string};try{body=await req.json()}catch{return NextResponse.json({error:'Requête invalide.'},{status:400})}
- const message=typeof body.message==='string'?body.message.trim().slice(0,2000):''
- if(!message)return NextResponse.json({error:'Écrivez un message.'},{status:400})
- const {data,error}=await auth.admin.from('team_chat_messages').insert({user_id:auth.profile.id,message}).select('id,user_id,message,created_at').single()
- if(error||!data)return NextResponse.json({error:'Envoi du message impossible.'},{status:500})
+ let body: { message?: string; attachmentIds?: number[] }
+ try { body = await req.json() } catch { return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 }) }
+ const attachmentIds = Array.isArray(body.attachmentIds)
+   ? [...new Set(body.attachmentIds.map(Number))]
+   : []
+ if (attachmentIds.length > 5 || attachmentIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+   return NextResponse.json({ error: 'Pièces jointes invalides (5 maximum).' }, { status: 400 })
+ }
+ const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : ''
+ if (!message && attachmentIds.length === 0) return NextResponse.json({ error: 'Écrivez un message ou ajoutez un fichier.' }, { status: 400 })
+ if (attachmentIds.length) {
+   const { data: owned, error: ownedError } = await auth.admin.from('team_chat_attachments')
+     .select('id').in('id', attachmentIds).eq('user_id', auth.profile.id).is('message_id', null)
+   if (ownedError || (owned ?? []).length !== attachmentIds.length) {
+     return NextResponse.json({ error: 'Une pièce jointe est invalide ou n’est pas autorisée.' }, { status: 403 })
+   }
+ }
+ const { data, error } = await auth.admin.from('team_chat_messages')
+   .insert({ user_id: auth.profile.id, message: message || 'Pièce jointe' })
+   .select('id,user_id,message,created_at').single()
+ if (error || !data) return NextResponse.json({ error: 'Envoi du message impossible.' }, { status: 500 })
+ if (attachmentIds.length) {
+   const { error: attachError } = await auth.admin.from('team_chat_attachments')
+     .update({ message_id: data.id }).in('id', attachmentIds).eq('user_id', auth.profile.id)
+   if (attachError) {
+     await auth.admin.from('team_chat_messages').delete().eq('id', data.id)
+     return NextResponse.json({ error: 'Association des fichiers impossible.' }, { status: 500 })
+   }
+ }
  const {data:team}=await auth.admin.from('user_profiles').select('id').neq('id',auth.profile.id)
  if(team?.length){const {error:notificationError}=await auth.admin.from('notifications').insert(team.map(member=>({user_id:Number(member.id),type:'chat_message',title:'Nouveau message dans le chat',body:message.slice(0,180),task_id:null})));if(notificationError)console.warn('[chat] notification creation failed',notificationError.message)}
- return NextResponse.json({message:{...data,profile:auth.profile}},{status:201})
+ const { data: attached } = attachmentIds.length
+   ? await auth.admin.from('team_chat_attachments')
+       .select('id,user_id,file_name,mime_type,file_size,storage_path').in('id', attachmentIds)
+   : { data: [] }
+ const signedAttachments = await Promise.all((attached ?? []).map(async (attachment) => {
+   const { data: signed } = await auth.admin.storage.from('team-chat-private')
+     .createSignedUrl(attachment.storage_path, 60 * 5)
+   return {
+     id: Number(attachment.id),
+     user_id: Number(attachment.user_id),
+     file_name: attachment.file_name,
+     mime_type: attachment.mime_type,
+     file_size: Number(attachment.file_size),
+     signed_url: signed?.signedUrl ?? null,
+   }
+ }))
+ return NextResponse.json({
+   message: { ...data, profile: auth.profile, attachments: signedAttachments },
+ }, { status: 201 })
 }
 
 export async function PATCH(req:NextRequest){
@@ -59,7 +131,14 @@ export async function DELETE(req:NextRequest){
  const {data:existing,error:readError}=await auth.admin.from('team_chat_messages').select('id,user_id').eq('id',id).maybeSingle()
  if(readError||!existing)return NextResponse.json({error:'Message introuvable.'},{status:404})
  if(Number(existing.user_id)!==auth.profile.id&&!auth.isAdmin)return NextResponse.json({error:'Suppression non autorisée.'},{status:403})
- const {error}=await auth.admin.from('team_chat_messages').delete().eq('id',id)
- if(error)return NextResponse.json({error:'Suppression du message impossible.'},{status:500})
+ const { data: attachments } = await auth.admin.from('team_chat_attachments')
+   .select('storage_path').eq('message_id', id)
+ if (attachments?.length) {
+   const { error: storageError } = await auth.admin.storage.from('team-chat-private')
+     .remove(attachments.map((attachment) => attachment.storage_path))
+   if (storageError) console.error('[chat] attachment cleanup failed:', storageError.message)
+ }
+ const { error } = await auth.admin.from('team_chat_messages').delete().eq('id', id)
+ if (error) return NextResponse.json({ error: 'Suppression du message impossible.' }, { status: 500 })
  return NextResponse.json({success:true})
 }
