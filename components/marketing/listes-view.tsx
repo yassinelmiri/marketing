@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Download,
   FileSpreadsheet,
@@ -89,6 +89,13 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   const [importRows, setImportRows] = useState<Record<string, string>[]>([])
   const [importFileName, setImportFileName] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Les listes arrivent après le chargement Supabase; sélectionner la première automatiquement.
+  useEffect(() => {
+    if (!listes.some((liste) => liste.id === selectedListeId)) {
+      setSelectedListeId(listes[0]?.id ?? null)
+    }
+  }, [listes, selectedListeId])
 
   const allCampagnes = campagnes
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
@@ -304,13 +311,17 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       toast.error('Aucune donnée', 'Aucune ligne à importer.')
       return
     }
-    const res = await importContactsToListe(selectedListe.id, user.id, importRows)
-    if (res.created > 0) toast.success('Import terminé', `${res.created} contact(s) créé(s).`)
-    if (res.errors.length > 0) toast.error('Import partiel', `${res.errors.length} erreur(s).`)
-    setShowImport(false)
-    setImportRows([])
-    setImportFileName('')
-    await onRefresh()
+    try {
+      const res = await importContactsToListe(selectedListe.id, user.id, importRows)
+      if (res.created > 0) toast.success('Import terminé', `${res.created} contact(s) créé(s).`)
+      if (res.errors.length > 0) toast.error('Import partiel', `${res.errors.length} erreur(s).`)
+      setShowImport(false)
+      setImportRows([])
+      setImportFileName('')
+      await onRefresh()
+    } catch (error) {
+      toast.error('Import impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
   }
   function downloadTemplate() {
     const headers = CONTACT_IMPORT_COLUMNS.join(',')
