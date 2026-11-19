@@ -3204,3 +3204,12 @@ button { font-family: inherit; }
 .workspace-root .workspace-content :is(input[type=search],input[placeholder*="Rechercher"],input[placeholder*="rechercher"],input[placeholder*="Chercher"],input[placeholder*="chercher"])::placeholder{color:#94a3b8!important}
 .workspace-root .workspace-content :is(.search-bar,.search-input,.table-search,.toolbar-search,.search-field){min-height:44px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 @media(max-width:640px){.workspace-topbar{align-items:flex-start}.workspace-topbar-actions{gap:8px}.workspace-topbar-user{display:none}.global-notification-panel{right:-5px}.global-notification-trigger{width:39px;height:39px}}
+
+
+/* Campaign search: compact, readable and fully client-side */
+.campagne-search{min-width:min(290px,100%);height:42px;display:flex;align-items:center;gap:9px;padding:0 11px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:#64748b;transition:border-color .15s,box-shadow .15s}
+.campagne-search:focus-within{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.campagne-search input{width:100%;min-width:0;height:100%;padding:0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#0f172a;font-size:12px}
+.campagne-search input::placeholder{color:#94a3b8}
+.campagne-search button{width:25px;height:25px;flex:0 0 25px;display:grid;place-items:center;border:0;border-radius:7px;background:#f1f5f9;color:#64748b;cursor:pointer}
+@media(max-width:760px){.campagne-search{width:100%;min-width:0}.workspace-toolbar{flex-wrap:wrap}}
