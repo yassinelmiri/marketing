@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
-import type { User } from '@/lib/storage'\nimport { createClient } from '@/lib/supabase/client'
+import type { User } from '@/lib/storage'
+import { createClient } from '@/lib/supabase/client'
 
 type Member={id:number;prenom:string;nom:string;email?:string}
 type Task={id:number;title:string;description:string;priority:'low'|'medium'|'high'|'urgent';status:'todo'|'in_progress'|'waiting'|'done';due_date:string|null;created_by:number|null;created_at:string;assignee_ids:number[];assignees:Member[]}
@@ -18,7 +19,8 @@ function isLate(task:Task){return task.status!=='done'&&!!task.due_date&&new Dat
 function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0]??'')}
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
- const supabase=useMemo(()=>createClient(),[])\n const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([]),[notifications,setNotifications]=useState<Notification[]>([])
+ const supabase=useMemo(()=>createClient(),[])
+ const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([]),[notifications,setNotifications]=useState<Notification[]>([])
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
  const [showNotifications,setShowNotifications]=useState(false),[modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
  const [draft,setDraft]=useState<TaskDraft>(empty),[saving,setSaving]=useState(false),[view,setView]=useState<'list'|'board'>('list')
