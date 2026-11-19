@@ -19,7 +19,7 @@ function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
  const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([])
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
- const [showNotifications,setShowNotifications]=useState(false),[modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
+ const [modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
  const [draft,setDraft]=useState<TaskDraft>(empty),[saving,setSaving]=useState(false),[view,setView]=useState<'list'|'board'>('list'),[draggedTaskId,setDraggedTaskId]=useState<number|null>(null),[dragOverStatus,setDragOverStatus]=useState<Task['status']|null>(null)
  async function loadTasks(){setLoading(true);setError('');try{const res=await fetch('/api/tasks',{cache:'no-store'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Chargement des tâches impossible.');setTasks(data.tasks??[]);setMembers(data.members??[])}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
  useEffect(()=>{void loadTasks()},[user.id])
