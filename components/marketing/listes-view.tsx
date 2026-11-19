@@ -353,7 +353,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   function downloadTemplate() {
     const headers = CONTACT_IMPORT_COLUMNS.join(',')
     const example =
-      'Dupont,Jeanne,LinkedIn,+212600000000,+212611111111,12 rue X,75001,Paris,jeanne@exemple.com,https://linkedin.com/in/jeanne,Client VIP'
+      'Dupont,Jeanne,B2B,+212600000000,+212611111111,12 rue X,75001,Paris,jeanne@exemple.com,https://linkedin.com/in/jeanne,Client VIP'
     const csv = `${headers}\n${example}\n`
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
