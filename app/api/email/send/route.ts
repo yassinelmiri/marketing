@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
       .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
-    if (recipients.length > 500) return NextResponse.json({ error: 'Limite de 500 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
+    if (recipients.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
 
     const transporter = nodemailer.createTransport({
       host: smtp.host,
