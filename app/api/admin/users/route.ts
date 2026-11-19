@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
   const password = typeof body.password === 'string' ? body.password : ''
   const roleId = Number(body.role_id ?? 3)
 
-  if (!prenom || !nom || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!prenom || !nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Prénom, nom et e-mail valides obligatoires.' }, { status: 400 })
   }
   if (password.length < 12 || password.length > 128) {
