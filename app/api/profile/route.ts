@@ -71,6 +71,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   const emailChanged = email !== (profile.email ?? '').toLowerCase()
+  if (emailChanged && (profile.email ?? '').toLowerCase() === 'miriyassine123@gmail.com') {
+    return NextResponse.json({ error: 'L’adresse e-mail de l’administrateur principal est protégée.' }, { status: 403 })
+  }
   if (emailChanged || password) {
     const authUpdates: { email?: string; email_confirm?: boolean; password?: string } = {}
     if (emailChanged) {
