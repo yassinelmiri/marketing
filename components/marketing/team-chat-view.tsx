@@ -175,6 +175,8 @@ export function TeamChatView({ user }: { user: User }) {
       if (!response.ok) throw new Error(data.error || 'Envoi impossible.')
       setMessages((current) => current.some((item) => item.id === data.message.id) ? current : [...current, data.message])
       setText('')
+      // Recharger depuis le serveur pour confirmer la persistance réelle.
+      await load()
       setPendingFiles([])
       setError('')
     } catch (cause) {
