@@ -9,8 +9,6 @@ export interface User {
   prenom: string
   nom: string
   email: string
-  /** Champ de compatibilité UI uniquement; ne contient jamais un mot de passe. */
-  password: string
   telephone: string
   address: string
   role_id: number
