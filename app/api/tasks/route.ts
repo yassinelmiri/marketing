@@ -307,7 +307,7 @@ export async function PATCH(request: NextRequest) {
 
   const { error: insertError } = await result.admin
     .from('task_assignments')
-    .insert(assigneeIds.map((user_id) => ({ task_id: id, user_id }))
+    .insert(assigneeIds.map((user_id) => ({ task_id: id, user_id })))
 
   if (insertError) return NextResponse.json({ error: 'Enregistrement des affectations impossible.' }, { status: 500 })
 
