@@ -22,7 +22,7 @@ type AdminUser = Pick<User, 'id' | 'prenom' | 'nom' | 'email' | 'telephone' | 'a
 }
 
 const MODULE_PERMISSIONS: ModulePermission[] = [
-  { code: 'campagne.read', label: 'Campagnes', description: 'Créer, consulter et suivre les campagnes selon les droits métier.' },
+  { code: 'campagne.read', label: 'Campagnes', description: 'Accéder au module et consulter les campagnes.' },
   { code: 'listes.read', label: 'Listes & contacts', description: 'Accéder aux listes et aux fiches contacts.' },
   { code: 'equipe.read', label: 'Équipe', description: 'Consulter l’espace équipe.' },
   { code: 'whatsapp.access', label: 'Bot WhatsApp', description: 'Accéder au module WhatsApp.' },
@@ -258,22 +258,16 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
           </button>
         </div>
 
-        <div className="workspace-stats-grid" style={{ marginBottom: 18 }}>
-          <div className="workspace-stat-card">
-            <span className="workspace-stat-label">Comptes</span>
-            <strong>{users.length}</strong>
-            <span className="campagne-table-desc">Utilisateurs enregistrés</span>
-          </div>
-          <div className="workspace-stat-card">
-            <span className="workspace-stat-label">Modules contrôlables</span>
-            <strong>{MODULE_PERMISSIONS.length}</strong>
-            <span className="campagne-table-desc">Autorisations par utilisateur</span>
-          </div>
-          <div className="workspace-stat-card">
-            <span className="workspace-stat-label">Rôles</span>
-            <strong>{roles.length}</strong>
-            <span className="campagne-table-desc">Niveaux d’accès disponibles</span>
-          </div>
+        <div className="workspace-metrics" style={{ marginBottom: 18 }}>
+          <article className="metric-card">
+            <div><span>Comptes utilisateurs</span><strong>{users.length}</strong></div>
+          </article>
+          <article className="metric-card">
+            <div><span>Modules contrôlables</span><strong>{MODULE_PERMISSIONS.length}</strong></div>
+          </article>
+          <article className="metric-card">
+            <div><span>Rôles disponibles</span><strong>{roles.length}</strong></div>
+          </article>
         </div>
 
         {loading ? (
