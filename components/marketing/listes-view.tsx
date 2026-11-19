@@ -367,7 +367,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
 
   return (
     <section className="workspace-section">
-      <div className="listes-layout">
+      <div className="bases-layout">
         {/* Colonne 1 : listes */}
         <div className="workspace-panel">
           <div className="workspace-panel-header">
