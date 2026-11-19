@@ -53,6 +53,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const check=originCheck(request);if(check)return check
   const result = await access()
   if ('response' in result) return result.response
   if (!result.isAdmin) return NextResponse.json({error:'Seul un administrateur peut créer et affecter des tâches.'},{status:403})
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const check=originCheck(request);if(check)return check
   const result=await access()
   if('response' in result) return result.response
   let body:Record<string,unknown>
@@ -115,6 +117,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const check=originCheck(request);if(check)return check
   const result=await access()
   if('response' in result) return result.response
   if(!result.isAdmin) return NextResponse.json({error:'Accès administrateur requis.'},{status:403})
