@@ -287,3 +287,108 @@ export async function setContactListes(contactId: number, listeIds: number[]): P
   )
   throwIfError(error)
 }
+
+export async function updateListe(
+  id: number,
+  patch: Partial<Pick<ListeContact, 'nom' | 'description' | 'cible' | 'note' | 'ajoute_par_nom'>>,
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('listes')
+    .update({
+      ...patch,
+      description: patch.description || null,
+      cible: patch.cible || null,
+      note: patch.note || null,
+      ajoute_par_nom: patch.ajoute_par_nom || null,
+      date_modification: new Date().toISOString(),
+    })
+    .eq('id', id)
+  throwIfError(error)
+}
+
+export async function deleteListe(id: number): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('listes').delete().eq('id', id)
+  throwIfError(error)
+}
+
+export async function updateContact(
+  id: number,
+  patch: Partial<Omit<Contact, 'id' | 'date_creation' | 'date_modification'>>,
+): Promise<void> {
+  const supabase = createClient()
+  const nullableFields = [
+    'nom', 'prenom', 'reseau_social', 'telephone', 'mobile', 'address',
+    'code_postal', 'ville', 'email', 'profile', 'commentaire',
+  ] as const
+  const values: Record<string, unknown> = { ...patch, date_modification: new Date().toISOString() }
+  for (const field of nullableFields) {
+    if (field in values && values[field] === '') values[field] = null
+  }
+  const { error } = await supabase.from('contacts').update(values).eq('id', id)
+  throwIfError(error)
+}
+
+export async function deleteContact(id: number): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('contacts').delete().eq('id', id)
+  throwIfError(error)
+}
+
+export async function importContactsToListe(
+  listeId: number,
+  userId: number,
+  rows: Record<string, string>[],
+): Promise<{ created: number; errors: string[] }> {
+  const supabase = createClient()
+  const errors: string[] = []
+  let created = 0
+
+  for (const [index, row] of rows.entries()) {
+    const nom = (row.nom ?? row.Nom ?? '').trim()
+    const email = (row.email ?? row.Email ?? '').trim()
+    if (!nom && !email) {
+      errors.push(`Ligne ${index + 1}: nom ou e-mail obligatoire.`)
+      continue
+    }
+
+    const value = (key: string) => (row[key] ?? '').trim()
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert({
+        nom: nom || null,
+        prenom: value('prenom') || null,
+        reseau_social: value('reseau_social') || null,
+        telephone: value('telephone') || null,
+        mobile: value('mobile') || null,
+        address: value('address') || null,
+        code_postal: value('code_postal') || null,
+        ville: value('ville') || null,
+        email: email || null,
+        profile: value('profile') || null,
+        commentaire: value('commentaire') || null,
+        created_by: userId,
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      errors.push(`Ligne ${index + 1}: ${error?.message ?? 'contact non créé'}`)
+      continue
+    }
+
+    const { error: linkError } = await supabase
+      .from('liste_contacts')
+      .insert({ liste_id: listeId, contact_id: Number(data.id) })
+
+    if (linkError) {
+      await supabase.from('contacts').delete().eq('id', data.id)
+      errors.push(`Ligne ${index + 1}: ${linkError.message}`)
+      continue
+    }
+    created += 1
+  }
+
+  return { created, errors }
+}
