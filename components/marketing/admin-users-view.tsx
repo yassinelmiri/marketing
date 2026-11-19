@@ -142,43 +142,48 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   }
 
   async function changeRole(user: AdminUser, roleId: number) {
-    const response = await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: user.id,
-        prenom: user.prenom,
-        nom: user.nom,
-        telephone: user.telephone,
-        address: user.address,
-        role_id: roleId,
-      }),
-    })
-    const result = await response.json()
-    if (!response.ok) {
-      toast.error('Changement refusé', result.error ?? 'Erreur inconnue.')
-      return
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          id: user.id,
+          prenom: user.prenom,
+          nom: user.nom,
+          telephone: user.telephone,
+          address: user.address,
+          role_id: roleId,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}.`)
+      toast.success('Rôle mis à jour')
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Changement refusé', error instanceof Error ? error.message : 'Erreur inconnue.')
     }
-    toast.success('Rôle mis à jour')
-    await loadUsers()
-    onChange()
   }
 
   async function removeUser(user: AdminUser) {
     if (!confirm(`Supprimer définitivement ${user.prenom} ${user.nom} ?`)) return
-    const response = await fetch('/api/admin/users', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: user.id }),
-    })
-    const result = await response.json()
-    if (!response.ok) {
-      toast.error('Suppression refusée', result.error ?? 'Erreur inconnue.')
-      return
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ id: user.id }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error ?? `Erreur HTTP ${response.status}.`)
+      toast.success('Utilisateur supprimé')
+      await loadUsers()
+      onChange()
+    } catch (error) {
+      toast.error('Suppression refusée', error instanceof Error ? error.message : 'Erreur inconnue.')
     }
-    toast.success('Utilisateur supprimé')
-    await loadUsers()
-    onChange()
   }
 
   return (
