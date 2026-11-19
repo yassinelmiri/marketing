@@ -163,6 +163,10 @@ export async function updateCampagne(
 
 export async function deleteCampagne(id: number): Promise<void> {
   const supabase = createClient()
+  const { error: linksError } = await supabase.from('campagne_listes').delete().eq('campagne_id', id)
+  throwIfError(linksError)
+  const { error: commentsError } = await supabase.from('commentaires').delete().eq('campagne_id', id)
+  throwIfError(commentsError)
   const { error } = await supabase.from('campagnes').delete().eq('id', id)
   throwIfError(error)
 }
@@ -309,6 +313,10 @@ export async function updateListe(
 
 export async function deleteListe(id: number): Promise<void> {
   const supabase = createClient()
+  const { error: contactLinksError } = await supabase.from('liste_contacts').delete().eq('liste_id', id)
+  throwIfError(contactLinksError)
+  const { error: campaignLinksError } = await supabase.from('campagne_listes').delete().eq('liste_id', id)
+  throwIfError(campaignLinksError)
   const { error } = await supabase.from('listes').delete().eq('id', id)
   throwIfError(error)
 }
@@ -332,6 +340,8 @@ export async function updateContact(
 
 export async function deleteContact(id: number): Promise<void> {
   const supabase = createClient()
+  const { error: linksError } = await supabase.from('liste_contacts').delete().eq('contact_id', id)
+  throwIfError(linksError)
   const { error } = await supabase.from('contacts').delete().eq('id', id)
   throwIfError(error)
 }
