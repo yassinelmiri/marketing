@@ -147,7 +147,7 @@ export interface Commentaire {
 // CONSTANTES
 // ============================================================
 
-export const SUPER_ADMIN_EMAIL = 'admin@anntel.com'
+export const SUPER_ADMIN_EMAIL = 'miriyassine123@gmail.com'
 export const ADMIN_ROLE_ID = 1
 
 // ============================================================
