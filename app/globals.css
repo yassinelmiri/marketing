@@ -3054,3 +3054,97 @@ button { font-family: inherit; }
   .settings-field-wide { grid-column: auto; }
   .settings-password-fields { max-width: none; }
 }
+
+
+/* =========================================================
+   WORKSPACE CONTRAST FIX — keep dashboard readable
+   The OS dark preference was turning surfaces dark while several
+   component labels/headings kept dark foreground colors.
+   The workspace now uses a consistent light palette until a full
+   user-controlled dark theme is implemented.
+   ========================================================= */
+.workspace-root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #334155;
+  --text-strong: #0f172a;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
+  --surface-dark: #ffffff;
+  --surface-dark-2: #f1f5f9;
+  --border-dark: #e2e8f0;
+  --border-dark-strong: #cbd5e1;
+  --text-dark: #334155;
+  --text-dark-strong: #0f172a;
+  --muted-dark: #64748b;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.workspace-root .workspace-main,
+.workspace-root .workspace-content {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.workspace-root .workspace-panel,
+.workspace-root .metric-card,
+.workspace-root .team-card,
+.workspace-root .channel-card,
+.workspace-root .campagne-list-item,
+.workspace-root .campagne-table-wrap,
+.workspace-root .workspace-modal,
+.workspace-root .toast,
+.workspace-root .history-list li,
+.workspace-root .workspace-import-preview,
+.workspace-root .liste-item,
+.workspace-root .checkbox-card {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.workspace-root :is(h1, h2, h3, h4, h5, .workspace-panel-header h2) {
+  color: var(--text-strong);
+}
+
+.workspace-root :is(p, li, td, th, label, .workspace-panel-header span) {
+  color: var(--text);
+}
+
+.workspace-root :is(input, select, textarea) {
+  color: #0f172a;
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  caret-color: #0f172a;
+}
+
+.workspace-root :is(input, select, textarea)::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.workspace-root :is(button, a):focus-visible,
+.workspace-root :is(input, select, textarea):focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
+}
+
+/* Preserve the intentional dark sidebar contrast. */
+.workspace-root .workspace-sidebar {
+  background: #172554;
+  color: #cbd5e1;
+}
+.workspace-root .workspace-sidebar :is(strong, span, p, svg) {
+  color: inherit;
+}
+.workspace-root .workspace-sidebar .workspace-user strong {
+  color: #f8fafc;
+}
+.workspace-root .workspace-sidebar .workspace-user span {
+  color: #cbd5e1;
+}
