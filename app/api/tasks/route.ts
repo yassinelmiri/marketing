@@ -24,7 +24,13 @@ async function access() {
 }
 function validStatus(value: unknown): value is TaskStatus { return ['todo','in_progress','waiting','done'].includes(String(value)) }
 function validPriority(value: unknown): value is TaskPriority { return ['low','medium','high','urgent'].includes(String(value)) }
-function cleanText(value: unknown, max: number) { return typeof value === 'string' ? value.trim().slice(0,max) : '' }\nfunction originCheck(request: NextRequest) {\n  const origin=request.headers.get('origin')\n  if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403})\n  try{if(new URL(origin).origin!==request.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}\n  return null\n}
+function cleanText(value: unknown, max: number) { return typeof value === 'string' ? value.trim().slice(0,max) : '' }
+function originCheck(request: NextRequest) {
+  const origin=request.headers.get('origin')
+  if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403})
+  try{if(new URL(origin).origin!==request.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}
+  return null
+}
 
 export async function GET() {
   const result = await access()
