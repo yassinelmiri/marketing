@@ -359,23 +359,19 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
               <button type="button" className="workspace-icon-button" onClick={() => setPermissionUser(null)} aria-label="Fermer" disabled={savingPermissions}><X aria-hidden="true" /></button>
             </header>
             <div className="workspace-modal-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 }}>
-                <p className="form-hint" style={{ margin: 0 }}>Activez uniquement les modules nécessaires à cet utilisateur.</p>
+              <div className="permissions-modal-toolbar">
+                <p className="form-hint">Activez uniquement les modules nécessaires à cet utilisateur.</p>
                 <button type="button" className="workspace-secondary" onClick={() => setSelectedPermissions(MODULE_PERMISSIONS.map((item) => item.code))}>Tout autoriser</button>
               </div>
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div className="permissions-modal-list">
                 {MODULE_PERMISSIONS.map((permission) => {
                   const checked = selectedPermissions.includes(permission.code)
                   return (
-                    <label key={permission.code} style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
-                      border: `1px solid ${checked ? '#93c5fd' : '#e2e8f0'}`,
-                      borderRadius: 12, background: checked ? '#eff6ff' : '#fff', cursor: 'pointer',
-                    }}>
-                      <input type="checkbox" checked={checked} onChange={() => togglePermission(permission.code)} style={{ marginTop: 3, width: 17, height: 17 }} />
-                      <span style={{ display: 'grid', gap: 3 }}>
-                        <strong style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{permission.label}{checked && <Check size={15} aria-hidden="true" />}</strong>
-                        <span className="campagne-table-desc">{permission.description}</span>
+                    <label key={permission.code} className={`permissions-modal-option${checked ? ' is-selected' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => togglePermission(permission.code)} />
+                      <span className="permissions-modal-copy">
+                        <strong>{permission.label}{checked && <Check size={15} aria-hidden="true" />}</strong>
+                        <span>{permission.description}</span>
                       </span>
                     </label>
                   )
