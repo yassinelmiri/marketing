@@ -191,4 +191,4 @@ export function parseCsv(text: string): { headers: string[]; rows: Record<string
   return { headers, rows }
 }
 
-export type { ViewKey } from './permissions'
+export type { ViewKey }
