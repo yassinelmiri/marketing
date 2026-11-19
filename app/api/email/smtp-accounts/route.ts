@@ -36,7 +36,8 @@ export async function GET() {
       .select('id, name, email, host, port, secure, username, from_name, is_active, created_at')
       .order('created_at', { ascending: false })
     if (error) throw error
-    return NextResponse.json({ accounts: data ?? [], isAdmin: auth.isAdmin }, { headers: { 'Cache-Control': 'no-store' } })
+    const safeAccounts = (data ?? []).map((account) => auth.isAdmin ? account : { id: account.id, name: account.name, email: account.email, from_name: account.from_name, is_active: account.is_active, created_at: account.created_at })
+    return NextResponse.json({ accounts: safeAccounts, isAdmin: auth.isAdmin }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     console.error('[smtp] GET failed:', error)
     return NextResponse.json({ error: 'Impossible de charger les comptes SMTP. Vérifiez la migration SQL et SUPABASE_SERVICE_ROLE_KEY.' }, { status: 500 })
