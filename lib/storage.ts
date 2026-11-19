@@ -127,7 +127,7 @@ export const ADMIN_ROLE_ID = 1
 export const CONTACT_IMPORT_COLUMNS = [
   'nom',
   'prenom',
-  'reseau_social',
+  'raison_sociale',
   'telephone',
   'mobile',
   'address',
