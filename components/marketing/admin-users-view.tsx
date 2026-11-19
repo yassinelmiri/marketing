@@ -30,6 +30,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
@@ -38,18 +39,34 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   async function loadUsers() {
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/users', { cache: 'no-store' })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error ?? 'Chargement impossible.')
-      setUsers((result.users ?? []).map((u: Omit<AdminUser, 'permissions'>) => ({
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error ?? `Erreur HTTP ${response.status}: chargement impossible.`)
+      }
+
+      const rows = Array.isArray(result.users) ? result.users : []
+      const roleRows = Array.isArray(result.roles) ? result.roles : []
+      setUsers(rows.map((u: Omit<AdminUser, 'permissions'>) => ({
         ...u,
         id: Number(u.id),
         role_id: Number(u.role_id),
         permissions: [],
       })))
-      setRoles(result.roles ?? [])
+      setRoles(roleRows.map((role: Role) => ({
+        ...role,
+        id: Number(role.id),
+      })))
+      setLoadError(null)
     } catch (error) {
-      toast.error('Erreur', error instanceof Error ? error.message : 'Chargement impossible.')
+      const message = error instanceof Error ? error.message : 'Chargement impossible.'
+      setLoadError(message)
+      toast.error('Erreur de chargement des utilisateurs', message)
     } finally {
       setLoading(false)
     }
@@ -175,8 +192,19 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
         </div>
         {loading ? (
           <div className="workspace-empty"><p>Chargement des utilisateurs…</p></div>
+        ) : loadError ? (
+          <div className="workspace-empty">
+            <p>La liste des utilisateurs n’a pas pu être chargée.</p>
+            <p className="campagne-table-desc">{loadError}</p>
+            <button type="button" className="workspace-primary" onClick={() => void loadUsers()}>
+              Réessayer
+            </button>
+          </div>
         ) : users.length === 0 ? (
-          <div className="workspace-empty"><p>Aucun utilisateur trouvé.</p></div>
+          <div className="workspace-empty">
+            <p>Aucun utilisateur trouvé.</p>
+            <p className="campagne-table-desc">La connexion à l’API fonctionne, mais aucun profil n’est retourné par Supabase.</p>
+          </div>
         ) : (
           <div className="campagne-table-wrap">
             <table className="campagne-table">
