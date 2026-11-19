@@ -81,8 +81,8 @@ export function AuthPage({ mode }: AuthPageProps) {
         return
       }
 
-      if (password.length < 8) {
-        const msg = 'Le mot de passe doit contenir au moins 8 caractères.'
+      if (password.length < 12) {
+        const msg = 'Le mot de passe doit contenir au moins 12 caractères.'
         setError(msg)
         toast.error('Mot de passe trop court', msg)
         return
