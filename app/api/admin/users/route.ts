@@ -180,3 +180,21 @@ export async function DELETE(request: NextRequest) {
   if (error) return NextResponse.json({ error: 'Suppression impossible.' }, { status: 500 })
   return NextResponse.json({ success: true })
 }
+
+export async function GET() {
+  const access = await requireAdmin()
+  if ('response' in access) return access.response
+
+  const [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
+    access.admin.from('user_profiles')
+      .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+      .order('date_creation', { ascending: false }),
+    access.admin.from('roles').select('id, nom, description').order('id'),
+  ])
+
+  if (usersError || rolesError) {
+    return NextResponse.json({ error: 'Chargement des utilisateurs impossible.' }, { status: 500 })
+  }
+
+  return NextResponse.json({ users: users ?? [], roles: roles ?? [] })
+}
