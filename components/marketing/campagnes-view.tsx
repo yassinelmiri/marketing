@@ -21,6 +21,7 @@ interface CampagnesViewProps {
   contacts: Contact[]
   typesCampagnes: TypeCampagne[]
   campagneListes: CampagneListe[]
+  listeContacts: { id: number; liste_id: number; contact_id: number; date_ajout: string }[]
   onCreate: (
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
   ) => Promise<Campagne | null>
@@ -44,6 +45,7 @@ export function CampagnesView({
   contacts,
   typesCampagnes,
   campagneListes,
+  listeContacts,
   onCreate,
   onUpdate,
   onDelete,
@@ -259,7 +261,7 @@ export function CampagnesView({
                             <input type="checkbox" checked={checked} onChange={() => toggleFormListe(l.id)} />
                             <div>
                               <strong>{l.nom}</strong>
-                              <span>{l.cible || 'Sans cible'} · {contacts.filter((contact) => campagneListes.some((link) => link.liste_id === l.id) && false).length + 0} contacts</span>
+                              <span>{l.cible || 'Sans cible'} · {listeContacts.filter((link) => link.liste_id === l.id).length} contacts</span>
                             </div>
                           </label>
                         )
