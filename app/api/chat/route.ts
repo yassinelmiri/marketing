@@ -92,7 +92,7 @@ export async function POST(req:NextRequest){
  if (error || !data) {
    console.error('[chat] message insert failed:', error?.code, error?.message, error?.details, error?.hint)
    return NextResponse.json(
-     { error: 'Enregistrement impossible. Vérifiez que la migration team_chat_messages est appliquée dans Supabase.', code: error?.code ?? 'CHAT_INSERT_FAILED' },
+     { error: `Enregistrement impossible. Vérifiez la migration team_chat_messages dans Supabase. Code: ${error?.code ?? 'CHAT_INSERT_FAILED'}`, code: error?.code ?? 'CHAT_INSERT_FAILED' },
      { status: 500, headers: { 'Cache-Control': 'no-store' } },
    )
  }
