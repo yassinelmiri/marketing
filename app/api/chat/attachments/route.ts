@@ -132,5 +132,46 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: signed } = await auth.admin.storage.from('team-chat-private').createSignedUrl(path, 60 * 5)
-  return NextResponse.json({ attachment: { ...data, signed_url: signed?.signedUrl ?? null } }, { status: 201 })
+  return NextResponse.json(
+    { attachment: { ...data, signed_url: signed?.signedUrl ?? null } },
+    { status: 201, headers: { 'Cache-Control': 'no-store' } },
+  )
+}
+
+export async function DELETE(req: NextRequest) {
+  const originError = checkOrigin(req)
+  if (originError) return originError
+  const auth = await authorize()
+  if ('response' in auth) return auth.response
+
+  let body: { id?: number }
+  try { body = await req.json() } catch {
+    return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
+  }
+  const id = Number(body.id)
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return NextResponse.json({ error: 'Identifiant de fichier invalide.' }, { status: 400 })
+  }
+
+  const { data: attachment, error } = await auth.admin.from('team_chat_attachments')
+    .select('id,storage_path')
+    .eq('id', id)
+    .eq('user_id', auth.userId)
+    .is('message_id', null)
+    .maybeSingle()
+  if (error || !attachment) {
+    return NextResponse.json({ error: 'Fichier introuvable ou déjà partagé.' }, { status: 404 })
+  }
+
+  const { error: storageError } = await auth.admin.storage.from('team-chat-private')
+    .remove([attachment.storage_path])
+  if (storageError) {
+    console.error('[chat-upload] pending file cleanup failed:', storageError.message)
+    return NextResponse.json({ error: 'Suppression du fichier impossible.' }, { status: 500 })
+  }
+
+  const { error: deleteError } = await auth.admin.from('team_chat_attachments')
+    .delete().eq('id', id).eq('user_id', auth.userId).is('message_id', null)
+  if (deleteError) return NextResponse.json({ error: 'Suppression des informations du fichier impossible.' }, { status: 500 })
+  return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } })
 }
