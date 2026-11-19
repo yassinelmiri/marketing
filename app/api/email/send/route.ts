@@ -17,22 +17,44 @@ function originError(request: NextRequest) {
   return null
 }
 
+async function authorizedSession() {
+  const session = await createClient()
+  const { data: auth, error: authError } = await session.auth.getUser()
+  if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
+  const { data: profile, error: profileError } = await session.from('user_profiles')
+    .select('id, role_id').eq('auth_user_id', auth.user.id).maybeSingle()
+  if (profileError || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
+  const isAdmin = Number(profile.role_id) === 1
+  const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
+  if (permissionError || (!isAdmin && !allowed)) return { error: NextResponse.json({ error: 'Vous ne disposez pas de l’autorisation d’accès au module e-mail.' }, { status: 403 }) }
+  return { session, profile, user: auth.user }
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await authorizedSession()
+  if ('error' in auth) return auth.error
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin.from('email_campaigns')
+      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, recipients, failed_recipients, total_recipients, sent_count, failed_count, status, sent_at, created_at')
+      .order('created_at', { ascending: false }).limit(100)
+    if (error) throw error
+    return NextResponse.json({ campaigns: data ?? [] })
+  } catch (error) {
+    console.error('[email/history] failed:', error)
+    return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   const origin = originError(request)
   if (origin) return origin
 
+  let campaignId: number | null = null
+  const admin = createAdminClient()
   try {
-    const session = await createClient()
-    const { data: auth, error: authError } = await session.auth.getUser()
-    if (authError || !auth.user) return NextResponse.json({ error: 'Authentification requise.' }, { status: 401 })
-
-    const { data: profile, error: profileError } = await session.from('user_profiles')
-      .select('id, role_id').eq('auth_user_id', auth.user.id).maybeSingle()
-    if (profileError || !profile) return NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 })
-
-    const isAdmin = Number(profile.role_id) === 1
-    const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
-    if (permissionError || (!isAdmin && !allowed)) return NextResponse.json({ error: 'Vous ne disposez pas de l’autorisation d’envoi e-mail.' }, { status: 403 })
+    const auth = await authorizedSession()
+    if ('error' in auth) return auth.error
 
     const body = await request.json()
     const smtpId = Number(body.smtp_account_id)
@@ -43,11 +65,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Choisissez un compte SMTP, une liste, un objet et un message.' }, { status: 400 })
     }
 
-    const admin = createAdminClient()
     const { data: smtp, error: smtpError } = await admin.from('smtp_accounts')
       .select('id, name, email, host, port, secure, username, password_encrypted, from_name, is_active')
       .eq('id', smtpId).eq('is_active', true).maybeSingle()
     if (smtpError || !smtp) return NextResponse.json({ error: 'Compte SMTP introuvable ou désactivé.' }, { status: 404 })
+
+    const { data: liste, error: listeError } = await admin.from('listes')
+      .select('id, nom').eq('id', listeId).maybeSingle()
+    if (listeError || !liste) return NextResponse.json({ error: 'Liste introuvable.' }, { status: 404 })
 
     const { data: links, error: linksError } = await admin.from('liste_contacts')
       .select('contact_id').eq('liste_id', listeId)
@@ -56,13 +81,29 @@ export async function POST(request: NextRequest) {
     if (!contactIds.length) return NextResponse.json({ error: 'Cette liste ne contient aucun contact.' }, { status: 400 })
 
     const { data: contacts, error: contactsError } = await admin.from('contacts')
-      .select('email, prenom, nom').in('id', contactIds)
+      .select('email').in('id', contactIds)
     if (contactsError) throw contactsError
     const recipients = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
-      .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))
+      .filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
     if (recipients.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
+
+    const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
+      smtp_account_id: smtp.id,
+      liste_id: liste.id,
+      created_by: auth.profile.id,
+      sender_email: smtp.email,
+      sender_name: smtp.from_name || smtp.name,
+      liste_nom: liste.nom,
+      subject,
+      message,
+      recipients,
+      total_recipients: recipients.length,
+      status: 'pending',
+    }).select('id').single()
+    if (insertError) throw insertError
+    campaignId = Number(campaign.id)
 
     const transporter = nodemailer.createTransport({
       host: smtp.host,
@@ -74,36 +115,52 @@ export async function POST(request: NextRequest) {
       socketTimeout: 30000,
     })
 
-    await transporter.verify()
     let sent = 0
     const failures: string[] = []
-    for (const recipient of recipients) {
-      try {
-        await transporter.sendMail({
-          from: { name: smtp.from_name || smtp.name, address: smtp.email },
-          to: recipient,
-          subject,
-          text: message,
-        })
-        sent += 1
-      } catch (error) {
-        console.error('[email/send] recipient delivery failed:', recipient, error)
-        failures.push(recipient)
+    try {
+      await transporter.verify()
+      for (const recipient of recipients) {
+        try {
+          await transporter.sendMail({
+            from: { name: smtp.from_name || smtp.name, address: smtp.email },
+            to: recipient,
+            subject,
+            text: message,
+          })
+          sent += 1
+        } catch (error) {
+          console.error('[email/send] delivery failed:', error)
+          failures.push(recipient)
+        }
       }
+    } finally {
+      transporter.close()
     }
-    transporter.close()
+
+    const status = sent === recipients.length ? 'sent' : sent > 0 ? 'partial' : 'failed'
+    const { error: updateError } = await admin.from('email_campaigns').update({
+      sent_count: sent,
+      failed_count: failures.length,
+      failed_recipients: failures,
+      status,
+    }).eq('id', campaignId)
+    if (updateError) throw updateError
 
     return NextResponse.json({
       success: true,
+      campaignId,
       sender: smtp.email,
       total: recipients.length,
       sent,
       failed: failures.length,
       failedRecipients: failures.slice(0, 20),
-      message: `Envoi terminé : ${sent}/${recipients.length} e-mail(s) envoyé(s).`,
+      message: `Envoi terminé : ${sent}/${recipients.length} e-mail(s) envoyé(s). Historique enregistré.`,
     })
   } catch (error) {
     console.error('[email/send] failed:', error)
+    if (campaignId !== null) {
+      await admin.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId)
+    }
     const message = error instanceof Error ? error.message : ''
     const safeMessage = /Invalid login|authentication|credentials/i.test(message)
       ? 'Authentification SMTP refusée. Vérifiez l’adresse et le mot de passe SMTP.'
