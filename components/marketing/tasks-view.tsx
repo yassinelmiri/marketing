@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
-import type { User } from '@/lib/storage'
+import type { User } from '@/lib/storage'\nimport { createClient } from '@/lib/supabase/client'
 
 type Member={id:number;prenom:string;nom:string;email?:string}
 type Task={id:number;title:string;description:string;priority:'low'|'medium'|'high'|'urgent';status:'todo'|'in_progress'|'waiting'|'done';due_date:string|null;created_by:number|null;created_at:string;assignee_ids:number[];assignees:Member[]}
@@ -18,13 +18,13 @@ function isLate(task:Task){return task.status!=='done'&&!!task.due_date&&new Dat
 function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0]??'')}
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
- const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([]),[notifications,setNotifications]=useState<Notification[]>([])
+ const supabase=useMemo(()=>createClient(),[])\n const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([]),[notifications,setNotifications]=useState<Notification[]>([])
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
  const [showNotifications,setShowNotifications]=useState(false),[modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
  const [draft,setDraft]=useState<TaskDraft>(empty),[saving,setSaving]=useState(false),[view,setView]=useState<'list'|'board'>('list')
  async function loadTasks(){setLoading(true);setError('');try{const res=await fetch('/api/tasks',{cache:'no-store'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Chargement des tâches impossible.');setTasks(data.tasks??[]);setMembers(data.members??[])}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
  async function loadNotifications(){try{const r=await fetch('/api/notifications',{cache:'no-store'});const d=await r.json();if(r.ok)setNotifications(d.notifications??[])}catch{}}
- useEffect(()=>{void loadTasks();void loadNotifications()},[])
+ useEffect(()=>{void loadTasks();void loadNotifications();const channel=supabase.channel('task-notifications-'+user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},()=>{void loadNotifications()}).subscribe();return()=>{void supabase.removeChannel(channel)}},[supabase,user.id])
  const filtered=useMemo(()=>tasks.filter(t=>(statusFilter==='all'||t.status===statusFilter)&&(''+t.title+' '+t.description+' '+t.assignees.map(a=>a.prenom+' '+a.nom).join(' ')).toLowerCase().includes(search.toLowerCase())),[tasks,statusFilter,search])
  const unread=notifications.filter(n=>!n.is_read).length, groups:Task['status'][]=['todo','in_progress','waiting','done']
  const stats={all:tasks.length,open:tasks.filter(t=>t.status!=='done').length,done:tasks.filter(t=>t.status==='done').length,late:tasks.filter(isLate).length}
