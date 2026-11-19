@@ -40,7 +40,8 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
   const [sending, setSending] = useState(false)
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState<{ total: number; sent: number; failed: number; sender: string; message: string } | null>(null)
-  const [history, setHistory] = useState<{ id: number; subject: string; listeNom: string; sender: string; date: string; sent: number; failed: number }[]>([])
+  const [history, setHistory] = useState<{ id: number; subject: string; listeNom: string; sender: string; date: string; sent: number; failed: number; message?: string; status?: string }[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
 
   const selectedListe = listeId === '' ? null : listes.find((item) => item.id === listeId) ?? null
   const contactCount = selectedListe ? listeContacts.filter((link) => link.liste_id === selectedListe.id).length : 0
@@ -66,6 +67,35 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
   }
 
   useEffect(() => { void loadAccounts() }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadHistory() {
+      setHistoryLoading(true)
+      try {
+        const response = await fetch('/api/email/send', { credentials: 'same-origin', cache: 'no-store' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Historique indisponible.')
+        if (!cancelled) setHistory((data.campaigns ?? []).map((item: any) => ({
+          id: Number(item.id),
+          subject: item.subject,
+          listeNom: item.liste_nom,
+          sender: item.sender_email,
+          date: new Date(item.sent_at || item.created_at).toLocaleString('fr-FR'),
+          sent: Number(item.sent_count),
+          failed: Number(item.failed_count),
+          message: item.message,
+          status: item.status,
+        })))
+      } catch (error) {
+        if (!cancelled) setAccountError(error instanceof Error ? error.message : 'Impossible de charger l’historique.')
+      } finally {
+        if (!cancelled) setHistoryLoading(false)
+      }
+    }
+    void loadHistory()
+    return () => { cancelled = true }
+  }, [])
 
   async function saveAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -143,9 +173,9 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
       if (!response.ok) throw new Error(data.error || 'Envoi impossible.')
       setResult(data)
       setHistory((current) => [{
-        id: Date.now(), subject, listeNom: selectedListe?.nom ?? '',
+        id: Number(data.campaignId), subject, listeNom: selectedListe?.nom ?? '',
         sender: data.sender, date: new Date().toLocaleString('fr-FR'),
-        sent: data.sent, failed: data.failed,
+        sent: data.sent, failed: data.failed, message, status: data.failed === 0 ? 'sent' : data.sent > 0 ? 'partial' : 'failed',
       }, ...current])
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : 'Erreur pendant l’envoi.')
@@ -214,8 +244,8 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
       </div>
 
       <div className="workspace-panel">
-        <div className="workspace-panel-header"><h2><ShieldCheck aria-hidden="true" /> Historique de cette session</h2><span>{history.length} envoi(s)</span></div>
-        {history.length === 0 ? <div className="workspace-empty"><Mail aria-hidden="true" /><p>Aucun envoi pour le moment.</p></div> : <ul className="history-list">{history.map((item) => <li key={item.id}><div><strong>{item.subject}</strong><span>{item.sender} · {item.listeNom} · {item.date} · {item.sent} envoyé(s), {item.failed} échec(s)</span></div></li>)}</ul>}
+        <div className="workspace-panel-header"><h2><ShieldCheck aria-hidden="true" /> Historique des campagnes e-mail</h2><span>{history.length} envoi(s) enregistrés</span></div>
+        {historyLoading ? <p>Chargement de l’historique…</p> : history.length === 0 ? <div className="workspace-empty"><Mail aria-hidden="true" /><p>Aucun envoi enregistré pour le moment.</p></div> : <ul className="history-list">{history.map((item) => <li key={item.id}><div><strong>{item.subject}</strong><span>{item.sender} · {item.listeNom} · {item.date} · {item.sent} envoyé(s), {item.failed} échec(s) · {item.status === 'partial' ? 'Partiel' : item.status === 'failed' ? 'Échec' : 'Envoyé'}</span>{item.message && <details><summary>Voir le contenu du message</summary><p style={{ whiteSpace: 'pre-wrap' }}>{item.message}</p></details>}</div></li>)}</ul>}
       </div>
     </section>
   )
