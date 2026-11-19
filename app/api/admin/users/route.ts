@@ -28,11 +28,21 @@ async function requireAdmin() {
   return { profile, admin: createAdminClient() }
 }
 
+function checkRequestOrigin(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  if (origin && origin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
+  }
+  return null
+}
+
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
 export async function POST(request: NextRequest) {
+  const originError = checkRequestOrigin(request)
+  if (originError) return originError
   const access = await requireAdmin()
   if ('response' in access) return access.response
 
@@ -90,6 +100,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const originError = checkRequestOrigin(request)
+  if (originError) return originError
   const access = await requireAdmin()
   if ('response' in access) return access.response
 
@@ -148,6 +160,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const originError = checkRequestOrigin(request)
+  if (originError) return originError
   const access = await requireAdmin()
   if ('response' in access) return access.response
 
