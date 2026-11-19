@@ -27,7 +27,11 @@ export async function GET(){
        .select('id,user_id,message_id,file_name,mime_type,file_size,storage_path,created_at')
        .in('message_id', messageIds)
    : { data: [], error: null }
- if (attachmentError) return NextResponse.json({ error: 'Chargement des pièces jointes impossible.' }, { status: 500 })
+ // Les messages texte restent accessibles même si la migration des pièces jointes
+ // n'a pas encore été appliquée sur ce projet Supabase.
+ if (attachmentError) {
+   console.error('[chat] attachments lookup failed:', attachmentError.code, attachmentError.message)
+ }
  const attachmentRows = await Promise.all((attachments ?? []).map(async (attachment) => {
    const { data: signed } = await auth.admin.storage.from('team-chat-private')
      .createSignedUrl(attachment.storage_path, 60 * 5)
@@ -85,7 +89,13 @@ export async function POST(req:NextRequest){
  const { data, error } = await auth.admin.from('team_chat_messages')
    .insert({ user_id: auth.profile.id, message: message || 'Pièce jointe' })
    .select('id,user_id,message,created_at').single()
- if (error || !data) return NextResponse.json({ error: 'Envoi du message impossible.' }, { status: 500 })
+ if (error || !data) {
+   console.error('[chat] message insert failed:', error?.code, error?.message, error?.details, error?.hint)
+   return NextResponse.json(
+     { error: 'Enregistrement impossible. Vérifiez que la migration team_chat_messages est appliquée dans Supabase.', code: error?.code ?? 'CHAT_INSERT_FAILED' },
+     { status: 500, headers: { 'Cache-Control': 'no-store' } },
+   )
+ }
  if (attachmentIds.length) {
    const { error: attachError } = await auth.admin.from('team_chat_attachments')
      .update({ message_id: data.id }).in('id', attachmentIds).eq('user_id', auth.profile.id)
@@ -114,7 +124,7 @@ export async function POST(req:NextRequest){
  }))
  return NextResponse.json({
    message: { ...data, profile: auth.profile, attachments: signedAttachments },
- }, { status: 201 })
+ }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function PATCH(req:NextRequest){
