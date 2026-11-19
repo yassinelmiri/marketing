@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'\nimport type { FormEvent } from 'react'
 import { MessageCircle, Send, Users, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@/lib/storage'
