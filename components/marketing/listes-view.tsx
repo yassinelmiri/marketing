@@ -11,6 +11,7 @@ import {
   Upload,
   Users,
   X,
+  Search,
 } from 'lucide-react'
 import {
   CONTACT_IMPORT_COLUMNS,
@@ -79,6 +80,9 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   const [showListeForm, setShowListeForm] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
   const [listeForm, setListeForm] = useState(emptyListeForm)
+  const [listeSearch, setListeSearch] = useState('')
+  const [listeDateFilter, setListeDateFilter] = useState('all')
+  const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
 
   const [showContactForm, setShowContactForm] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
@@ -98,6 +102,29 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   }, [listes, selectedListeId])
 
   const allCampagnes = campagnes
+  const visibleListes = useMemo(() => {
+    const query = listeSearch.trim().toLocaleLowerCase('fr')
+    const now = new Date()
+    const filtered = listes.filter((liste) => {
+      const matchesText = !query || [liste.nom, liste.description, liste.cible]
+        .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
+      if (!matchesText) return false
+      if (listeDateFilter === 'all') return true
+      const createdAt = new Date(liste.date_creation)
+      if (Number.isNaN(createdAt.getTime())) return false
+      const start = new Date(now)
+      if (listeDateFilter === 'today') start.setHours(0, 0, 0, 0)
+      if (listeDateFilter === '7d') start.setDate(start.getDate() - 7)
+      if (listeDateFilter === '30d') start.setDate(start.getDate() - 30)
+      return createdAt >= start
+    })
+    return filtered.sort((a, b) => {
+      if (listeSort === 'name-asc') return a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })
+      if (listeSort === 'name-desc') return b.nom.localeCompare(a.nom, 'fr', { sensitivity: 'base' })
+      const delta = new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime()
+      return listeSort === 'date-asc' ? delta : -delta
+    })
+  }, [listes, listeSearch, listeDateFilter, listeSort])
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = useMemo(() => {
     if (!selectedListe) return []
@@ -115,7 +142,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       cible: '',
       note: '',
       ajoute_par_nom: `${me.prenom} ${me.nom}`.trim(),
-      date_creation: new Date().toISOString().slice(0, 16),
+      date_creation: '',
       campagne_ids: [],
     })
     setShowListeForm(true)
@@ -167,7 +194,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
           description: listeForm.description,
           cible: listeForm.cible,
           note: listeForm.note,
-          ajoute_par_nom: listeForm.ajoute_par_nom,
+          ajoute_par_nom: `${user.prenom} ${user.nom}`.trim(),
           created_by: user.id,
         })
         listeId = created.id
@@ -349,6 +376,24 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
               <Plus aria-hidden="true" /> Nouvelle liste
             </button>
           </div>
+          <div className="workspace-toolbar" style={{ marginBottom: 14, display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) repeat(2, minmax(130px, auto))', gap: 8 }}>
+            <label style={{ position: 'relative' }}>
+              <Search aria-hidden="true" style={{ position: 'absolute', left: 10, top: 11, width: 16, height: 16, color: '#64748b' }} />
+              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => setListeSearch(e.target.value)} placeholder="Rechercher une liste…" style={{ width: '100%', paddingLeft: 34 }} />
+            </label>
+            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => setListeDateFilter(e.target.value)} className="workspace-select">
+              <option value="all">Toutes les dates</option>
+              <option value="today">Aujourd’hui</option>
+              <option value="7d">7 derniers jours</option>
+              <option value="30d">30 derniers jours</option>
+            </select>
+            <select aria-label="Trier les listes" value={listeSort} onChange={(e) => setListeSort(e.target.value as typeof listeSort)} className="workspace-select">
+              <option value="date-desc">Plus récentes</option>
+              <option value="date-asc">Plus anciennes</option>
+              <option value="name-asc">Nom A → Z</option>
+              <option value="name-desc">Nom Z → A</option>
+            </select>
+          </div>
           {listes.length === 0 ? (
             <div className="workspace-empty">
               <FolderPlus aria-hidden="true" />
@@ -357,7 +402,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
             </div>
           ) : (
             <ul className="bases-list">
-              {listes.map((l) => (
+              {visibleListes.map((l) => (
                 <li key={l.id}>
                   <button
                     type="button"
@@ -381,6 +426,11 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   </div>
                 </li>
               ))}
+              {visibleListes.length === 0 && (
+                <li className="workspace-empty" style={{ listStyle: 'none', padding: 16 }}>
+                  <p>Aucune liste ne correspond à votre recherche.</p>
+                </li>
+              )}
             </ul>
           )}
         </div>
@@ -503,14 +553,6 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                 <label className="form-grid-full">
                   <span>Note</span>
                   <textarea rows={2} value={listeForm.note} onChange={(e) => setListeForm({ ...listeForm, note: e.target.value })} placeholder="Détails internes, contexte…" />
-                </label>
-                <label>
-                  <span>Ajouté par</span>
-                  <input value={listeForm.ajoute_par_nom} onChange={(e) => setListeForm({ ...listeForm, ajoute_par_nom: e.target.value })} placeholder="Nom de la personne" />
-                </label>
-                <label>
-                  <span>Date de création</span>
-                  <input type="datetime-local" value={listeForm.date_creation} onChange={(e) => setListeForm({ ...listeForm, date_creation: e.target.value })} />
                 </label>
                 <div className="form-grid-full">
                   <span className="form-label">Campagnes associées</span>
