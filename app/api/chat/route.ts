@@ -45,7 +45,7 @@ export async function PATCH(req:NextRequest){
  const {data:existing,error:readError}=await auth.admin.from('team_chat_messages').select('id,user_id').eq('id',id).maybeSingle()
  if(readError||!existing)return NextResponse.json({error:'Message introuvable.'},{status:404})
  if(Number(existing.user_id)!==auth.profile.id)return NextResponse.json({error:'Vous pouvez modifier uniquement vos propres messages.'},{status:403})
- const {data,error}=await auth.admin.from('team_chat_messages').update({message,updated_at:new Date().toISOString()}).eq('id',id).select('id,user_id,message,created_at').single()
+ const {data,error}=await auth.admin.from('team_chat_messages').update({message}).eq('id',id).select('id,user_id,message,created_at').single()
  if(error||!data)return NextResponse.json({error:'Modification du message impossible.'},{status:500})
  return NextResponse.json({message:{...data,profile:auth.profile}})
 }
