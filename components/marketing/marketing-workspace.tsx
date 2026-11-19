@@ -78,7 +78,7 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
-  { key: 'admin-users', label: 'Utilisateurs', icon: ShieldCheck, adminOnly: true },
+  { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
   { key: 'settings', label: 'Paramètres', icon: Settings, adminOnly: true },
 ]
 
@@ -117,7 +117,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   },
   'admin-users': {
     title: 'Administration',
-    subtitle: 'Utilisateurs et permissions.',
+    subtitle: 'Comptes, rôles et autorisations par module.',
   },
   settings: {
     title: 'Paramètres',
