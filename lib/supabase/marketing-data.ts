@@ -369,7 +369,7 @@ export async function importContactsToListe(
       .insert({
         nom: nom || null,
         prenom: value('prenom') || null,
-        reseau_social: value('reseau_social') || null,
+        reseau_social: value('raison_sociale') || value('reseau_social') || null,
         telephone: value('telephone') || null,
         mobile: value('mobile') || null,
         address: value('address') || null,
