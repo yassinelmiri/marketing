@@ -36,7 +36,9 @@ export async function GET() {
   const { data: assignments, error: assignmentError } = taskIds.length ? await admin.from('task_assignments').select('task_id,user_id').in('task_id',taskIds) : { data: [], error: null }
   if (assignmentError) return NextResponse.json({error:'Chargement des affectations impossible.'},{status:500})
   const memberIds = Array.from(new Set((assignments ?? []).map(a=>Number(a.user_id))))
-  const { data: profiles } = memberIds.length ? await admin.from('user_profiles').select('id,prenom,nom,email').in('id',memberIds) : {data:[]}
+  const { data: assignedProfiles } = memberIds.length ? await admin.from('user_profiles').select('id,prenom,nom,email').in('id',memberIds) : {data:[]}
+  const { data: allMembers } = isAdmin ? await admin.from('user_profiles').select('id,prenom,nom,email').order('prenom') : {data:[]}
+  const profiles = isAdmin ? (allMembers ?? []) : (assignedProfiles ?? [])
   const names = new Map((profiles ?? []).map(p=>[Number(p.id),p]))
   const assigned = new Map<number,number[]>()
   for (const a of assignments ?? []) { const id=Number(a.task_id); const members=assigned.get(id) ?? []; members.push(Number(a.user_id)); assigned.set(id,members) }
