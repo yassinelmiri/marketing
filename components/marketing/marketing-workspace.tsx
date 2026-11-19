@@ -264,8 +264,9 @@ export function MarketingWorkspace() {
           }
         }
 
-        // Le tableau de bord reste accessible à tout compte connecté.
+        // Le tableau de bord et les paramètres personnels restent accessibles à tout compte connecté.
         pagePermissions.add('dashboard')
+        pagePermissions.add('settings')
 
         // 5. Construire le User attendu par les composants existants.
         // Le mot de passe n'est jamais récupéré depuis Supabase.
