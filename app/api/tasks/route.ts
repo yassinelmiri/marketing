@@ -31,7 +31,7 @@ async function access() {
     const admin = createAdminClient()
     return { admin, profile: profile as Profile, isAdmin: Number(profile.role_id) === 1 } as const
   } catch {
-    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) as const
+    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) as const }
   }
 }
 
