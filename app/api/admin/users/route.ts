@@ -133,7 +133,6 @@ export async function GET() {
       )
     }
 
-    const codeById = new Map((permissions ?? []).map((permission) => [Number(permission.id), permission.code]))
     const usersWithPermissions = (users ?? []).map((user) => {
       const inheritedIds = new Set((roleLinks ?? [])
         .filter((link) => Number(link.role_id) === Number(user.role_id))
