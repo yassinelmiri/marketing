@@ -1,0 +1,7 @@
+export { DashboardView } from './dashboard-view'
+export { CampagnesView } from './campagnes-view'
+export { EquipeView } from './equipe-view'
+export { AdminUsersView } from './admin-users-view'
+export { WhatsAppBotView } from './whatsapp-bot-view'
+export { EmailSenderView } from './email-sender-view'
+export { SmsSenderView } from './sms-sender-view'

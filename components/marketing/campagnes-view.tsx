@@ -1,0 +1,280 @@
+'use client'
+
+import { useState } from 'react'
+import { BarChart3, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
+import {
+  campagnesRepo,
+  listesRepo,
+  typeCampagnesRepo,
+  type Campagne,
+  type CampagneStatus,
+  type User,
+} from '@/lib/storage'
+import { useToast } from '@/components/ui/toast'
+import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
+
+interface CampagnesViewProps {
+  user: User
+  campagnes: Campagne[]
+  onCreate: (
+    data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
+  ) => Campagne | null
+  onUpdate: (id: number, patch: Partial<Omit<Campagne, 'id' | 'user_id' | 'date_creation'>>) => void
+  onDelete: (id: number) => void
+  onSetListes: (campagneId: number, listeIds: number[]) => void
+  onOpenListes: () => void
+}
+
+const emptyForm = {
+  titre: '',
+  type_campagne_id: 1,
+  cible: '',
+  note: '',
+  status: 'brouillon' as CampagneStatus,
+}
+
+export function CampagnesView({
+  campagnes,
+  onCreate,
+  onUpdate,
+  onDelete,
+  onSetListes,
+  onOpenListes,
+}: CampagnesViewProps) {
+  const toast = useToast()
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [formListeIds, setFormListeIds] = useState<number[]>([])
+  const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
+
+  const types = typeCampagnesRepo.actifs()
+  const allListes = listesRepo.all()
+  const filtered = campagnes.filter((c) => (filter === 'all' ? true : c.status === filter))
+  const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
+
+  function openCreate() {
+    setEditingId(null)
+    setForm({ ...emptyForm, type_campagne_id: types[0]?.id ?? 1 })
+    setFormListeIds([])
+    setShowForm(true)
+  }
+
+  function openEdit(c: Campagne) {
+    setEditingId(c.id)
+    setForm({
+      titre: c.titre,
+      type_campagne_id: c.type_campagne_id,
+      cible: c.cible,
+      note: c.note,
+      status: c.status,
+    })
+    setFormListeIds(campagnesRepo.listesOf(c.id).map((l) => l.id))
+    setShowForm(true)
+  }
+
+  function toggleFormListe(listeId: number) {
+    setFormListeIds((ids) =>
+      ids.includes(listeId) ? ids.filter((id) => id !== listeId) : [...ids, listeId],
+    )
+  }
+
+  function submit() {
+    if (!form.titre.trim()) {
+      toast.error('Titre requis', 'Donnez un titre à votre campagne.')
+      return
+    }
+    const payload = {
+      titre: form.titre.trim(),
+      type_campagne_id: form.type_campagne_id,
+      cible: form.cible,
+      note: form.note,
+      status: form.status,
+    }
+
+    if (editingId) {
+      onUpdate(editingId, payload)
+      onSetListes(editingId, formListeIds)
+      toast.success('Campagne mise à jour', `« ${payload.titre} » enregistrée.`)
+    } else {
+      const created = onCreate(payload)
+      if (created) {
+        onSetListes(created.id, formListeIds)
+      }
+      toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
+    }
+    setShowForm(false)
+    setEditingId(null)
+    setForm(emptyForm)
+    setFormListeIds([])
+  }
+
+  function handleDelete(c: Campagne) {
+    if (!confirm(`Supprimer la campagne « ${c.titre} » ?`)) return
+    onDelete(c.id)
+    toast.success('Campagne supprimée', `« ${c.titre} » retirée.`)
+  }
+
+  return (
+    <section className="workspace-section">
+      <div className="workspace-panel">
+        <div className="workspace-panel-header">
+          <h2>Campagnes</h2>
+          <div className="workspace-toolbar">
+            <div className="workspace-select">
+              <select value={filter} onChange={(e) => setFilter(e.target.value as CampagneStatus | 'all')}>
+                <option value="all">Tous les statuts</option>
+                <option value="brouillon">Brouillon</option>
+                <option value="en_cours">En cours</option>
+                <option value="terminee">Terminée</option>
+                <option value="archivee">Archivée</option>
+              </select>
+              <ChevronDown aria-hidden="true" />
+            </div>
+            <button type="button" className="workspace-secondary" onClick={onOpenListes}>
+              Gérer les listes
+            </button>
+            <button type="button" className="workspace-primary" onClick={openCreate}>
+              <Plus aria-hidden="true" /> Nouvelle campagne
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="workspace-empty">
+            <BarChart3 aria-hidden="true" />
+            <p>Aucune campagne trouvée.</p>
+            <span>Cliquez sur « Nouvelle campagne » pour commencer.</span>
+          </div>
+        ) : (
+          <div className="campagne-table-wrap">
+            <table className="campagne-table">
+              <thead>
+                <tr>
+                  <th>Titre</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                  <th>Listes</th>
+                  <th>Modifiée le</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => {
+                  const type = typeCampagnesRepo.byId(c.type_campagne_id)
+                  const listes = campagnesRepo.listesOf(c.id)
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <strong>{c.titre}</strong>
+                        <span className="campagne-table-desc">{c.note || '—'}</span>
+                      </td>
+                      <td>{type?.nom ?? '—'}</td>
+                      <td>
+                        <span className={`status-pill ${STATUS_COLORS[c.status]}`}>
+                          {STATUS_LABELS[c.status]}
+                        </span>
+                      </td>
+                      <td>
+                        {listes.length === 0 ? '—' : listes.map((l) => l.nom).join(', ')}
+                      </td>
+                      <td>{formatDate(c.date_modification)}</td>
+                      <td className="campagne-table-actions">
+                        <button type="button" onClick={() => openEdit(c)} aria-label="Modifier">
+                          <Pencil aria-hidden="true" />
+                        </button>
+                        <button type="button" className="danger" onClick={() => handleDelete(c)} aria-label="Supprimer">
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="workspace-modal-backdrop" onClick={() => setShowForm(false)}>
+          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <header>
+              <h3>{editing ? 'Modifier la campagne' : 'Nouvelle campagne'}</h3>
+              <button type="button" className="workspace-icon-button" onClick={() => setShowForm(false)} aria-label="Fermer">
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <div className="workspace-modal-body">
+              <div className="form-grid">
+                <label className="form-grid-full">
+                  <span>Titre de la campagne</span>
+                  <input value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} placeholder="Lancement produit" />
+                </label>
+                <label>
+                  <span>Type</span>
+                  <select value={form.type_campagne_id} onChange={(e) => setForm({ ...form, type_campagne_id: Number(e.target.value) })}>
+                    {types.map((t) => (
+                      <option key={t.id} value={t.id}>{t.nom}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Statut</span>
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as CampagneStatus })}>
+                    <option value="brouillon">Brouillon</option>
+                    <option value="en_cours">En cours</option>
+                    <option value="terminee">Terminée</option>
+                    <option value="archivee">Archivée</option>
+                  </select>
+                </label>
+                <label className="form-grid-full">
+                  <span>Cible</span>
+                  <input value={form.cible} onChange={(e) => setForm({ ...form, cible: e.target.value })} placeholder="Prospects, clients, segment…" />
+                </label>
+
+                <div className="form-grid-full">
+                  <span className="form-label">Listes ciblées par la campagne</span>
+                  {allListes.length === 0 ? (
+                    <p className="form-hint">
+                      Aucune liste disponible.{' '}
+                      <button type="button" className="link-button" onClick={onOpenListes}>
+                        Créer une liste
+                      </button>
+                    </p>
+                  ) : (
+                    <div className="checkbox-grid">
+                      {allListes.map((l) => {
+                        const checked = formListeIds.includes(l.id)
+                        return (
+                          <label key={l.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleFormListe(l.id)} />
+                            <div>
+                              <strong>{l.nom}</strong>
+                              <span>{l.cible || 'Sans cible'} · {listesRepo.contactsOf(l.id).length} contacts</span>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <label className="form-grid-full">
+                  <span>Note</span>
+                  <textarea rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Détails internes…" />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button type="button" className="workspace-secondary" onClick={() => setShowForm(false)}>Annuler</button>
+              <button type="button" className="workspace-primary" onClick={submit}>
+                {editing ? 'Enregistrer' : 'Créer la campagne'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
