@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { BarChart3, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import {
   type Campagne,
   type CampagneStatus,
@@ -58,10 +58,28 @@ export function CampagnesView({
   const [form, setForm] = useState(emptyForm)
   const [formListeIds, setFormListeIds] = useState<number[]>([])
   const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
+  const [search, setSearch] = useState('')
 
-  const types = typesCampagnes.filter((type) => type.actif)
-  const allListes = listes
-  const filtered = campagnes.filter((c) => (filter === 'all' ? true : c.status === filter))
+  // Les filtres et la recherche sont exécutés localement sur les données déjà chargées.
+  const campaignListLinks = Array.isArray(campagneListes) ? campagneListes : []
+  const localListes = Array.isArray(listes) ? listes : []
+  const localTypes = Array.isArray(typesCampagnes) ? typesCampagnes : []
+
+  const types = localTypes.filter((type) => type.actif)
+  const allListes = localListes
+  const normalizedSearch = search.trim().toLocaleLowerCase('fr')
+  const filtered = (Array.isArray(campagnes) ? campagnes : []).filter((campaign) => {
+    const matchesStatus = filter === 'all' || campaign.status === filter
+    if (!matchesStatus) return false
+    if (!normalizedSearch) return true
+    const campaignType = localTypes.find((type) => type.id === campaign.type_campagne_id)?.nom ?? ''
+    const linkedListNames = campaignListLinks
+      .filter((link) => link.campagne_id === campaign.id)
+      .map((link) => localListes.find((list) => list.id === link.liste_id)?.nom ?? '')
+      .join(' ')
+    return [campaign.titre, campaign.note, campaign.cible, campaignType, linkedListNames, STATUS_LABELS[campaign.status]]
+      .join(' ').toLocaleLowerCase('fr').includes(normalizedSearch)
+  })
   const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
 
   function openCreate() {
@@ -80,7 +98,7 @@ export function CampagnesView({
       note: c.note,
       status: c.status,
     })
-    setFormListeIds(campagneListes.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
+    setFormListeIds(campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
     setShowForm(true)
   }
 
@@ -131,6 +149,11 @@ export function CampagnesView({
         <div className="workspace-panel-header">
           <h2>Campagnes</h2>
           <div className="workspace-toolbar">
+            <label className="campagne-search" htmlFor="campagnes-local-search">
+              <Search size={17} aria-hidden="true" />
+              <input id="campagnes-local-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher dans les campagnes…" />
+              {search && <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"><X size={15}/></button>}
+            </label>
             <div className="workspace-select">
               <select value={filter} onChange={(e) => setFilter(e.target.value as CampagneStatus | 'all')}>
                 <option value="all">Tous les statuts</option>
@@ -153,8 +176,8 @@ export function CampagnesView({
         {filtered.length === 0 ? (
           <div className="workspace-empty">
             <BarChart3 aria-hidden="true" />
-            <p>Aucune campagne trouvée.</p>
-            <span>Cliquez sur « Nouvelle campagne » pour commencer.</span>
+            <p>{search || filter !== 'all' ? 'Aucun résultat pour ces critères.' : 'Aucune campagne trouvée.'}</p>
+            <span>{search || filter !== 'all' ? 'Modifiez la recherche ou le filtre pour afficher des résultats.' : 'Cliquez sur « Nouvelle campagne » pour commencer.'}</span>
           </div>
         ) : (
           <div className="campagne-table-wrap">
@@ -172,7 +195,7 @@ export function CampagnesView({
               <tbody>
                 {filtered.map((c) => {
                   const type = typesCampagnes.find((item) => item.id === c.type_campagne_id)
-                  const listes = campagneListes.filter((link) => link.campagne_id === c.id).map((link) => listes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
+                  const campaignListsForRow = campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => localListes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
                   return (
                     <tr key={c.id}>
                       <td>
@@ -186,7 +209,7 @@ export function CampagnesView({
                         </span>
                       </td>
                       <td>
-                        {listes.length === 0 ? '—' : listes.map((l) => l.nom).join(', ')}
+                        {campaignListsForRow.length === 0 ? '—' : campaignListsForRow.map((l) => l.nom).join(', ')}
                       </td>
                       <td>{formatDate(c.date_modification)}</td>
                       <td className="campagne-table-actions">
