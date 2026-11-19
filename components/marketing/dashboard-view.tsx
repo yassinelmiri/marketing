@@ -19,7 +19,7 @@ import {
   type User,
   type TypeCampagne,
 } from '@/lib/storage'
-import { STATUS_COLORS, STATUS_LABELS } from './shared'
+import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
 
 interface DashboardViewProps {
   user: User
