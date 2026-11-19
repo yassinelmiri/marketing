@@ -142,6 +142,7 @@ export function MarketingWorkspace() {
   const [listes, setListes] = useState<ListeContact[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
+  const [campagneListes, setCampagneListes] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
 
   // ============================================================
@@ -353,6 +354,7 @@ export function MarketingWorkspace() {
       setListes(result.listes)
       setContacts(result.contacts)
       setTypesCampagnes(result.typesCampagnes)
+      setCampagneListes(result.campagneListes)
       const { data: members, error } = await supabase
         .from('user_profiles')
         .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
@@ -724,7 +726,7 @@ export function MarketingWorkspace() {
               listes={listes}
               contacts={contacts}
               typesCampagnes={typesCampagnes}
-              campagneListes={[]}
+              campagneListes={campagneListes}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
