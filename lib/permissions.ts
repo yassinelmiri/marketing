@@ -9,6 +9,8 @@ export type ViewKey =
   | 'campagnes'
   | 'listes'
   | 'equipe'
+  | 'tasks'
+  | 'chat'
   | 'whatsapp'
   | 'email'
   | 'sms'
