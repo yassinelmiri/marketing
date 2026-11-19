@@ -28,6 +28,7 @@ import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
 import { SettingsView } from './settings-view'
+import { NotificationBell } from './notification-bell'
 import { TasksView } from './tasks-view'
 import { TeamChatView } from './team-chat-view'
 
@@ -736,6 +737,10 @@ export function MarketingWorkspace() {
               <h1>{currentPage.title}</h1>
               <p>{currentPage.subtitle}</p>
             </div>
+          </div>
+          <div className="workspace-topbar-actions">
+            <NotificationBell userId={currentUser.id} />
+            <div className="workspace-topbar-user"><span>{userName}</span><small>{roleName}</small></div>
           </div>
         </header>
 
