@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
 import type { User } from '@/lib/storage'
-import { createClient } from '@/lib/supabase/client'
 
 type Member={id:number;prenom:string;nom:string;email?:string}
 type Task={id:number;title:string;description:string;priority:'low'|'medium'|'high'|'urgent';status:'todo'|'in_progress'|'waiting'|'done';due_date:string|null;created_by:number|null;created_at:string;assignee_ids:number[];assignees:Member[]}
-type Notification={id:number;type:string;title:string;body:string;task_id:number|null;is_read:boolean;created_at:string}
 type TaskDraft={title:string;description:string;priority:Task['priority'];status:Task['status'];due_date:string;assignee_ids:number[]}
 const empty:TaskDraft={title:'',description:'',priority:'medium',status:'todo',due_date:'',assignee_ids:[]}
 const statusLabel={todo:'À faire',in_progress:'En cours',waiting:'En attente',done:'Terminée'}
@@ -19,28 +17,25 @@ function isLate(task:Task){return task.status!=='done'&&!!task.due_date&&new Dat
 function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0]??'')}
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
- const supabase=useMemo(()=>createClient(),[])
- const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([]),[notifications,setNotifications]=useState<Notification[]>([])
+ const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([])
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
  const [showNotifications,setShowNotifications]=useState(false),[modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
  const [draft,setDraft]=useState<TaskDraft>(empty),[saving,setSaving]=useState(false),[view,setView]=useState<'list'|'board'>('list'),[draggedTaskId,setDraggedTaskId]=useState<number|null>(null),[dragOverStatus,setDragOverStatus]=useState<Task['status']|null>(null)
  async function loadTasks(){setLoading(true);setError('');try{const res=await fetch('/api/tasks',{cache:'no-store'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Chargement des tâches impossible.');setTasks(data.tasks??[]);setMembers(data.members??[])}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
- async function loadNotifications(){try{const r=await fetch('/api/notifications',{cache:'no-store'});const d=await r.json();if(r.ok)setNotifications(d.notifications??[])}catch{}}
- useEffect(()=>{void loadTasks();void loadNotifications();const channel=supabase.channel('task-notifications-'+user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},()=>{void loadNotifications()}).subscribe();return()=>{void supabase.removeChannel(channel)}},[supabase,user.id])
+ useEffect(()=>{void loadTasks()},[user.id])
  const filtered=useMemo(()=>tasks.filter(t=>(statusFilter==='all'||t.status===statusFilter)&&(''+t.title+' '+t.description+' '+t.assignees.map(a=>a.prenom+' '+a.nom).join(' ')).toLowerCase().includes(search.toLowerCase())),[tasks,statusFilter,search])
- const unread=notifications.filter(n=>!n.is_read).length, groups:Task['status'][]=['todo','in_progress','waiting','done']
+ const groups:Task['status'][]=['todo','in_progress','waiting','done']
  const stats={all:tasks.length,open:tasks.filter(t=>t.status!=='done').length,done:tasks.filter(t=>t.status==='done').length,late:tasks.filter(isLate).length}
  function openCreate(){setEditing(null);setDraft({...empty});setModal(true)}
  function openEdit(task:Task){setEditing(task);setDraft({title:task.title,description:task.description,priority:task.priority,status:task.status,due_date:task.due_date??'',assignee_ids:task.assignee_ids});setModal(true)}
  function toggleMember(id:number){setDraft(d=>({...d,assignee_ids:d.assignee_ids.includes(id)?d.assignee_ids.filter(x=>x!==id):[...d.assignee_ids,id]}))}
- async function save(){if(!draft.title.trim())return;setSaving(true);try{const response=await fetch('/api/tasks',{method:editing?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(editing?{id:editing.id,...draft,due_date:draft.due_date||null}:{...draft,due_date:draft.due_date||null})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Enregistrement impossible.');setModal(false);await loadTasks();await loadNotifications()}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setSaving(false)}}
+ async function save(){if(!draft.title.trim())return;setSaving(true);try{const response=await fetch('/api/tasks',{method:editing?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(editing?{id:editing.id,...draft,due_date:draft.due_date||null}:{...draft,due_date:draft.due_date||null})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Enregistrement impossible.');setModal(false);await loadTasks()}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setSaving(false)}}
  async function updateStatus(task:Task,status:Task['status']){try{const response=await fetch('/api/tasks',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:task.id,status,...(isAdmin?{title:task.title,description:task.description,priority:task.priority,due_date:task.due_date,assignee_ids:task.assignee_ids}:{})})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Modification impossible.');await loadTasks()}catch(e){setError(e instanceof Error?e.message:'Erreur')}}
  async function dropTask(status:Task['status']){if(draggedTaskId===null)return;const task=tasks.find(t=>t.id===draggedTaskId);setDraggedTaskId(null);setDragOverStatus(null);if(task&&task.status!==status)await updateStatus(task,status)}
  async function remove(task:Task){if(!confirm('Supprimer la tâche « '+task.title+' » ?'))return;try{const r=await fetch('/api/tasks',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:task.id})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Suppression impossible.');await loadTasks()}catch(e){setError(e instanceof Error?e.message:'Erreur')}}
- async function markRead(id?:number){try{const r=await fetch('/api/notifications',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(id?{id}:{all:true})});if(r.ok)await loadNotifications()}catch{}}
+
  return <section className="workspace-section taskz-page">
-  <div className="taskz-heading"><div><span className="settings-eyebrow">ORGANISATION & SUIVI</span><h2>{isAdmin?'Gestion des tâches':'Mes tâches'}</h2><p>{isAdmin?'Planifiez, attribuez et suivez le travail de toute l’équipe.':'Suivez vos missions et mettez à jour leur avancement.'}</p></div><div className="taskz-actions"><button className="taskz-iconbtn taskz-bell" type="button" onClick={()=>setShowNotifications(v=>!v)} aria-label="Notifications"><Bell size={18}/>{unread>0&&<span>{unread>9?'9+':unread}</span>}</button>{isAdmin&&<button className="workspace-primary" onClick={openCreate}><Plus size={17}/> Nouvelle tâche</button>}</div></div>
-  {showNotifications&&<div className="taskz-notifications"><div className="taskz-notif-head"><strong>Notifications</strong><button onClick={()=>void markRead()} disabled={!unread}>Tout marquer comme lu</button></div>{notifications.length===0?<p className="taskz-empty-small">Aucune notification.</p>:notifications.map(n=><button className={'taskz-notif-item '+(n.is_read?'':'is-unread')} key={n.id} onClick={()=>void markRead(n.id)}><span className="taskz-notif-dot"/><div><strong>{n.title}</strong><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString('fr-FR')}</small></div></button>)}</div>}
+  <div className="taskz-heading"><div><span className="settings-eyebrow">ORGANISATION & SUIVI</span><h2>{isAdmin?'Gestion des tâches':'Mes tâches'}</h2><p>{isAdmin?'Planifiez, attribuez et suivez le travail de toute l’équipe.':'Suivez vos missions et mettez à jour leur avancement.'}</p></div>{isAdmin&&<div className="taskz-actions"><button className="workspace-primary" onClick={openCreate}><Plus size={17}/> Nouvelle tâche</button></div>}</div>
   <div className="taskz-stats"><article><span className="taskz-stat-icon"><ListTodo/></span><div><small>Total des tâches</small><strong>{stats.all}</strong></div></article><article><span className="taskz-stat-icon taskz-blue"><Clock3/></span><div><small>À suivre</small><strong>{stats.open}</strong></div></article><article><span className="taskz-stat-icon taskz-green"><CheckCircle2/></span><div><small>Terminées</small><strong>{stats.done}</strong></div></article><article><span className="taskz-stat-icon taskz-red"><CalendarClock/></span><div><small>En retard</small><strong>{stats.late}</strong></div></article></div>
   <div className="taskz-toolbar"><div className="taskz-search"><Search size={17}/><input placeholder="Rechercher une tâche ou un membre…" value={search} onChange={e=>setSearch(e.target.value)}/></div><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">Tous les statuts</option>{groups.map(s=><option key={s} value={s}>{statusLabel[s]}</option>)}</select><div className="taskz-view-toggle"><button className={view==='list'?'active':''} onClick={()=>setView('list')}>Liste</button><button className={view==='board'?'active':''} onClick={()=>setView('board')}>Kanban</button></div></div>
   {error&&<div className="taskz-error">{error}<button onClick={()=>setError('')} aria-label="Fermer"><X size={14}/></button></div>}
