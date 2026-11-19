@@ -15,6 +15,8 @@ import {
   Smartphone,
   Users,
   UsersRound,
+  ListTodo,
+  MessagesSquare,
 } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
@@ -25,7 +27,11 @@ import { AdminUsersView } from './admin-users-view'
 import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
-import { SettingsView } from './settings-view'\nimport { TasksView } from './tasks-view'\nimport { TeamChatView } from './team-chat-view'
+import { SettingsView } from './settings-view'
+import { TasksView } from './tasks-view'
+import { TeamChatView } from './team-chat-view'
+import { TasksView } from './tasks-view'
+import { TeamChatView } from './team-chat-view'
 
 import {
   type Campagne,
@@ -75,7 +81,11 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
-  { key: 'equipe', label: 'Équipe', icon: UsersRound },\n  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },\n  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
+  { key: 'equipe', label: 'Équipe', icon: UsersRound },
+  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
+  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
+  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
+  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
@@ -99,6 +109,14 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   equipe: {
     title: 'Équipe',
     subtitle: 'Membres de votre espace.',
+  },
+  tasks: {
+    title: 'Gestion des tâches',
+    subtitle: 'Organisez, attribuez et suivez les tâches de votre équipe.',
+  },
+  chat: {
+    title: 'Chat d’équipe',
+    subtitle: 'Échangez avec vos collègues en temps réel.',
   },
   whatsapp: {
     title: 'Bot WhatsApp',
@@ -771,6 +789,10 @@ export function MarketingWorkspace() {
           {activeView === 'equipe' && (
             <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
           )}
+
+          {activeView === 'tasks' && <TasksView user={currentUser} isAdmin={isAdmin} />}
+
+          {activeView === 'chat' && <TeamChatView user={currentUser} />}
 
           {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
 
