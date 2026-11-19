@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { AlertCircle, CheckCircle2, Mail, Plus, Send, Server, ShieldCheck, Trash2, Users, X } from 'lucide-react'
 import type { ListeContact, ListeContactContact } from '@/lib/storage'
 
@@ -67,7 +67,7 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
 
   useEffect(() => { void loadAccounts() }, [])
 
-  async function saveAccount(event: React.FormEvent<HTMLFormElement>) {
+  async function saveAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaving(true)
     setAccountError('')
