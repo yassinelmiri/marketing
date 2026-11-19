@@ -93,47 +93,47 @@ const NAV_ITEMS: NavigationItem[] = [
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: {
     title: 'Tableau de bord',
-    subtitle: 'Vue d’ensemble des campagnes.',
+    subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
   },
   campagnes: {
     title: 'Campagnes',
-    subtitle: 'Créez et suivez vos campagnes multicanal.',
+    subtitle: 'Créez vos campagnes, associez vos listes de contacts et suivez leur avancement.',
   },
   listes: {
     title: 'Listes & contacts',
-    subtitle: 'Organisez vos contacts par liste.',
+    subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
   },
   equipe: {
     title: 'Équipe',
-    subtitle: 'Membres de votre espace.',
+    subtitle: 'Consultez les membres de l’équipe et identifiez clairement leur rôle.',
   },
   tasks: {
     title: 'Gestion des tâches',
-    subtitle: 'Organisez, attribuez et suivez les tâches de votre équipe.',
+    subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
   },
   chat: {
     title: 'Chat d’équipe',
-    subtitle: 'Échangez avec vos collègues en temps réel.',
+    subtitle: 'Discutez avec votre équipe et partagez des fichiers dans un espace commun.',
   },
   whatsapp: {
     title: 'Bot WhatsApp',
-    subtitle: 'Simulation d’envoi WhatsApp.',
+    subtitle: 'Accédez à l’espace de gestion des envois WhatsApp.',
   },
   email: {
     title: 'Envoi e-mail',
-    subtitle: 'Gérez plusieurs expéditeurs SMTP et envoyez vos campagnes e-mail.',
+    subtitle: 'Configurez vos expéditeurs, choisissez une liste et consultez l’historique des envois.',
   },
   sms: {
     title: 'Envoi SMS',
-    subtitle: 'Simulation d’envoi SMS.',
+    subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
   },
   'admin-users': {
     title: 'Administration',
-    subtitle: 'Comptes, rôles et autorisations par module.',
+    subtitle: 'Gérez les comptes utilisateurs, attribuez les rôles et contrôlez les accès à chaque module.',
   },
   settings: {
     title: 'Paramètres',
-    subtitle: 'Gérez vos informations personnelles et la sécurité de votre compte.',
+    subtitle: 'Mettez à jour votre profil et modifiez votre mot de passe en toute sécurité.',
   },
 }
 
