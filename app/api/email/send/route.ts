@@ -35,9 +35,11 @@ export async function GET(request: NextRequest) {
   if ('error' in auth) return auth.error
   try {
     const admin = createAdminClient()
-    const { data, error } = await admin.from('email_campaigns')
+    let query = admin.from('email_campaigns')
       .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, recipients, failed_recipients, total_recipients, sent_count, failed_count, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
+    if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
+    const { data, error } = await query
     if (error) throw error
     return NextResponse.json({ campaigns: data ?? [] })
   } catch (error) {
