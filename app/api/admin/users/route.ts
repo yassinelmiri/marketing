@@ -95,44 +95,30 @@ export async function GET() {
     const result = await requireAdmin()
     if ('response' in result) return result.response
 
-    // La lecture utilise la clé serveur si elle existe; sinon, elle passe par
-    // les politiques RLS du compte admin. Ainsi, l'affichage ne dépend pas
-    // inutilement de la clé service_role.
+    // La liste complète des comptes nécessite le client serveur privilégié.
+    // Ne jamais renvoyer silencieusement uniquement le profil courant.
     const admin = getAdminClientOrNull()
-    const reader = admin ?? result.access.session
+    if (!admin) return serviceRoleRequired()
 
-    let [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
-      reader.from('user_profiles')
+    const [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
+      admin.from('user_profiles')
         .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
         .order('date_creation', { ascending: false }),
-      reader.from('roles').select('id, nom, description').order('id'),
+      admin.from('roles').select('id, nom, description').order('id'),
     ])
-
-    // Si la clé serveur existe mais ne permet pas la lecture, réessayer avec
-    // la session authentifiée et les règles RLS.
-    if ((usersError || rolesError) && admin) {
-      const fallback = result.access.session
-      const [fallbackUsers, fallbackRoles] = await Promise.all([
-        fallback.from('user_profiles')
-          .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-          .order('date_creation', { ascending: false }),
-        fallback.from('roles').select('id, nom, description').order('id'),
-      ])
-      users = fallbackUsers.data
-      usersError = fallbackUsers.error
-      roles = fallbackRoles.data
-      rolesError = fallbackRoles.error
-    }
 
     if (usersError || rolesError) {
       console.error('[admin/users] list query failed:', usersError?.message, rolesError?.message)
       return NextResponse.json(
-        { error: 'Impossible de charger les utilisateurs. Vérifiez les politiques RLS sur user_profiles et roles.' },
+        { error: 'Impossible de charger les utilisateurs. Vérifiez les tables user_profiles et roles.' },
         { status: 500 },
       )
     }
 
-    return NextResponse.json({ users: users ?? [], roles: roles ?? [] })
+    return NextResponse.json(
+      { users: users ?? [], roles: roles ?? [] },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    )
   } catch (error) {
     console.error('[admin/users] GET failed:', error)
     return NextResponse.json({ error: 'Erreur serveur pendant le chargement des utilisateurs.' }, { status: 500 })
