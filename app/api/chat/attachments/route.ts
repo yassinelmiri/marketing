@@ -63,9 +63,21 @@ export async function POST(req: NextRequest) {
   if (file.size < 1 || file.size > MAX_FILE_SIZE) return NextResponse.json({ error: 'La taille maximale autorisée est de 10 Mo.' }, { status: 413 })
   if (!ALLOWED_TYPES.has(file.type)) return NextResponse.json({ error: 'Format non autorisé. Images, PDF, TXT, DOCX et XLSX uniquement.' }, { status: 415 })
 
+  const { count: recentUploads, error: quotaError } = await auth.admin.from('team_chat_attachments')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', auth.userId)
+    .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+  if (quotaError) return NextResponse.json({ error: 'Vérification de quota impossible.' }, { status: 500 })
+  if ((recentUploads ?? 0) >= 30) return NextResponse.json({ error: 'Limite de 30 fichiers par heure atteinte.' }, { status: 429 })
+
   const originalName = safeFileName(file.name)
-  const extension = originalName.includes('.') ? originalName.split('.').pop()?.toLowerCase() : 'bin'
-  const path = `${auth.userId}/${randomUUID()}.${extension || 'bin'}`
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+    'application/pdf': 'pdf', 'text/plain': 'txt',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  }
+  const path = `${auth.userId}/${randomUUID()}.${extensions[file.type]}`
   const bytes = Buffer.from(await file.arrayBuffer())
 
   // Basic signature checks prevent files with a renamed extension from being rendered as images/PDF.
@@ -81,6 +93,16 @@ export async function POST(req: NextRequest) {
   }
   if (file.type === 'image/webp' && (bytes.toString('ascii', 8, 12) !== 'WEBP' || bytes.toString('ascii', 0, 4) !== 'RIFF')) {
     return NextResponse.json({ error: 'Image WebP invalide.' }, { status: 415 })
+  }
+  if (
+    (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    && !(bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04)
+  ) {
+    return NextResponse.json({ error: 'Document Office invalide.' }, { status: 415 })
+  }
+  if (file.type === 'text/plain' && bytes.includes(0)) {
+    return NextResponse.json({ error: 'Le fichier texte contient des données binaires.' }, { status: 415 })
   }
 
   const { error: uploadError } = await auth.admin.storage.from('team-chat-private').upload(path, bytes, {
