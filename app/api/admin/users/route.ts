@@ -122,7 +122,7 @@ export async function GET() {
       admin.from('roles').select('id, nom, description').order('id'),
       admin.from('permissions').select('id, code'),
       admin.from('role_permissions').select('role_id, permission_id'),
-      admin.from('user_permissions').select('user_profile_id, permission_id, granted'),
+      admin.from('user_permissions').select('user_id, permission_id, granted'),
     ])
 
     if (usersError || rolesError || permissionsError || roleLinksError || userLinksError) {
@@ -139,7 +139,7 @@ export async function GET() {
         .filter((link) => Number(link.role_id) === Number(user.role_id))
         .map((link) => Number(link.permission_id)))
       const overrides = new Map((userLinks ?? [])
-        .filter((link) => Number(link.user_profile_id) === Number(user.id))
+        .filter((link) => Number(link.user_id) === Number(user.id))
         .map((link) => [Number(link.permission_id), Boolean(link.granted)]))
       const effectivePermissions = MODULE_PERMISSION_CODES.filter((code) => {
         const permission = (permissions ?? []).find((item) => item.code === code)
@@ -346,13 +346,13 @@ export async function PATCH(request: NextRequest) {
     }
     const selected = new Set(requestedCodes)
     const rows = (modulePermissions ?? []).map((permission) => ({
-      user_profile_id: id,
+      user_id: id,
       permission_id: Number(permission.id),
       granted: selected.has(permission.code),
     }))
     const { error: permissionSaveError } = await admin
       .from('user_permissions')
-      .upsert(rows, { onConflict: 'user_profile_id,permission_id' })
+      .upsert(rows, { onConflict: 'user_id,permission_id' })
     if (permissionSaveError) {
       console.error('[admin/users] permission update failed:', permissionSaveError.message)
       return NextResponse.json({ error: 'Impossible d’enregistrer les autorisations.' }, { status: 500 })
