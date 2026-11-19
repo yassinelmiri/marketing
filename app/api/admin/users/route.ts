@@ -8,6 +8,15 @@ export const dynamic = 'force-dynamic'
 const ADMIN_ROLE_ID = 1
 const ROOT_EMAIL = 'miriyassine123@gmail.com'
 
+const MODULE_PERMISSION_CODES = [
+  'campagne.read',
+  'equipe.read',
+  'whatsapp.access',
+  'email.access',
+  'sms.access',
+  'listes.read',
+] as const
+
 type AdminAccess = {
   session: Awaited<ReturnType<typeof createClient>>
   profile: { id: number; role_id: number; email: string | null }
@@ -100,23 +109,49 @@ export async function GET() {
     const admin = getAdminClientOrNull()
     if (!admin) return serviceRoleRequired()
 
-    const [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
+    const [
+      { data: users, error: usersError },
+      { data: roles, error: rolesError },
+      { data: permissions, error: permissionsError },
+      { data: roleLinks, error: roleLinksError },
+      { data: userLinks, error: userLinksError },
+    ] = await Promise.all([
       admin.from('user_profiles')
         .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
         .order('date_creation', { ascending: false }),
       admin.from('roles').select('id, nom, description').order('id'),
+      admin.from('permissions').select('id, code'),
+      admin.from('role_permissions').select('role_id, permission_id'),
+      admin.from('user_permissions').select('user_profile_id, permission_id, granted'),
     ])
 
-    if (usersError || rolesError) {
-      console.error('[admin/users] list query failed:', usersError?.message, rolesError?.message)
+    if (usersError || rolesError || permissionsError || roleLinksError || userLinksError) {
+      console.error('[admin/users] list query failed:', usersError?.message, rolesError?.message, permissionsError?.message, roleLinksError?.message, userLinksError?.message)
       return NextResponse.json(
-        { error: 'Impossible de charger les utilisateurs. Vérifiez les tables user_profiles et roles.' },
+        { error: 'Impossible de charger les utilisateurs et leurs autorisations. Vérifiez la migration user_permissions.' },
         { status: 500 },
       )
     }
 
+    const codeById = new Map((permissions ?? []).map((permission) => [Number(permission.id), permission.code]))
+    const usersWithPermissions = (users ?? []).map((user) => {
+      const inheritedIds = new Set((roleLinks ?? [])
+        .filter((link) => Number(link.role_id) === Number(user.role_id))
+        .map((link) => Number(link.permission_id)))
+      const overrides = new Map((userLinks ?? [])
+        .filter((link) => Number(link.user_profile_id) === Number(user.id))
+        .map((link) => [Number(link.permission_id), Boolean(link.granted)]))
+      const effectivePermissions = MODULE_PERMISSION_CODES.filter((code) => {
+        const permission = (permissions ?? []).find((item) => item.code === code)
+        if (!permission) return false
+        const permissionId = Number(permission.id)
+        return overrides.has(permissionId) ? overrides.get(permissionId) === true : inheritedIds.has(permissionId)
+      })
+      return { ...user, permissions: effectivePermissions }
+    })
+
     return NextResponse.json(
-      { users: users ?? [], roles: roles ?? [] },
+      { users: usersWithPermissions, roles: roles ?? [], permission_codes: MODULE_PERMISSION_CODES },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     )
   } catch (error) {
@@ -292,6 +327,35 @@ export async function PATCH(request: NextRequest) {
     const { error: passwordError } = await admin.auth.admin.updateUserById(target.auth_user_id, { password })
     if (passwordError) {
       return NextResponse.json({ error: 'Profil modifié, mais le mot de passe n’a pas pu être changé.' }, { status: 400 })
+    }
+  }
+
+  if (Array.isArray(body.permission_codes)) {
+    const requestedCodes = body.permission_codes.filter((code): code is string =>
+      typeof code === 'string' && MODULE_PERMISSION_CODES.includes(code as typeof MODULE_PERMISSION_CODES[number]),
+    )
+    if (requestedCodes.length !== body.permission_codes.length) {
+      return NextResponse.json({ error: 'Une ou plusieurs autorisations sont invalides.' }, { status: 400 })
+    }
+    const { data: modulePermissions, error: modulePermissionsError } = await admin
+      .from('permissions')
+      .select('id, code')
+      .in('code', [...MODULE_PERMISSION_CODES])
+    if (modulePermissionsError || (modulePermissions ?? []).length !== MODULE_PERMISSION_CODES.length) {
+      return NextResponse.json({ error: 'Le catalogue des autorisations est incomplet. Appliquez la migration SQL.' }, { status: 500 })
+    }
+    const selected = new Set(requestedCodes)
+    const rows = (modulePermissions ?? []).map((permission) => ({
+      user_profile_id: id,
+      permission_id: Number(permission.id),
+      granted: selected.has(permission.code),
+    }))
+    const { error: permissionSaveError } = await admin
+      .from('user_permissions')
+      .upsert(rows, { onConflict: 'user_profile_id,permission_id' })
+    if (permissionSaveError) {
+      console.error('[admin/users] permission update failed:', permissionSaveError.message)
+      return NextResponse.json({ error: 'Impossible d’enregistrer les autorisations.' }, { status: 500 })
     }
   }
 
