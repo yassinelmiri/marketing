@@ -24,7 +24,7 @@ async function access() {
     .maybeSingle()
 
   if (error || !profile) {
-    return { response: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) as const
+    return { response: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) as const }
   }
 
   try {
