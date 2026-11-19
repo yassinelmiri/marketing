@@ -5,10 +5,10 @@ import type { User, Role } from '@/lib/storage'
 interface EquipeViewProps {
   user: User
   team: User[]
+  roles: Role[]
 }
 
-export function EquipeView({ user, team }: EquipeViewProps) {
-  const roles: Role[] = []
+export function EquipeView({ user, team, roles }: EquipeViewProps) {
   return (
     <section className="workspace-section">
       <div className="workspace-panel">
