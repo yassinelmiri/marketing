@@ -50,7 +50,12 @@ create policy task_assignments_no_direct_access on public.task_assignments for a
 drop policy if exists notifications_no_direct_access on public.notifications;
 create policy notifications_no_direct_access on public.notifications for all to authenticated using (false) with check (false);
 drop policy if exists team_chat_no_direct_access on public.team_chat_messages;
-create policy team_chat_no_direct_access on public.team_chat_messages for all to authenticated using (false) with check (false);\n-- Realtime subscribers can read team messages; sending remains server-route-only.\ndrop policy if exists team_chat_realtime_read on public.team_chat_messages;\ncreate policy team_chat_realtime_read on public.team_chat_messages for select to authenticated using (true);\ndrop policy if exists notifications_realtime_read_own on public.notifications;\ncreate policy notifications_realtime_read_own on public.notifications for select to authenticated using (user_id = public.my_profile_id());
+create policy team_chat_no_direct_access on public.team_chat_messages for all to authenticated using (false) with check (false);
+-- Realtime subscribers can read team messages; sending remains server-route-only.
+drop policy if exists team_chat_realtime_read on public.team_chat_messages;
+create policy team_chat_realtime_read on public.team_chat_messages for select to authenticated using (true);
+drop policy if exists notifications_realtime_read_own on public.notifications;
+create policy notifications_realtime_read_own on public.notifications for select to authenticated using (user_id = public.my_profile_id());
 
 -- Enable Supabase Realtime on chat/notifications tables where the publication exists.
 do $$
