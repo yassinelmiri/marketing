@@ -44,7 +44,10 @@ function checkOrigin(req: NextRequest) {
 }
 
 function safeFileName(name: string) {
-  const cleaned = name.normalize('NFKC').replace(/[\\/\\\\\\x00-\\x1f\\x7f]/g, '_').replace(/[^\\p{L}\\p{N}._ -]/gu, '_').trim()
+  const cleaned = name.normalize('NFKC')
+    .replace(/[\/\\\x00-\x1f\x7f]/g, '_')
+    .replace(/[^\p{L}\p{N}._ -]/gu, '_')
+    .trim()
   return (cleaned || 'fichier').slice(0, 150)
 }
 
