@@ -1,22 +1,165 @@
 # Anntel Marketing
+### Plateforme centralisée de gestion marketing, prospection et collaboration d'équipe
 
-Application web de gestion marketing et de prospection : campagnes, listes de contacts, équipe, tâches, notifications, chat interne et envoi d'e-mails.
+Anntel Marketing est une application web conçue pour centraliser les opérations marketing et commerciales dans un seul espace. Elle permet de gérer les campagnes, les contacts, les équipes, les tâches et les communications, tout en organisant les accès selon les responsabilités de chaque utilisateur.
 
-## Stack technique
+**Dépôt du projet :** https://github.com/yassinelmiri/marketing  
+**Branche de développement :** `supabase-migration`
 
-- Next.js 16 (App Router), React 19 et TypeScript
-- Supabase : Auth, PostgreSQL, Row Level Security et Realtime
-- CSS personnalisé et Lucide React
-- Nodemailer pour l'envoi d'e-mails via SMTP
-- XLSX pour l'import et l'export des contacts
+---
 
-## Prérequis
+## 1. Présentation et objectifs
 
-- Node.js compatible avec Next.js 16
-- pnpm (version indiquée dans `package.json`)
-- Un projet Supabase
+La plateforme vise à simplifier le travail quotidien des équipes marketing et commerciales en réunissant leurs outils dans une interface unique.
 
-## Installation
+Ses principaux objectifs :
+- Centraliser les informations des contacts et des prospects.
+- Organiser les campagnes et suivre leur avancement.
+- Faciliter la répartition et le suivi du travail entre collaborateurs.
+- Regrouper les échanges internes et les notifications.
+- Préparer et gérer les communications par e-mail, SMS et WhatsApp selon le niveau d'intégration disponible.
+- Sécuriser les données et limiter l'accès aux fonctionnalités selon les rôles et autorisations.
+
+## 2. Pages et modules de l'application
+
+### Tableau de bord
+- Vue synthétique de l'activité marketing.
+- Accès rapide aux principales rubriques.
+- Indicateurs et informations utiles au suivi de l'activité.
+
+### Campagnes
+- Consultation et organisation des campagnes.
+- Création, modification et suppression des campagnes selon les droits.
+- Association des campagnes aux listes de contacts.
+- Suivi de l'état d'avancement : brouillon, en cours ou terminée selon les statuts utilisés.
+- Espace de suivi et commentaires liés aux campagnes.
+
+### Listes & contacts
+- Création et gestion des listes de contacts.
+- Ajout, consultation et organisation des contacts.
+- Association des contacts à une ou plusieurs listes.
+- Recherche et filtrage pour retrouver plus facilement les informations.
+- Import et export de fichiers de contacts CSV/XLSX lorsque le module correspondant est configuré.
+
+### Équipe
+- Consultation des membres de l'équipe.
+- Affichage des informations de profil et des rôles.
+- Accès aux informations limité par les autorisations du compte.
+
+### Gestion des tâches
+- Création et suivi des tâches.
+- Attribution des tâches aux membres concernés.
+- Consultation des tâches et de leur état d'avancement.
+- Organisation du travail et meilleure visibilité sur les responsabilités de chacun.
+
+### Chat d'équipe
+- Espace de discussion interne.
+- Échanges entre collaborateurs.
+- Partage de pièces jointes.
+- Actualisation des conversations via les fonctions temps réel de Supabase, selon la configuration du projet.
+
+### Notifications
+- Centre de notifications accessible depuis l'espace de travail.
+- Alertes destinées à attirer l'attention sur les événements et activités de l'équipe, selon les événements pris en charge.
+
+### Envoi d'e-mails
+- Configuration de plusieurs comptes expéditeurs SMTP.
+- Sélection d'une liste de contacts comme destinataire d'une campagne.
+- Préparation et envoi de messages e-mail via les comptes SMTP configurés.
+- Consultation de l'historique des campagnes e-mail.
+- Chiffrement côté serveur des mots de passe SMTP enregistrés.
+
+### SMS
+- Interface de préparation d'un message SMS.
+- Sélection d'une liste cible et affichage du nombre de contacts concernés.
+- Contrôle de la longueur du message et affichage d'un historique dans l'interface.
+
+**Important :** dans la version actuelle du dépôt, l'envoi SMS est une simulation côté interface. Un fournisseur SMS et son intégration backend doivent être configurés pour effectuer de véritables envois.
+
+### Bot WhatsApp
+- Interface de préparation des messages WhatsApp.
+- Choix d'une catégorie cible et d'une liste de contacts.
+- Affichage du nombre de contacts ciblés.
+- Historique de simulation dans l'interface.
+
+**Important :** dans la version actuelle du dépôt, l'envoi WhatsApp affiché dans cette page est une simulation. Une intégration réelle via WhatsApp Business Platform / Cloud API ou un fournisseur officiellement compatible, avec backend sécurisé, reste nécessaire. La page ne doit pas être présentée comme un service d'envoi WhatsApp opérationnel tant que cette connexion n'est pas réalisée.
+
+### Administration
+- Gestion des comptes utilisateurs.
+- Attribution des rôles.
+- Gestion des autorisations d'accès aux modules.
+- Contrôle des permissions accordées aux utilisateurs.
+
+### Paramètres
+- Consultation et mise à jour des informations personnelles disponibles.
+- Gestion des paramètres du profil et du mot de passe selon les fonctions activées.
+
+## 3. Gestion des rôles et des autorisations
+
+L'application prévoit une gestion des accès par rôle et par permission.
+
+- **Administrateur :** gestion globale de l'espace, des utilisateurs, des rôles et des autorisations.
+- **Manager :** accès aux modules qui lui sont accordés par les permissions configurées.
+- **Membre :** accès limité aux pages et actions autorisées pour son compte.
+
+Les permissions sont contrôlées à partir des données de l'application. Les pages visibles et les actions accessibles dépendent du rôle, des autorisations héritées et des éventuelles dérogations individuelles.
+
+## 4. Expérience utilisateur et interface
+
+- Interface centralisée avec navigation entre les modules.
+- Mode sombre et mode clair.
+- Présentation responsive adaptée aux différentes tailles d'écran.
+- Composants visuels et icônes pour faciliter la lecture.
+- Notifications et retours visuels lors des actions.
+- Organisation des pages pour faciliter la recherche d'informations et le suivi de l'activité.
+
+## 5. Technologies utilisées
+
+| Domaine | Technologie |
+| --- | --- |
+| Framework web | Next.js 16 – App Router |
+| Interface | React 19 |
+| Langage | TypeScript |
+| Base de données | PostgreSQL via Supabase |
+| Authentification | Supabase Auth |
+| Sécurité des données | Row Level Security (RLS) |
+| Temps réel | Supabase Realtime |
+| E-mails | Nodemailer et comptes SMTP |
+| Import / export | XLSX |
+| Icônes | Lucide React |
+
+## 6. Architecture du projet
+
+```text
+app/                       Pages Next.js et routes API
+components/marketing/      Modules et vues de l'espace marketing
+components/ui/              Composants d'interface réutilisables
+lib/                        Fonctions métier et accès aux données
+lib/supabase/                Clients Supabase et services de données
+supabase/migrations/         Migrations SQL versionnées
+.env.example                 Modèle des variables d'environnement
+```
+
+## 7. Sécurité et protection des données
+
+- Authentification des utilisateurs avec Supabase Auth.
+- Contrôle des accès par rôles et permissions.
+- Utilisation des politiques Row Level Security (RLS) pour protéger les données.
+- Conservation des clés sensibles côté serveur uniquement.
+- Chiffrement côté serveur des mots de passe SMTP stockés.
+- Séparation des paramètres locaux et du code versionné.
+- Les secrets et fichiers `.env.local` ne doivent jamais être publiés dans Git.
+
+La sécurité finale dépend également de la bonne configuration des politiques RLS, des variables d'environnement, des droits Supabase et de l'hébergement.
+
+## 8. Installation et lancement
+
+### Prérequis
+- Node.js compatible avec Next.js 16.
+- pnpm.
+- Un projet Supabase configuré.
+
+### Installation
 
 ```bash
 git clone https://github.com/yassinelmiri/marketing.git
@@ -25,100 +168,87 @@ git checkout supabase-migration
 pnpm install
 ```
 
-## Configuration
+### Configuration
 
-Créer le fichier local à partir du modèle :
-
-```bash
-cp .env.example .env.local
-```
-
-Sous Windows PowerShell :
+Créer le fichier local :
 
 ```powershell
 Copy-Item .env.example .env.local
 ```
 
-Renseigner dans `.env.local` :
+Renseigner les variables nécessaires dans `.env.local` :
 
-| Variable | Description |
+| Variable | Utilisation |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clé publique/publishable Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé serveur uniquement, jamais exposée au navigateur |
-| `SMTP_ENCRYPTION_KEY` | Clé hexadécimale de 64 caractères pour chiffrer les mots de passe SMTP |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clé publique Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé serveur privée, jamais exposée au navigateur |
+| `SMTP_ENCRYPTION_KEY` | Clé hexadécimale de 64 caractères utilisée pour chiffrer les identifiants SMTP |
 
-Générer une clé SMTP :
+Générer une clé de chiffrement SMTP :
 
 ```bash
 openssl rand -hex 32
 ```
 
-Conserver cette clé de manière sécurisée et stable : les mots de passe SMTP déjà enregistrés en dépendent. Ne jamais publier `.env.local`, les clés Supabase ou les identifiants SMTP dans Git.
+Conserver cette clé de façon sécurisée et stable. La modification de cette clé peut empêcher le déchiffrement des mots de passe SMTP déjà enregistrés.
 
-## Base de données Supabase
+### Base de données
 
 1. Ouvrir le SQL Editor du projet Supabase.
-2. Exécuter les fichiers SQL de `supabase/migrations/` dans l'ordre chronologique de leur nom.
-3. Vérifier que les politiques RLS et les fonctions de sécurité sont installées.
-4. Configurer les profils et rôles autorisés selon les règles de l'application.
+2. Exécuter les migrations présentes dans `supabase/migrations/` dans l'ordre chronologique.
+3. Vérifier les tables, fonctions et politiques RLS nécessaires.
+4. Configurer les rôles, permissions et profils utilisateurs.
 
-Ne pas ignorer les migrations liées aux tâches, notifications, chat, pièces jointes et campagnes e-mail si ces modules sont utilisés.
-
-## Démarrage local
+### Démarrage en développement
 
 ```bash
 pnpm dev
 ```
 
-Ouvrir [http://localhost:3000](http://localhost:3000).
+Ouvrir http://localhost:3000.
 
-## Vérification et production
-
-Vérifier le projet :
+### Vérification et démarrage en production
 
 ```bash
 pnpm build
-```
-
-Démarrer le serveur de production :
-
-```bash
 pnpm start
 ```
 
-## Fonctionnalités
+## 9. État des intégrations
 
-- Tableau de bord et indicateurs
-- Gestion des campagnes et association aux listes
-- Gestion des listes et contacts
-- Import de contacts CSV/XLSX
-- Gestion des utilisateurs, rôles et permissions
-- Tâches et notifications
-- Chat d'équipe et partage de pièces jointes
-- Comptes SMTP et historique des campagnes e-mail
+| Module | État documenté dans le code |
+| --- | --- |
+| Authentification Supabase | Intégrée |
+| Tableau de bord | Présent |
+| Campagnes | Présent |
+| Listes et contacts | Présent |
+| Gestion des rôles et permissions | Intégrée |
+| Tâches | Présent |
+| Chat d'équipe et pièces jointes | Présent, nécessite la configuration Supabase correspondante |
+| Notifications | Présent |
+| Envoi e-mail SMTP | Intégré, nécessite des comptes SMTP valides et la configuration serveur |
+| SMS | Interface de simulation ; fournisseur et backend réels à intégrer |
+| WhatsApp | Interface de simulation ; intégration officielle et backend réels à réaliser |
 
-Les fonctionnalités disponibles dépendent des permissions du compte connecté et de la configuration Supabase.
+Ce tableau distingue volontairement les interfaces disponibles des intégrations externes réellement opérationnelles. Les fonctionnalités doivent être validées dans l'environnement de déploiement avant toute présentation comme service en production.
 
-## Structure du projet
+## 10. Bénéfices pour l'organisation
 
-```text
-app/                    Pages Next.js et routes API
-components/marketing/   Vues et modules de l'espace marketing
-components/ui/          Composants d'interface
-lib/supabase/           Clients et accès aux données Supabase
-supabase/migrations/    Migrations SQL versionnées
-.env.example            Modèle de configuration locale
-```
+- **Centralisation :** les données, campagnes et outils de travail sont réunis dans une seule plateforme.
+- **Gain de temps :** les équipes retrouvent plus rapidement les contacts, les campagnes et les tâches.
+- **Meilleure coordination :** les tâches attribuées, le chat et les notifications facilitent le travail collectif.
+- **Suivi de l'activité :** les campagnes et les listes sont organisées pour améliorer la visibilité opérationnelle.
+- **Maîtrise des accès :** chaque utilisateur accède uniquement aux modules qui lui sont autorisés.
+- **Évolutivité :** l'architecture permet d'ajouter progressivement de nouveaux services et intégrations.
+- **Personnalisation :** les modules et les autorisations peuvent être adaptés aux besoins de l'organisation.
 
-## Sécurité
+## 11. Contact et informations
 
-- Ne jamais committer `.env.local` ou des secrets.
-- Garder `SUPABASE_SERVICE_ROLE_KEY` côté serveur uniquement.
-- Utiliser les règles RLS Supabase pour contrôler l'accès aux données.
-- Les mots de passe SMTP sont chiffrés côté serveur avec `SMTP_ENCRYPTION_KEY`.
-- Révoquer les comptes et permissions qui ne sont plus nécessaires.
+- **Nom du projet :** Anntel Marketing
+- **Dépôt GitHub :** https://github.com/yassinelmiri/marketing
+- **Branche documentée :** `supabase-migration`
 
-## Développement
+---
 
-Travailler sur la branche `supabase-migration` et lancer `pnpm build` avant le déploiement.
+*Document de présentation fonctionnelle et technique. Les fonctionnalités dépendant de services externes (SMTP, SMS, WhatsApp, hébergement et Supabase) doivent être configurées et testées dans l'environnement cible avant leur mise en production.*
