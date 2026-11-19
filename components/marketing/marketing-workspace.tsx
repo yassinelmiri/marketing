@@ -357,14 +357,22 @@ export function MarketingWorkspace() {
       setTypesCampagnes(result.typesCampagnes)
       setCampagneListes(result.campagneListes)
       setListeContacts(result.listeContacts)
-      const { data: members, error } = await supabase
-        .from('user_profiles')
-        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-        .order('date_creation', { ascending: false })
-      if (error) throw error
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError
       setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
+
+      // Les membres ne voient que leur propre profil; seul l'admin charge toute l'équipe.
+      let membersQuery = supabase
+        .from('user_profiles')
+        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+        .order('date_creation', { ascending: false })
+      if (currentUser.role_id !== 1) {
+        const { data: authData, error: authError } = await supabase.auth.getUser()
+        if (authError || !authData.user) throw authError ?? new Error('Session expirée.')
+        membersQuery = membersQuery.eq('auth_user_id', authData.user.id)
+      }
+      const { data: members, error } = await membersQuery
+      if (error) throw error
       setTeamUsers((members ?? []).map((member) => ({
         id: Number(member.id),
         prenom: member.prenom ?? '',
