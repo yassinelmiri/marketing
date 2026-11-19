@@ -1,13 +1,14 @@
 'use client'
 
-import { rolesRepo, usersRepo, type User } from '@/lib/storage'
+import type { User, Role } from '@/lib/storage'
 
 interface EquipeViewProps {
   user: User
+  team: User[]
 }
 
-export function EquipeView({ user }: EquipeViewProps) {
-  const team = usersRepo.all()
+export function EquipeView({ user, team }: EquipeViewProps) {
+  const roles: Role[] = []
   return (
     <section className="workspace-section">
       <div className="workspace-panel">
@@ -17,7 +18,7 @@ export function EquipeView({ user }: EquipeViewProps) {
         </div>
         <div className="team-grid">
           {team.map((m) => {
-            const role = rolesRepo.byId(m.role_id)
+            const role = roles.find((item) => item.id === m.role_id)
             return (
               <article key={m.id} className="team-card">
                 <span className="team-avatar" aria-hidden="true">
