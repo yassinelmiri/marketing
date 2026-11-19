@@ -10,11 +10,14 @@ create table if not exists public.user_permissions (
 alter table public.user_permissions enable row level security;
 
 drop policy if exists "user_permissions_select_authenticated" on public.user_permissions;
-create policy "user_permissions_select_authenticated"
+create policy "user_permissions_select_own_or_admin"
 on public.user_permissions
 for select
 to authenticated
-using (true);
+using (
+  user_id = public.my_profile_id()
+  or public.is_admin()
+);
 
 drop policy if exists "user_permissions_admin_insert" on public.user_permissions;
 create policy "user_permissions_admin_insert"
