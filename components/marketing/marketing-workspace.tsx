@@ -137,8 +137,6 @@ export function MarketingWorkspace() {
 
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [version, setVersion] = useState(0)
-  const [dataLoading, setDataLoading] = useState(false)
   const [campagnes, setCampagnes] = useState<Campagne[]>([])
   const [commentaires, setCommentaires] = useState<Commentaire[]>([])
   const [listes, setListes] = useState<ListeContact[]>([])
@@ -350,7 +348,6 @@ export function MarketingWorkspace() {
 
   async function refresh() {
     if (!currentUser) return
-    setDataLoading(true)
     try {
       const result = await loadMarketingData()
       setCampagnes(result.campagnes)
@@ -385,7 +382,6 @@ export function MarketingWorkspace() {
     } catch (error) {
       toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
     } finally {
-      setDataLoading(false)
     }
   }
 
@@ -747,6 +743,10 @@ export function MarketingWorkspace() {
               user={currentUser}
               listes={listes}
               contacts={contacts}
+              campagnes={campagnes}
+              campagneListes={campagneListes}
+              listeContacts={listeContacts}
+              teamUsers={teamUsers}
               onRefresh={refresh}
             />
           )}
