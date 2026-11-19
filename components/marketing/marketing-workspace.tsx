@@ -93,6 +93,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   },
   listes: {
     title: 'Listes & contacts',
+    subtitle: 'Organisez et consultez les listes de contacts.',
+  },
+  listes: {
+    title: 'Listes & contacts',
     subtitle: 'Organisez vos contacts par liste.',
   },
   equipe: {
@@ -196,7 +200,7 @@ export function MarketingWorkspace() {
 
         if (roleError) throw roleError
 
-        // 3. Récupérer les permissions du rôle.
+        // 3. Charger les permissions héritées du rôle et les dérogations individuelles.
         const { data: roleLinks, error: linksError } = await supabase
           .from('role_permissions')
           .select('permission_id')
@@ -204,42 +208,66 @@ export function MarketingWorkspace() {
 
         if (linksError) throw linksError
 
-        const permissionIds = (roleLinks ?? []).map(
-          (item) => item.permission_id,
-        )
+        const { data: userLinks, error: userLinksError } = await supabase
+          .from('user_permissions')
+          .select('permission_id, granted')
+          .eq('user_id', Number(typedProfile.id))
 
-        let permissionCodes: string[] = []
+        if (userLinksError) throw userLinksError
+
+        const permissionIds = Array.from(new Set([
+          ...(roleLinks ?? []).map((item) => Number(item.permission_id)),
+          ...(userLinks ?? []).map((item) => Number(item.permission_id)),
+        ]))
+
+        let effectivePermissionCodes: string[] = []
 
         if (permissionIds.length > 0) {
-          const { data: permissions, error: permissionsError } =
-            await supabase
-              .from('permissions')
-              .select('code')
-              .in('id', permissionIds)
+          const { data: permissions, error: permissionsError } = await supabase
+            .from('permissions')
+            .select('id, code')
+            .in('id', permissionIds)
 
           if (permissionsError) throw permissionsError
 
-          permissionCodes = (permissions ?? []).map(
-            (permission) => permission.code,
-          )
+          const inheritedIds = new Set((roleLinks ?? []).map((item) => Number(item.permission_id)))
+          const overrides = new Map((userLinks ?? []).map((item) => [Number(item.permission_id), Boolean(item.granted)]))
+          effectivePermissionCodes = (permissions ?? [])
+            .filter((permission) => {
+              const permissionId = Number(permission.id)
+              return overrides.has(permissionId)
+                ? overrides.get(permissionId) === true
+                : inheritedIds.has(permissionId)
+            })
+            .map((permission) => permission.code)
         }
 
         if (!active) return
 
-        // 4. Transformer les permissions DB en pages de l'interface.
+        // 4. Transformer les codes DB en pages accessibles.
         const isAdmin = roleId === 1
-
-        // Principe du moindre privilège : aucun accès métier par défaut.
-        // Les pages sont ajoutées uniquement si le rôle possède la permission DB.
-        const pagePermissions = new Set<ViewKey>(
-          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : [],
-        )
-
-        if (!isAdmin && permissionCodes.includes('campagne.read')) {
-          pagePermissions.add('campagnes')
+        const permissionToPage: Record<string, ViewKey> = {
+          'campagne.read': 'campagnes',
+          'listes.read': 'listes',
+          'equipe.read': 'equipe',
+          'whatsapp.access': 'whatsapp',
+          'email.access': 'email',
+          'sms.access': 'sms',
         }
 
-        // Le tableau de bord est le seul accès garanti à tout compte connecté.
+        // Aucun accès métier par défaut : seuls les modules explicitement autorisés sont affichés.
+        const pagePermissions = new Set<ViewKey>(
+          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : ['dashboard'],
+        )
+
+        if (!isAdmin) {
+          for (const code of effectivePermissionCodes) {
+            const page = permissionToPage[code]
+            if (page) pagePermissions.add(page)
+          }
+        }
+
+        // Le tableau de bord reste accessible à tout compte connecté.
         pagePermissions.add('dashboard')
 
         // 5. Construire le User attendu par les composants existants.
@@ -417,10 +445,6 @@ export function MarketingWorkspace() {
       if (isAdmin) return true
 
       if (item.adminOnly) return false
-
-      if (item.key === 'listes') {
-        return currentUser.permissions.includes('campagnes')
-      }
 
       return currentUser.permissions.includes(item.key as ViewKey)
     })
