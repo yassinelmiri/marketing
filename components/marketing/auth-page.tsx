@@ -1,7 +1,8 @@
+
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +17,7 @@ import {
   Smartphone,
   UserRound,
 } from 'lucide-react'
-import { loginUser, registerUser, initStorage, resetStorage } from '@/lib/storage'
+import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 
 type AuthMode = 'login' | 'register'
@@ -35,8 +36,12 @@ const highlights = [
 function Brand() {
   return (
     <span className="landing-brand">
-      <span className="landing-brand-symbol" aria-hidden="true"><i /><i /></span>
-      <span className="landing-brand-name">anntel<span>marketing</span></span>
+      <span className="landing-brand-symbol" aria-hidden="true">
+        <i /><i />
+      </span>
+      <span className="landing-brand-name">
+        anntel<span>marketing</span>
+      </span>
     </span>
   )
 }
@@ -54,23 +59,14 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    try {
-      initStorage()
-    } catch (e) {
-      console.error(e)
-      setError('Impossible d’initialiser le stockage local.')
-      toast.error('Initialisation échouée', 'Impossible d’initialiser le stockage local.')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setInfo(null)
 
-    if (!email.trim() || !password) {
+    const cleanEmail = email.trim().toLowerCase()
+
+    if (!cleanEmail || !password) {
       const msg = 'Veuillez renseigner votre e-mail et votre mot de passe.'
       setError(msg)
       toast.error('Champs incomplets', msg)
@@ -84,12 +80,14 @@ export function AuthPage({ mode }: AuthPageProps) {
         toast.error('Nom requis', msg)
         return
       }
+
       if (password.length < 8) {
         const msg = 'Le mot de passe doit contenir au moins 8 caractères.'
         setError(msg)
         toast.error('Mot de passe trop court', msg)
         return
       }
+
       if (password !== confirmPassword) {
         const msg = 'Les mots de passe ne correspondent pas.'
         setError(msg)
@@ -99,64 +97,121 @@ export function AuthPage({ mode }: AuthPageProps) {
     }
 
     setLoading(true)
+
     try {
-      await new Promise((r) => setTimeout(r, 150))
+      const supabase = createClient()
 
       if (isLogin) {
-        const result = loginUser({ email, password })
-        if (!result.ok) {
-          const msg = result.error ?? 'Identifiants invalides.'
-          setError(msg)
-          toast.error('Connexion refusée', msg)
-          setLoading(false)
-          return
+        // Connexion avec Supabase Auth
+        const { data, error: authError } =
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          })
+
+        if (authError) {
+          throw new Error(
+            'Identifiants invalides. Vérifiez votre e-mail et votre mot de passe.'
+          )
         }
-        toast.success('Connexion réussie', `Bienvenue ${result.user?.prenom ?? ''} !`)
+
+        if (!data.user) {
+          throw new Error('Utilisateur introuvable.')
+        }
+
+        // Vérification du profil utilisateur
+        const { data: profile, error: profileError } =
+          await supabase
+            .from('user_profiles')
+            .select('id, prenom, nom, email, role_id')
+            .eq('auth_user_id', data.user.id)
+            .single()
+
+        if (profileError || !profile) {
+          await supabase.auth.signOut()
+          throw new Error(
+            'Votre compte est connecté, mais votre profil est introuvable. Contactez l’administrateur.'
+          )
+        }
+
+        toast.success(
+          'Connexion réussie',
+          `Bienvenue ${profile.prenom ?? ''} !`
+        )
+
         setInfo('Connexion réussie, redirection…')
-        // Petit délai pour laisser le toast s'afficher avant la navigation.
-        setTimeout(() => {
-          window.location.assign('/workspace')
-        }, 700)
-        return
-      }
 
-      const parts = fullName.trim().split(/\s+/)
-      const prenom = parts[0] ?? ''
-      const nom = parts.slice(1).join(' ') || '—'
-
-      const result = registerUser({ prenom, nom, email, password })
-      if (!result.ok) {
-        const msg = result.error ?? 'Impossible de créer le compte.'
-        setError(msg)
-        toast.error('Inscription refusée', msg)
-        setLoading(false)
-        return
-      }
-      toast.success('Compte créé', `Bienvenue ${result.user?.prenom ?? ''} ! Redirection…`)
-      setInfo('Compte créé, redirection…')
-      setTimeout(() => {
         window.location.assign('/workspace')
-      }, 700)
+        return
+      }
+
+      // Création du compte avec Supabase Auth
+      const { data, error: signUpError } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
+        })
+
+      if (signUpError) {
+        throw new Error(signUpError.message)
+      }
+
+      if (!data.user) {
+        throw new Error('Impossible de créer le compte.')
+      }
+
+      // Si la confirmation e-mail est activée dans Supabase
+      if (!data.session) {
+        setInfo(
+          'Votre compte a été créé. Consultez votre boîte e-mail pour confirmer votre inscription avant de vous connecter.'
+        )
+
+        toast.success(
+          'Compte créé',
+          'Vérifiez votre boîte e-mail pour confirmer votre inscription.'
+        )
+
+        return
+      }
+
+      // Si la confirmation e-mail n'est pas activée,
+      // le trigger crée automatiquement le profil membre.
+      const { data: profile, error: profileError } =
+        await supabase
+          .from('user_profiles')
+          .select('id, prenom, nom, email, role_id')
+          .eq('auth_user_id', data.user.id)
+          .single()
+
+      if (profileError || !profile) {
+        throw new Error(
+          'Compte créé, mais le profil est introuvable. Vérifiez le trigger Supabase.'
+        )
+      }
+
+      toast.success(
+        'Compte créé',
+        `Bienvenue ${profile.prenom ?? ''} !`
+      )
+
+      setInfo('Compte créé, redirection…')
+      window.location.assign('/workspace')
     } catch (e) {
-      console.error(e)
       const msg =
         e instanceof Error
-          ? `Erreur inattendue : ${e.message}`
+          ? e.message
           : 'Erreur inattendue, veuillez réessayer.'
+
       setError(msg)
-      toast.error('Erreur inattendue', msg)
+      toast.error('Opération échouée', msg)
+    } finally {
       setLoading(false)
     }
-  }
-
-  function handleReset() {
-    if (!confirm('Réinitialiser toutes les données locales (utilisateurs, campagnes…) ?')) return
-    resetStorage()
-    initStorage()
-    setInfo('Stockage réinitialisé.')
-    setEmail('admin@anntel.com')
-    setPassword('admin1234')
-    toast.info('Stockage réinitialisé', 'Compte admin : admin@anntel.com / admin1234')
   }
 
   return (
@@ -167,20 +222,27 @@ export function AuthPage({ mode }: AuthPageProps) {
         </Link>
 
         <div className="auth-aside-content">
-          <span className="landing-eyebrow"><i /> PLATEFORME DE MARKETING MULTICANAL</span>
+          <span className="landing-eyebrow">
+            <i /> PLATEFORME DE MARKETING MULTICANAL
+          </span>
+
           <h1>
             {isLogin
               ? <>Reprenez la main sur vos <span>campagnes.</span></>
               : <>Créez votre espace <span>marketing d’équipe.</span></>}
           </h1>
+
           <p>
-            Organisez vos campagnes e-mail, WhatsApp et SMS dans un espace unique, pensé pour votre équipe.
+            Organisez vos campagnes e-mail, WhatsApp et SMS dans un espace
+            unique, pensé pour votre équipe.
           </p>
 
           <ul className="auth-highlights">
             {highlights.map(({ icon: Icon, label }) => (
               <li key={label}>
-                <span className="auth-highlight-icon"><Icon aria-hidden="true" /></span>
+                <span className="auth-highlight-icon">
+                  <Icon aria-hidden="true" />
+                </span>
                 <span>{label}</span>
               </li>
             ))}
@@ -189,7 +251,7 @@ export function AuthPage({ mode }: AuthPageProps) {
 
         <div className="auth-aside-footer">
           <ShieldCheck aria-hidden="true" />
-          <span>Vos données sont stockées localement sur cet appareil.</span>
+          <span>Vos données sont protégées par Supabase.</span>
         </div>
       </aside>
 
@@ -257,10 +319,16 @@ export function AuthPage({ mode }: AuthPageProps) {
                   type="button"
                   className="auth-toggle-password"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  aria-label={
+                    showPassword
+                      ? 'Masquer le mot de passe'
+                      : 'Afficher le mot de passe'
+                  }
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  {showPassword
+                    ? <EyeOff aria-hidden="true" />
+                    : <Eye aria-hidden="true" />}
                 </button>
               </div>
             </label>
@@ -288,7 +356,9 @@ export function AuthPage({ mode }: AuthPageProps) {
                   <input type="checkbox" disabled={loading} />
                   <span>Se souvenir de moi</span>
                 </label>
-                <a href="#" className="auth-link">Mot de passe oublié ?</a>
+                <span className="auth-link">
+                  Mot de passe oublié ?
+                </span>
               </div>
             )}
 
@@ -296,24 +366,36 @@ export function AuthPage({ mode }: AuthPageProps) {
               <label className="auth-checkbox">
                 <input type="checkbox" required disabled={loading} />
                 <span>
-                  J’accepte les <a href="#" className="auth-link">conditions d’utilisation</a> et la{' '}
-                  <a href="#" className="auth-link">politique de confidentialité</a>.
+                  J’accepte les{' '}
+                  <a href="#" className="auth-link">
+                    conditions d’utilisation
+                  </a>{' '}
+                  et la{' '}
+                  <a href="#" className="auth-link">
+                    politique de confidentialité
+                  </a>.
                 </span>
               </label>
             )}
 
-         
-
             {error && (
               <p className="auth-error" role="alert">{error}</p>
             )}
+
             {info && !error && (
               <p className="auth-info" role="status">{info}</p>
             )}
 
-            <button className="auth-submit" type="submit" disabled={loading}>
+            <button
+              className="auth-submit"
+              type="submit"
+              disabled={loading}
+            >
               {loading ? (
-                <><Loader2 aria-hidden="true" className="auth-spinner" /> Traitement…</>
+                <>
+                  <Loader2 aria-hidden="true" className="auth-spinner" />
+                  Traitement…
+                </>
               ) : (
                 <>
                   {isLogin ? 'Se connecter' : 'Créer mon compte'}
@@ -326,18 +408,24 @@ export function AuthPage({ mode }: AuthPageProps) {
           <footer className="auth-card-footer">
             {isLogin ? (
               <p>
-                Pas encore de compte ? <Link className="auth-link" href="/register">Créer un compte</Link>
+                Pas encore de compte ?{' '}
+                <Link className="auth-link" href="/register">
+                  Créer un compte
+                </Link>
               </p>
             ) : (
               <p>
-                Déjà un compte ? <Link className="auth-link" href="/login">Se connecter</Link>
+                Déjà un compte ?{' '}
+                <Link className="auth-link" href="/login">
+                  Se connecter
+                </Link>
               </p>
             )}
           </footer>
         </div>
 
         <p className="auth-legal">
-          Données stockées localement — elles seront persistées en base de données ultérieurement.
+          Vos données sont sécurisées et gérées via Supabase.
         </p>
       </main>
     </div>
