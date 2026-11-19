@@ -16,6 +16,21 @@ async function authorize(){
 function originCheck(req:NextRequest){const origin=req.headers.get('origin');if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403});try{if(new URL(origin).origin!==req.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}return null}
 export async function GET(){
  const auth=await authorize();if('response'in auth)return auth.response
+ // Generate a one-time in-app reminder for assigned tasks due today or tomorrow when the member opens notifications.
+ const today=new Date().toISOString().slice(0,10)
+ const tomorrowDate=new Date(Date.now()+86400000).toISOString().slice(0,10)
+ const {data:assigned}=await auth.admin.from('task_assignments').select('task_id').eq('user_id',auth.userId)
+ const taskIds=(assigned??[]).map(row=>Number(row.task_id))
+ if(taskIds.length){
+  const {data:dueTasks}=await auth.admin.from('tasks').select('id,title,due_date,status').in('id',taskIds).in('due_date',[today,tomorrowDate]).neq('status','done')
+  const due=(dueTasks??[])
+  if(due.length){
+   const {data:existing}=await auth.admin.from('notifications').select('task_id').eq('user_id',auth.userId).eq('type','task_due').in('task_id',due.map(t=>Number(t.id)))
+   const existingIds=new Set((existing??[]).map(row=>Number(row.task_id)))
+   const reminders=due.filter(t=>!existingIds.has(Number(t.id))).map(t=>({user_id:auth.userId,type:'task_due',title:t.due_date===today?'Tâche à terminer aujourd’hui':'Échéance proche',body:t.title,task_id:Number(t.id)}))
+   if(reminders.length)await auth.admin.from('notifications').insert(reminders)
+  }
+ }
  const {data,error}=await auth.admin.from('notifications').select('id,type,title,body,task_id,is_read,created_at').eq('user_id',auth.userId).order('created_at',{ascending:false}).limit(40)
  if(error)return NextResponse.json({error:'Chargement des notifications impossible.'},{status:500})
  return NextResponse.json({notifications:data??[]},{headers:{'Cache-Control':'no-store'}})
