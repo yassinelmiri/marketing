@@ -32,19 +32,22 @@ export async function GET(){
    const { data: signed } = await auth.admin.storage.from('team-chat-private')
      .createSignedUrl(attachment.storage_path, 60 * 5)
    return {
-     id: Number(attachment.id),
-     user_id: Number(attachment.user_id),
-     file_name: attachment.file_name,
-     mime_type: attachment.mime_type,
-     file_size: Number(attachment.file_size),
-     signed_url: signed?.signedUrl ?? null,
+     message_id: Number(attachment.message_id),
+     file: {
+       id: Number(attachment.id),
+       user_id: Number(attachment.user_id),
+       file_name: attachment.file_name,
+       mime_type: attachment.mime_type,
+       file_size: Number(attachment.file_size),
+       signed_url: signed?.signedUrl ?? null,
+     },
    }
  }))
- const attachmentMap = new Map<number, typeof attachmentRows>()
- for (const attachment of attachmentRows) {
-   const list = attachmentMap.get(Number((attachments ?? []).find((row) => Number(row.id) === attachment.id)?.message_id)) ?? []
-   list.push(attachment)
-   attachmentMap.set(Number((attachments ?? []).find((row) => Number(row.id) === attachment.id)?.message_id), list)
+ const attachmentMap = new Map<number, (typeof attachmentRows)[number]['file'][]>()
+ for (const item of attachmentRows) {
+   const list = attachmentMap.get(item.message_id) ?? []
+   list.push(item.file)
+   attachmentMap.set(item.message_id, list)
  }
  const rows = messageRows.map((message) => ({
    ...message,
@@ -86,7 +89,7 @@ export async function POST(req:NextRequest){
    }
  }
  const {data:team}=await auth.admin.from('user_profiles').select('id').neq('id',auth.profile.id)
- if(team?.length){const {error:notificationError}=await auth.admin.from('notifications').insert(team.map(member=>({user_id:Number(member.id),type:'chat_message',title:'Nouveau message dans le chat',body:message.slice(0,180),task_id:null})));if(notificationError)console.warn('[chat] notification creation failed',notificationError.message)}
+ if(team?.length){const {error:notificationError}=await auth.admin.from('notifications').insert(team.map(member=>({user_id:Number(member.id),type:'chat_message',title:'Nouveau message dans le chat',body:(message || 'Une pièce jointe a été partagée.').slice(0,180),task_id:null})));if(notificationError)console.warn('[chat] notification creation failed',notificationError.message)}
  const { data: attached } = attachmentIds.length
    ? await auth.admin.from('team_chat_attachments')
        .select('id,user_id,file_name,mime_type,file_size,storage_path').in('id', attachmentIds)
