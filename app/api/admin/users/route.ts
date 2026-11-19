@@ -8,11 +8,20 @@ export const dynamic = 'force-dynamic'
 const ADMIN_ROLE_ID = 1
 const ROOT_EMAIL = 'miriyassine123@gmail.com'
 
-async function requireAdmin() {
+type AdminAccess = {
+  session: Awaited<ReturnType<typeof createClient>>
+  profile: { id: number; role_id: number; email: string | null }
+}
+
+async function requireAdmin(): Promise<
+  | { access: AdminAccess }
+  | { response: NextResponse }
+> {
   const session = await createClient()
   const { data: authData, error: authError } = await session.auth.getUser()
+
   if (authError || !authData.user) {
-    return { response: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
+    return { response: NextResponse.json({ error: 'Authentification requise. Reconnectez-vous.' }, { status: 401 }) }
   }
 
   const { data: profile, error } = await session
@@ -21,18 +30,52 @@ async function requireAdmin() {
     .eq('auth_user_id', authData.user.id)
     .maybeSingle()
 
-  if (error || !profile || Number(profile.role_id) !== ADMIN_ROLE_ID) {
+  if (error) {
+    console.error('[admin/users] profile check failed:', error.message)
+    return { response: NextResponse.json({ error: 'Impossible de vérifier votre rôle administrateur.' }, { status: 500 }) }
+  }
+
+  if (!profile || Number(profile.role_id) !== ADMIN_ROLE_ID) {
     return { response: NextResponse.json({ error: 'Accès administrateur requis.' }, { status: 403 }) }
   }
 
-  return { profile, admin: createAdminClient() }
+  return {
+    access: {
+      session,
+      profile: {
+        id: Number(profile.id),
+        role_id: Number(profile.role_id),
+        email: profile.email ?? null,
+      },
+    },
+  }
+}
+
+function getAdminClientOrNull() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+
+  try {
+    return createAdminClient()
+  } catch (error) {
+    console.error('[admin/users] admin client configuration failed:', error)
+    return null
+  }
 }
 
 function checkRequestOrigin(request: NextRequest) {
   const origin = request.headers.get('origin')
-  if (!origin || origin !== request.nextUrl.origin) {
-    return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
+  if (!origin) {
+    return NextResponse.json({ error: 'En-tête Origin manquant.' }, { status: 403 })
   }
+
+  try {
+    if (new URL(origin).origin !== request.nextUrl.origin) {
+      return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
+    }
+  } catch {
+    return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 })
+  }
+
   return null
 }
 
@@ -40,11 +83,71 @@ function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
+function serviceRoleRequired() {
+  return NextResponse.json(
+    { error: 'Configuration serveur manquante: ajoutez SUPABASE_SERVICE_ROLE_KEY dans les variables d’environnement du serveur, puis redémarrez/redéployez.' },
+    { status: 503 },
+  )
+}
+
+export async function GET() {
+  try {
+    const result = await requireAdmin()
+    if ('response' in result) return result.response
+
+    // La lecture utilise la clé serveur si elle existe; sinon, elle passe par
+    // les politiques RLS du compte admin. Ainsi, l'affichage ne dépend pas
+    // inutilement de la clé service_role.
+    const admin = getAdminClientOrNull()
+    const reader = admin ?? result.access.session
+
+    let [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
+      reader.from('user_profiles')
+        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+        .order('date_creation', { ascending: false }),
+      reader.from('roles').select('id, nom, description').order('id'),
+    ])
+
+    // Si la clé serveur existe mais ne permet pas la lecture, réessayer avec
+    // la session authentifiée et les règles RLS.
+    if ((usersError || rolesError) && admin) {
+      const fallback = result.access.session
+      const [fallbackUsers, fallbackRoles] = await Promise.all([
+        fallback.from('user_profiles')
+          .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
+          .order('date_creation', { ascending: false }),
+        fallback.from('roles').select('id, nom, description').order('id'),
+      ])
+      users = fallbackUsers.data
+      usersError = fallbackUsers.error
+      roles = fallbackRoles.data
+      rolesError = fallbackRoles.error
+    }
+
+    if (usersError || rolesError) {
+      console.error('[admin/users] list query failed:', usersError?.message, rolesError?.message)
+      return NextResponse.json(
+        { error: 'Impossible de charger les utilisateurs. Vérifiez les politiques RLS sur user_profiles et roles.' },
+        { status: 500 },
+      )
+    }
+
+    return NextResponse.json({ users: users ?? [], roles: roles ?? [] })
+  } catch (error) {
+    console.error('[admin/users] GET failed:', error)
+    return NextResponse.json({ error: 'Erreur serveur pendant le chargement des utilisateurs.' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   const originError = checkRequestOrigin(request)
   if (originError) return originError
-  const access = await requireAdmin()
-  if ('response' in access) return access.response
+
+  const result = await requireAdmin()
+  if ('response' in result) return result.response
+
+  const admin = getAdminClientOrNull()
+  if (!admin) return serviceRoleRequired()
 
   let body: Record<string, unknown>
   try {
@@ -61,41 +164,60 @@ export async function POST(request: NextRequest) {
   const password = typeof body.password === 'string' ? body.password : ''
   const roleId = Number(body.role_id ?? 3)
 
-  if (!prenom || !nom || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!prenom || !nom || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Prénom, nom et e-mail valides obligatoires.' }, { status: 400 })
   }
   if (password.length < 12 || password.length > 128) {
-    return NextResponse.json({ error: 'Mot de passe: 12 caractères minimum.' }, { status: 400 })
+    return NextResponse.json({ error: 'Mot de passe: 12 à 128 caractères requis.' }, { status: 400 })
   }
-  if (!Number.isInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
+  if (!Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
     return NextResponse.json({ error: 'Rôle non autorisé.' }, { status: 400 })
   }
 
-  const { data: role } = await access.admin.from('roles').select('id').eq('id', roleId).maybeSingle()
-  if (!role) return NextResponse.json({ error: 'Rôle inconnu.' }, { status: 400 })
+  const { data: role, error: roleError } = await admin
+    .from('roles')
+    .select('id')
+    .eq('id', roleId)
+    .maybeSingle()
 
-  const { data, error } = await access.admin.auth.admin.createUser({
-    email,
-    password,
-    // Le compte est provisionné par l'administrateur avec un mot de passe temporaire.
-    // La confirmation immédiate évite de bloquer l'accès lorsqu'aucun e-mail d'invitation n'est envoyé.
-    email_confirm: true,
-    user_metadata: { full_name: prenom + ' ' + nom },
-  })
-  if (error || !data.user) {
-    return NextResponse.json({ error: error?.message ?? 'Création impossible.' }, { status: 400 })
+  if (roleError || !role) {
+    return NextResponse.json({ error: 'Rôle inconnu ou inaccessible.' }, { status: 400 })
   }
 
-  const { data: profile, error: profileError } = await access.admin
+  const { data: authResult, error: authError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `${prenom} ${nom}` },
+  })
+
+  if (authError || !authResult.user) {
+    return NextResponse.json({ error: authError?.message ?? 'Création du compte Auth impossible.' }, { status: 400 })
+  }
+
+  // Upsert explicite: ne dépend pas du trigger handle_new_user.
+  // Si le trigger a déjà créé le profil, la ligne existante est mise à jour.
+  const { data: profile, error: profileError } = await admin
     .from('user_profiles')
-    .update({ prenom, nom, email, telephone: telephone || null, address: address || null, role_id: roleId })
-    .eq('auth_user_id', data.user.id)
+    .upsert({
+      auth_user_id: authResult.user.id,
+      prenom,
+      nom,
+      email,
+      telephone: telephone || null,
+      address: address || null,
+      role_id: roleId,
+    }, { onConflict: 'auth_user_id' })
     .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
     .single()
 
   if (profileError || !profile) {
-    await access.admin.auth.admin.deleteUser(data.user.id)
-    return NextResponse.json({ error: 'Profil non créé; compte annulé.' }, { status: 500 })
+    console.error('[admin/users] profile upsert failed:', profileError?.message)
+    await admin.auth.admin.deleteUser(authResult.user.id)
+    return NextResponse.json(
+      { error: 'Le compte Auth a été annulé car son profil applicatif n’a pas pu être créé. Vérifiez auth_user_id et le trigger Supabase.' },
+      { status: 500 },
+    )
   }
 
   return NextResponse.json({ user: profile }, { status: 201 })
@@ -104,8 +226,12 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const originError = checkRequestOrigin(request)
   if (originError) return originError
-  const access = await requireAdmin()
-  if ('response' in access) return access.response
+
+  const result = await requireAdmin()
+  if ('response' in result) return result.response
+
+  const admin = getAdminClientOrNull()
+  if (!admin) return serviceRoleRequired()
 
   let body: Record<string, unknown>
   try {
@@ -116,16 +242,18 @@ export async function PATCH(request: NextRequest) {
 
   const id = Number(body.id)
   if (!Number.isSafeInteger(id) || id <= 0) {
-    return NextResponse.json({ error: 'Identifiant invalide.' }, { status: 400 })
+    return NextResponse.json({ error: 'Identifiant utilisateur invalide.' }, { status: 400 })
   }
 
-  const { data: target } = await access.admin
+  const { data: target, error: targetError } = await admin
     .from('user_profiles')
     .select('id, auth_user_id, email, role_id')
     .eq('id', id)
     .maybeSingle()
 
-  if (!target?.auth_user_id) return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 })
+  if (targetError || !target?.auth_user_id) {
+    return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 })
+  }
   if (target.email?.toLowerCase() === ROOT_EMAIL) {
     return NextResponse.json({ error: 'Administrateur principal protégé.' }, { status: 403 })
   }
@@ -137,29 +265,34 @@ export async function PATCH(request: NextRequest) {
   const roleId = Number(body.role_id ?? target.role_id)
   const password = typeof body.password === 'string' ? body.password : ''
 
-  if (!prenom || !nom || !Number.isInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
-    return NextResponse.json({ error: 'Données ou rôle invalides.' }, { status: 400 })
+  if (!prenom || !nom || !Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
+    return NextResponse.json({ error: 'Prénom, nom ou rôle invalide.' }, { status: 400 })
   }
   if (password && (password.length < 12 || password.length > 128)) {
     return NextResponse.json({ error: 'Mot de passe: 12 à 128 caractères requis.' }, { status: 400 })
   }
 
-  const { data: role } = await access.admin.from('roles').select('id').eq('id', roleId).maybeSingle()
-  if (!role) return NextResponse.json({ error: 'Rôle inconnu.' }, { status: 400 })
-
-  // Valider toutes les entrées avant toute écriture pour éviter une mise à jour partielle.
-  if (password) {
-    const { error: passwordError } = await access.admin.auth.admin.updateUserById(
-      target.auth_user_id,
-      { password },
-    )
-    if (passwordError) return NextResponse.json({ error: 'Mot de passe non modifié.' }, { status: 400 })
+  const { data: role, error: roleError } = await admin.from('roles').select('id').eq('id', roleId).maybeSingle()
+  if (roleError || !role) {
+    return NextResponse.json({ error: 'Rôle inconnu ou inaccessible.' }, { status: 400 })
   }
 
-  const { error } = await access.admin.from('user_profiles')
+  const { error: profileError } = await admin
+    .from('user_profiles')
     .update({ prenom, nom, telephone: telephone || null, address: address || null, role_id: roleId })
     .eq('id', id)
-  if (error) return NextResponse.json({ error: 'Mise à jour du profil impossible.' }, { status: 500 })
+
+  if (profileError) {
+    console.error('[admin/users] profile update failed:', profileError.message)
+    return NextResponse.json({ error: 'Modification du profil impossible.' }, { status: 500 })
+  }
+
+  if (password) {
+    const { error: passwordError } = await admin.auth.admin.updateUserById(target.auth_user_id, { password })
+    if (passwordError) {
+      return NextResponse.json({ error: 'Profil modifié, mais le mot de passe n’a pas pu être changé.' }, { status: 400 })
+    }
+  }
 
   return NextResponse.json({ success: true })
 }
@@ -167,8 +300,12 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const originError = checkRequestOrigin(request)
   if (originError) return originError
-  const access = await requireAdmin()
-  if ('response' in access) return access.response
+
+  const result = await requireAdmin()
+  if ('response' in result) return result.response
+
+  const admin = getAdminClientOrNull()
+  if (!admin) return serviceRoleRequired()
 
   let body: { id?: number }
   try {
@@ -179,41 +316,30 @@ export async function DELETE(request: NextRequest) {
 
   const id = Number(body.id)
   if (!Number.isSafeInteger(id) || id <= 0) {
-    return NextResponse.json({ error: 'Identifiant invalide.' }, { status: 400 })
+    return NextResponse.json({ error: 'Identifiant utilisateur invalide.' }, { status: 400 })
   }
-  if (id === Number(access.profile.id)) {
+  if (id === result.access.profile.id) {
     return NextResponse.json({ error: 'Impossible de supprimer votre propre compte.' }, { status: 403 })
   }
 
-  const { data: target } = await access.admin
+  const { data: target, error: targetError } = await admin
     .from('user_profiles')
     .select('auth_user_id, email')
     .eq('id', id)
     .maybeSingle()
-  if (!target?.auth_user_id) return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 })
+
+  if (targetError || !target?.auth_user_id) {
+    return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 })
+  }
   if (target.email?.toLowerCase() === ROOT_EMAIL) {
     return NextResponse.json({ error: 'Administrateur principal protégé.' }, { status: 403 })
   }
 
-  const { error } = await access.admin.auth.admin.deleteUser(target.auth_user_id)
-  if (error) return NextResponse.json({ error: 'Suppression impossible.' }, { status: 500 })
-  return NextResponse.json({ success: true })
-}
-
-export async function GET() {
-  const access = await requireAdmin()
-  if ('response' in access) return access.response
-
-  const [{ data: users, error: usersError }, { data: roles, error: rolesError }] = await Promise.all([
-    access.admin.from('user_profiles')
-      .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-      .order('date_creation', { ascending: false }),
-    access.admin.from('roles').select('id, nom, description').order('id'),
-  ])
-
-  if (usersError || rolesError) {
-    return NextResponse.json({ error: 'Chargement des utilisateurs impossible.' }, { status: 500 })
+  const { error } = await admin.auth.admin.deleteUser(target.auth_user_id)
+  if (error) {
+    console.error('[admin/users] auth delete failed:', error.message)
+    return NextResponse.json({ error: 'Suppression impossible.' }, { status: 500 })
   }
 
-  return NextResponse.json({ users: users ?? [], roles: roles ?? [] })
+  return NextResponse.json({ success: true })
 }
