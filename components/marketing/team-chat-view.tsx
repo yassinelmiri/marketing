@@ -145,6 +145,21 @@ export function TeamChatView({ user }: { user: User }) {
     }
   }
 
+  async function removePendingFile(id: number) {
+    try {
+      const response = await fetch('/api/chat/attachments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Suppression impossible.')
+      setPendingFiles((current) => current.filter((file) => file.id !== id))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Suppression du fichier impossible.')
+    }
+  }
+
   async function send(event?: FormEvent) {
     event?.preventDefault()
     const message = text.trim()
@@ -265,7 +280,7 @@ export function TeamChatView({ user }: { user: User }) {
                 {isImage(file.mime_type) ? <ImageIcon size={16} /> : <FileText size={16} />}
                 <span>{file.file_name}</span>
                 <small>{fileSize(file.file_size)}</small>
-                <button type="button" aria-label={`Retirer ${file.file_name}`} onClick={() => setPendingFiles((current) => current.filter((item) => item.id !== file.id))}><X size={14} /></button>
+                <button type="button" aria-label={`Retirer ${file.file_name}`} onClick={() => void removePendingFile(file.id)}><X size={14} /></button>
               </div>
             ))}
           </div>
