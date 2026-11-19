@@ -32,8 +32,17 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Verifier la session et renouveler le token si necessaire.
-  await supabase.auth.getClaims()
+  // Vérifier cryptographiquement le JWT et renouveler la session si nécessaire.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const isWorkspaceRoute = request.nextUrl.pathname.startsWith('/workspace')
+
+  // Ne pas laisser une page privée se charger sans session valide.
+  // Les routes API conservent leurs réponses JSON 401/403 dédiées.
+  if (isWorkspaceRoute && !claimsData?.claims) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', request.nextUrl.pathname)
+    return NextResponse.redirect(loginUrl)
+  }
 
   return supabaseResponse
 }
