@@ -246,13 +246,14 @@ export async function PATCH(request: NextRequest) {
 
   const prenom = text(body.prenom, 80)
   const nom = text(body.nom, 80)
+  const email = text(body.email, 254).toLowerCase()
   const telephone = text(body.telephone, 40)
   const address = text(body.address, 240)
   const roleId = Number(body.role_id ?? target.role_id)
   const password = typeof body.password === 'string' ? body.password : ''
 
-  if (!prenom || !nom || !Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
-    return NextResponse.json({ error: 'Prénom, nom ou rôle invalide.' }, { status: 400 })
+  if (!prenom || !nom || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !Number.isSafeInteger(roleId) || roleId <= ADMIN_ROLE_ID) {
+    return NextResponse.json({ error: 'Prénom, nom, e-mail ou rôle invalide.' }, { status: 400 })
   }
   if (password && (password.length < 12 || password.length > 128)) {
     return NextResponse.json({ error: 'Mot de passe: 12 à 128 caractères requis.' }, { status: 400 })
@@ -263,13 +264,27 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Rôle inconnu ou inaccessible.' }, { status: 400 })
   }
 
+  const emailChanged = email !== (target.email ?? '').toLowerCase()
+  if (emailChanged) {
+    const { error: emailError } = await admin.auth.admin.updateUserById(target.auth_user_id, {
+      email,
+      email_confirm: true,
+    })
+    if (emailError) {
+      return NextResponse.json({ error: emailError.message || 'Modification de l’e-mail impossible.' }, { status: 400 })
+    }
+  }
+
   const { error: profileError } = await admin
     .from('user_profiles')
-    .update({ prenom, nom, telephone: telephone || null, address: address || null, role_id: roleId })
+    .update({ prenom, nom, email, telephone: telephone || null, address: address || null, role_id: roleId })
     .eq('id', id)
 
   if (profileError) {
     console.error('[admin/users] profile update failed:', profileError.message)
+    if (emailChanged && target.email) {
+      await admin.auth.admin.updateUserById(target.auth_user_id, { email: target.email, email_confirm: true })
+    }
     return NextResponse.json({ error: 'Modification du profil impossible.' }, { status: 500 })
   }
 
