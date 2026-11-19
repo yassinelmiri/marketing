@@ -31,5 +31,7 @@ export async function POST(req:NextRequest){
  if(!message)return NextResponse.json({error:'Écrivez un message.'},{status:400})
  const {data,error}=await auth.admin.from('team_chat_messages').insert({user_id:auth.profile.id,message}).select('id,user_id,message,created_at').single()
  if(error||!data)return NextResponse.json({error:'Envoi du message impossible.'},{status:500})
+ const {data:team}=await auth.admin.from('user_profiles').select('id').neq('id',auth.profile.id)
+ if(team?.length){const {error:notificationError}=await auth.admin.from('notifications').insert(team.map(member=>({user_id:Number(member.id),type:'chat_message',title:'Nouveau message dans le chat',body:message.slice(0,180),task_id:null})));if(notificationError)console.warn('[chat] notification creation failed',notificationError.message)}
  return NextResponse.json({message:{...data,profile:auth.profile}},{status:201})
 }
