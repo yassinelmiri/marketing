@@ -25,6 +25,7 @@ import { AdminUsersView } from './admin-users-view'
 import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
 import { SmsSenderView } from './sms-sender-view'
+import { SettingsView } from './settings-view'
 
 import {
   type Campagne,
@@ -79,7 +80,7 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
   { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
-  { key: 'settings', label: 'Paramètres', icon: Settings, adminOnly: true },
+  { key: 'settings', label: 'Paramètres', icon: Settings },
 ]
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -90,10 +91,6 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   campagnes: {
     title: 'Campagnes',
     subtitle: 'Créez et suivez vos campagnes multicanal.',
-  },
-  listes: {
-    title: 'Listes & contacts',
-    subtitle: 'Organisez et consultez les listes de contacts.',
   },
   listes: {
     title: 'Listes & contacts',
@@ -121,7 +118,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   },
   settings: {
     title: 'Paramètres',
-    subtitle: 'Configuration de l’espace.',
+    subtitle: 'Gérez vos informations personnelles et la sécurité de votre compte.',
   },
 }
 
@@ -429,8 +426,8 @@ export function MarketingWorkspace() {
       (campagne) => campagne.status === 'brouillon',
     ).length
 
-    return { total, enCours, terminees, brouillons }
-  }, [campagnes])
+    return { total, enCours, terminees, brouillons, listes: listes.length, contacts: contacts.length, membres: teamUsers.length }
+  }, [campagnes, listes.length, contacts.length, teamUsers.length])
 
   // ============================================================
   // NAVIGATION & PERMISSIONS
@@ -787,33 +784,10 @@ export function MarketingWorkspace() {
             />
           )}
 
-          {activeView === 'settings' && <SettingsView />}
+          {activeView === 'settings' && <SettingsView user={currentUser} onSaved={() => window.location.reload()} />}
         </div>
       </main>
     </div>
   )
 }
 
-// ============================================================
-// PARAMÈTRES
-// ============================================================
-
-function SettingsView() {
-  return (
-    <section className="workspace-section">
-      <div className="workspace-panel">
-        <div className="workspace-panel-header">
-          <h2>Paramètres</h2>
-        </div>
-
-        <div className="workspace-empty">
-          <Settings aria-hidden="true" />
-          <p>Configuration à venir</p>
-          <span>
-            La configuration sera disponible après intégration du backend.
-          </span>
-        </div>
-      </div>
-    </section>
-  )
-}
