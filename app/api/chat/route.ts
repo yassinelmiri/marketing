@@ -69,6 +69,12 @@ export async function POST(req:NextRequest){
  }
  const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : ''
  if (!message && attachmentIds.length === 0) return NextResponse.json({ error: 'Écrivez un message ou ajoutez un fichier.' }, { status: 400 })
+ const { count: recentMessages, error: rateLimitError } = await auth.admin.from('team_chat_messages')
+   .select('id', { count: 'exact', head: true })
+   .eq('user_id', auth.profile.id)
+   .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
+ if (rateLimitError) return NextResponse.json({ error: 'Vérification anti-spam impossible.' }, { status: 500 })
+ if ((recentMessages ?? 0) >= 20) return NextResponse.json({ error: 'Limite de 20 messages par minute atteinte.' }, { status: 429 })
  if (attachmentIds.length) {
    const { data: owned, error: ownedError } = await auth.admin.from('team_chat_attachments')
      .select('id').in('id', attachmentIds).eq('user_id', auth.profile.id).is('message_id', null)
