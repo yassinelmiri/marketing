@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BarChart3,
   CalendarDays,
@@ -21,9 +21,7 @@ import {
   type User,
   type TypeCampagne,
 } from '@/lib/storage'
-import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
-import { createClient } from '@/lib/supabase/client'
 
 interface DashboardViewProps {
   user: User
@@ -44,56 +42,8 @@ export function DashboardView({
   teamUsers,
   onAddComment,
 }: DashboardViewProps) {
-  const toast = useToast()
-  const supabase = useMemo(() => createClient(), [])
-  const [personalNote, setPersonalNote] = useState('')
-  const [noteLoading, setNoteLoading] = useState(true)
-  const [noteSaving, setNoteSaving] = useState(false)
-  const [noteSavedAt, setNoteSavedAt] = useState<string | null>(null)
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
-
-  useEffect(() => {
-    let active = true
-    async function loadPersonalNote() {
-      setNoteLoading(true)
-      const { data, error } = await supabase
-        .from('user_notes')
-        .select('content, updated_at')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      if (!active) return
-      if (error) {
-        toast.error('Bloc-notes indisponible', 'Vérifiez que la migration des notes personnelles a été appliquée.')
-      } else {
-        setPersonalNote(data?.content ?? '')
-        setNoteSavedAt(data?.updated_at ?? null)
-      }
-      setNoteLoading(false)
-    }
-    void loadPersonalNote()
-    return () => { active = false }
-  }, [supabase, user.id])
-
-  async function savePersonalNote() {
-    setNoteSaving(true)
-    const { data, error } = await supabase
-      .from('user_notes')
-      .upsert({
-        user_id: user.id,
-        content: personalNote.slice(0, 10000),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      .select('updated_at')
-      .single()
-    if (error) {
-      toast.error('Enregistrement impossible', error.message)
-    } else {
-      setNoteSavedAt(data.updated_at)
-      toast.success('Note enregistrée', 'Votre bloc-notes personnel a été sauvegardé.')
-    }
-    setNoteSaving(false)
-  }
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
   const selectedComments = commentaires.filter((c) => c.campagne_id === selectedCampagneId)
@@ -139,32 +89,6 @@ export function DashboardView({
         <article><span className="dashboard-secondary-icon"><ListChecks aria-hidden="true" /></span><div><strong>{stats.listes}</strong><span>Listes</span></div></article>
         <article><span className="dashboard-secondary-icon"><ContactRound aria-hidden="true" /></span><div><strong>{stats.contacts}</strong><span>Contacts</span></div></article>
         <article><span className="dashboard-secondary-icon"><UsersRound aria-hidden="true" /></span><div><strong>{stats.membres}</strong><span>Membres visibles</span></div></article>
-      </div>
-
-      <div className="dashboard-note-panel workspace-panel">
-        <div className="dashboard-note-heading">
-          <span className="dashboard-note-icon"><NotebookPen aria-hidden="true" /></span>
-          <div>
-            <h2>Mon bloc-notes personnel</h2>
-            <p>Vos rappels et idées privés. Seul votre compte peut consulter ces notes.</p>
-          </div>
-          {noteSavedAt && <span className="dashboard-note-status">Dernière sauvegarde : {formatDate(noteSavedAt)}</span>}
-        </div>
-        <textarea
-          className="dashboard-note-input"
-          value={personalNote}
-          onChange={(event) => setPersonalNote(event.target.value)}
-          placeholder="Écrivez ici vos idées, rappels, tâches à suivre…"
-          rows={5}
-          maxLength={10000}
-          disabled={noteLoading}
-        />
-        <div className="dashboard-note-footer">
-          <span>{personalNote.length.toLocaleString('fr-FR')} / 10 000 caractères</span>
-          <button type="button" className="workspace-primary" onClick={() => void savePersonalNote()} disabled={noteLoading || noteSaving}>
-            <Save aria-hidden="true" /> {noteSaving ? 'Enregistrement…' : 'Enregistrer mes notes'}
-          </button>
-        </div>
       </div>
 
       <div className="workspace-panels">
