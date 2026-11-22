@@ -8,10 +8,10 @@ export const dynamic='force-dynamic'
 async function authorize(){
  const session=await createClient()
  const {data:auth,error}=await session.auth.getUser()
- if(error||!auth.user) return {response:NextResponse.json({error:'Connexion requise.'},{status:401}) as const}
+ if(error||!auth.user) return {response:NextResponse.json({error:'Connexion requise.'},{status:401})}
  const {data:profile,error:pError}=await session.from('user_profiles').select('id').eq('auth_user_id',auth.user.id).maybeSingle()
- if(pError||!profile) return {response:NextResponse.json({error:'Profil non autorisé.'},{status:403}) as const}
- try{return {admin:createAdminClient(),userId:Number(profile.id)} as const}catch{return {response:NextResponse.json({error:'Configuration serveur indisponible.'},{status:503}) as const}}
+ if(pError||!profile) return {response:NextResponse.json({error:'Profil non autorisé.'},{status:403})}
+ try{return {admin:createAdminClient(),userId:Number(profile.id)} as const as const}catch{return {response:NextResponse.json({error:'Configuration serveur indisponible.'},{status:503})}}
 }
 function originCheck(req:NextRequest){const origin=req.headers.get('origin');if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403});try{if(new URL(origin).origin!==req.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}return null}
 export async function GET(){
