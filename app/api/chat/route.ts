@@ -10,7 +10,7 @@ async function authorize(){
  if(error||!auth.user)return {response:NextResponse.json({error:'Connexion requise.'},{status:401})}
  const {data:profile,error:pError}=await session.from('user_profiles').select('id,prenom,nom,role_id').eq('auth_user_id',auth.user.id).maybeSingle()
  if(pError||!profile)return {response:NextResponse.json({error:'Profil non autorisé.'},{status:403})}
- try{return {admin:createAdminClient(),profile:{id:Number(profile.id),prenom:profile.prenom??'',nom:profile.nom??''},isAdmin:Number(profile.role_id)===1} as const as const}catch{return {response:NextResponse.json({error:'Configuration serveur indisponible.'},{status:503})}}
+ try{return {admin:createAdminClient(),profile:{id:Number(profile.id),prenom:profile.prenom??'',nom:profile.nom??''},isAdmin:Number(profile.role_id)===1} as const}catch{return {response:NextResponse.json({error:'Configuration serveur indisponible.'},{status:503})}}
 }
 function originCheck(req:NextRequest){const origin=req.headers.get('origin');if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403});try{if(new URL(origin).origin!==req.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}return null}
 export async function GET(){
