@@ -160,7 +160,7 @@ export function MarketingWorkspace() {
   const [listes, setListes] = useState<ListeContact[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
-  const [campagneListes, setCampagneListes] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
+  const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
   const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
   const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
@@ -407,7 +407,7 @@ export function MarketingWorkspace() {
       setListes(Array.isArray(result.listes) ? result.listes : [])
       setContacts(Array.isArray(result.contacts) ? result.contacts : [])
       setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
-      setCampagneListes(Array.isArray(result.campagneListes) ? result.campagneListes : [])
+      setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
       setListeContacts(Array.isArray(result.listeContacts) ? result.listeContacts : [])
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError

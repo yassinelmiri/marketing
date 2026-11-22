@@ -21,14 +21,14 @@ const ALLOWED_TYPES = new Set([
 async function authorize() {
   const session = await createClient()
   const { data: auth, error } = await session.auth.getUser()
-  if (error || !auth.user) return { response: NextResponse.json({ error: 'Connexion requise.' }, { status: 401 }) as const }
+  if (error || !auth.user) return { response: NextResponse.json({ error: 'Connexion requise.' }, { status: 401 }) }
   const { data: profile, error: profileError } = await session.from('user_profiles')
     .select('id').eq('auth_user_id', auth.user.id).maybeSingle()
-  if (profileError || !profile) return { response: NextResponse.json({ error: 'Profil non autorisé.' }, { status: 403 }) as const }
+  if (profileError || !profile) return { response: NextResponse.json({ error: 'Profil non autorisé.' }, { status: 403 }) }
   try {
-    return { admin: createAdminClient(), userId: Number(profile.id) } as const
+    return { admin: createAdminClient(), userId: Number(profile.id) } as const as const
   } catch {
-    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) as const }
+    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) }
   }
 }
 

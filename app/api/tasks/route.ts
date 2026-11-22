@@ -14,7 +14,7 @@ async function access() {
   const { data: auth, error: authError } = await session.auth.getUser()
 
   if (authError || !auth.user) {
-    return { response: NextResponse.json({ error: 'Connexion requise.' }, { status: 401 }) as const }
+    return { response: NextResponse.json({ error: 'Connexion requise.' }, { status: 401 }) }
   }
 
   const { data: profile, error } = await session
@@ -24,14 +24,14 @@ async function access() {
     .maybeSingle()
 
   if (error || !profile) {
-    return { response: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) as const }
+    return { response: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
   }
 
   try {
     const admin = createAdminClient()
-    return { admin, profile: profile as Profile, isAdmin: Number(profile.role_id) === 1 } as const
+    return { admin, profile: profile as Profile, isAdmin: Number(profile.role_id) === 1 } as const as const
   } catch {
-    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) as const }
+    return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) }
   }
 }
 

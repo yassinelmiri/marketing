@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
   CalendarDays,
@@ -40,6 +41,7 @@ export function DashboardView({
   teamUsers,
   onAddComment,
 }: DashboardViewProps) {
+  const toast = useToast()
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
 

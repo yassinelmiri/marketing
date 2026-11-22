@@ -7,5 +7,4 @@ export type {
   Campagne,
   CampagneStatus,
   Commentaire,
-  Session,
 } from '@/lib/storage'
