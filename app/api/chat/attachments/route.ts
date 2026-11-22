@@ -26,7 +26,7 @@ async function authorize() {
     .select('id').eq('auth_user_id', auth.user.id).maybeSingle()
   if (profileError || !profile) return { response: NextResponse.json({ error: 'Profil non autorisé.' }, { status: 403 }) }
   try {
-    return { admin: createAdminClient(), userId: Number(profile.id) } as const as const
+    return { admin: createAdminClient(), userId: Number(profile.id) } as const
   } catch {
     return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) }
   }
