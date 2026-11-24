@@ -1,4 +1,4 @@
-import { GRANTABLE_PAGES, type ViewKey } from './index'
+import { GRANTABLE_PAGES, type ViewKey } from '../permissions'
 
 type PermissionLink = { permission_id: number | string }
 type UserPermissionLink = PermissionLink & { granted: boolean }
