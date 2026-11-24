@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (contactsError) throw contactsError
     let recipients = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
-      .filter((email) => /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email))))
+      .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
     const { data: suppressed, error: suppressedError } = await admin.from('email_unsubscribes').select('email')
     if (suppressedError) throw suppressedError
