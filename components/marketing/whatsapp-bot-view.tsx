@@ -271,11 +271,6 @@ export function WhatsAppBotView() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Modification de la campagne impossible.')
       setPaused(nextPaused)
-      if (nextPaused && advanceTimerRef.current) {
-        clearTimeout(advanceTimerRef.current)
-        advanceTimerRef.current = null
-        setAdvanceCountdown(false)
-      }
       setNotice(nextPaused ? 'Campagne mise en pause et sauvegardée.' : 'Campagne reprise.')
       void refreshSavedCampaigns()
     } catch (cause) {
