@@ -12,17 +12,17 @@ function normalizeHeader(value: string): string {
   return value
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\\u0300-\\u036f]/g, '')
-    .replace(/[^a-z0-9\\u0600-\\u06ff]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\u0600-\u06ff]/g, '')
 }
 
 export function normalizePhone(value: unknown): string | null {
   if (value === null || value === undefined) return null
 
   const raw = String(value).trim()
-  if (!raw || raw.toLowerCase() === 'nan' || /e\\+\\d+$/i.test(raw)) return null
+  if (!raw || raw.toLowerCase() === 'nan' || /e\+\d+$/i.test(raw)) return null
 
-  let digits = raw.replace(/\\D/g, '')
+  let digits = raw.replace(/\D/g, '')
   if (!digits) return null
 
   if (digits.startsWith('00212')) digits = digits.slice(5)
