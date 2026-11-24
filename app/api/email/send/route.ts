@@ -41,7 +41,12 @@ export async function GET(request: NextRequest) {
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
     if (error) throw error
-    return NextResponse.json({ campaigns: data ?? [] })
+    const ids = (data ?? []).map((item) => Number(item.id))
+    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,event_type').in('campaign_id', ids) : { data: [], error: null }
+    if (eventsError) throw eventsError
+    const counts = new Map<number, { opens: number; clicks: number }>()
+    for (const event of events ?? []) { const id = Number(event.campaign_id); const value = counts.get(id) ?? { opens: 0, clicks: 0 }; if (event.event_type === 'open') value.opens += 1; if (event.event_type === 'click') value.clicks += 1; counts.set(id, value) }
+    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens ?? 0, click_count: counts.get(Number(item.id))?.clicks ?? 0 })) })
   } catch (error) {
     console.error('[email/history] failed:', error)
     return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (contactsError) throw contactsError
     let recipients = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
-      .filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
+      .filter((email) => /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email))))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
     const { data: suppressed, error: suppressedError } = await admin.from('email_unsubscribes').select('email')
     if (suppressedError) throw suppressedError
@@ -140,8 +145,8 @@ export async function POST(request: NextRequest) {
             const { data: unsubscribeToken, error: tokenError } = await admin.from('email_unsubscribe_tokens').upsert({ email: recipient, campaign_id: campaignId }, { onConflict: 'email,campaign_id' }).select('token').single()
             if (tokenError) throw tokenError
             const unsubscribeLink = request.nextUrl.origin + '/api/email/unsubscribe/' + unsubscribeToken.token
-            let html = /<[a-z][\\s\\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\\n/g, '<br>')
-            if (trackingClicks) html = html.replace(/href=[\"'](https?:\\/\\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+            let html = /<[a-z][\s\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
+            if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
             await transporter.sendMail({ from: { name: smtp.from_name || smtp.name, address: smtp.email }, to: recipient, ...(replyTo ? { replyTo } : {}), subject, html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel, text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink })
             sent += 1
           } catch (error) { console.error('[email/send] delivery failed:', error); failures.push(recipient) }
