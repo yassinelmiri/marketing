@@ -326,6 +326,22 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       {error && <div className="wa-alert wa-alert-error"><AlertCircle aria-hidden="true" />{error}<button type="button" onClick={() => setError('')} aria-label="Fermer"><XCircle /></button></div>}
       {notice && <div className="wa-alert wa-alert-success"><CheckCircle2 aria-hidden="true" />{notice}<button type="button" onClick={() => setNotice('')} aria-label="Fermer"><XCircle /></button></div>}
 
+      <div className="workspace-panel wa-panel wa-saved-panel">
+        <div className="wa-panel-heading">
+          <div><span className="wa-step">00</span><div><h3>Mes campagnes sauvegardées</h3><p>Reprenez une campagne et son dernier état enregistré</p></div></div>
+          <RefreshCw aria-hidden="true" />
+        </div>
+        <div className="wa-saved-row">
+          <select value={selectedSavedId} onChange={(event) => setSelectedSavedId(event.target.value)}>
+            <option value="">Choisir une campagne existante</option>
+            {savedCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.total_recipients} contacts · {campaign.status === 'paused' ? 'En pause' : campaign.status === 'completed' ? 'Terminée' : campaign.status === 'in_progress' ? 'En cours' : 'Brouillon'}</option>)}
+          </select>
+          <button type="button" className="wa-secondary-button" disabled={!selectedSavedId || loadingSaved} onClick={() => void loadSavedCampaign(Number(selectedSavedId))}>Charger la campagne</button>
+          <button type="button" className="wa-icon-button" disabled={loadingSaved} onClick={() => void refreshSavedCampaigns()} aria-label="Actualiser"><RefreshCw /></button>
+        </div>
+        {savedCampaigns.length === 0 && <p className="wa-saved-empty">{loadingSaved ? 'Chargement…' : 'Aucune campagne sauvegardée pour le moment.'}</p>}
+      </div>
+
       <div className="wa-grid">
         <div className="workspace-panel wa-panel">
           <div className="wa-panel-heading">
@@ -381,7 +397,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
           <div className="wa-progress-top">
             <div><span className="wa-step">04</span><div><h3>Suivi de la campagne</h3><p>{fileName} · {stats.total} destinataire(s)</p></div></div>
             <div className="wa-progress-actions">
-              <button type="button" className="wa-secondary-button" onClick={() => setPaused((value) => !value)}>{paused ? <Play /> : <Pause />}{paused ? 'Reprendre' : 'Pause'}</button>
+              <button type="button" className="wa-secondary-button" onClick={() => void saveCampaign()} disabled={!consentConfirmed || !message.trim() || saving}>{saving ? 'Enregistrement…' : campaignId ? 'Sauvegarder le message' : 'Enregistrer la campagne'}</button>
+              <button type="button" className="wa-secondary-button" onClick={() => void togglePause()} disabled={!campaignId}>{paused ? <Play /> : <Pause />}{paused ? 'Reprendre' : 'Pause'}</button>
               <button type="button" className="wa-secondary-button" onClick={exportResults}>Exporter le suivi</button>
               <button type="button" className="wa-icon-button" onClick={resetCampaign} aria-label="Réinitialiser"><RefreshCw /></button>
             </div>
@@ -401,12 +418,13 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
               <div className="wa-current-label">DESTINATAIRE ACTUEL · {activeIndex + 1} / {stats.total}</div>
               <div className="wa-current-details"><div className="wa-contact-avatar">{(current.name || '+').charAt(0).toUpperCase()}</div><div><strong>{current.name || 'Contact sans nom'}</strong><span>+{current.phone}</span></div><span className={'wa-status wa-status-' + current.status}>{current.status === 'opened' ? 'Conversation ouverte' : 'En attente'}</span></div>
               <div className="wa-current-actions">
-                <button type="button" className="workspace-primary wa-action-button" disabled={paused || !consentConfirmed || !message.trim()} onClick={openCurrentChat}><ExternalLink /> Ouvrir la conversation</button>
+                <button type="button" className="workspace-primary wa-action-button" disabled={paused || !campaignId || !consentConfirmed || !message.trim()} onClick={openCurrentChat}><ExternalLink /> Ouvrir la conversation</button>
                 <button type="button" className="wa-secondary-button" disabled={paused || current.status !== 'opened'} onClick={() => completeCurrent('sent')}><CheckCircle2 /> Envoyé</button>
                 <button type="button" className="wa-secondary-button" disabled={paused || current.status !== 'opened'} onClick={() => completeCurrent('failed')}><XCircle /> Échec</button>
                 <button type="button" className="wa-secondary-button" disabled={paused} onClick={() => completeCurrent('skipped')}><SkipForward /> Ignorer</button>
               </div>
-              {!consentConfirmed && <p className="wa-inline-warning">Confirmez le consentement des destinataires avant de commencer.</p>}
+              {!consentConfirmed && <p className="wa-inline-warning">Confirmez le consentement des destinataires avant d’enregistrer la campagne.</p>}
+              {!campaignId && <p className="wa-inline-warning">Enregistrez d’abord la campagne pour activer le suivi persistant et l’ouverture des conversations.</p>}
               {current.status === 'opened' && <p className="wa-inline-hint">Après avoir cliqué sur Envoyer dans WhatsApp, revenez ici et confirmez avec « Envoyé ».</p>}
             </div>
           )}
