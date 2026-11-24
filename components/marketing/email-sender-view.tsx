@@ -293,7 +293,7 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
         </div>
         <div className="workspace-panel">
           <div className="workspace-panel-header"><h2>Historique des campagnes</h2><span>{campaignStats.length} campagne(s)</span></div>
-          {historyLoading ? <p>Chargement…</p> : <ul className="history-list">{campaignStats.map((item) => <li key={item.id}><div><strong>{item.subject}</strong><span>{item.sent_count} envoyé(s) · {item.failed_count} échec(s) · {item.opened_count} ouverture(s) · {item.clicked_count} clic(s) · {new Date(item.created_at).toLocaleString('fr-FR')}</span></div></li>)}</ul>}
+          {historyLoading ? <p>Chargement…</p> : <ul className="history-list">{campaignStats.map((item) => <li key={item.id}><div><strong>{item.subject}</strong><span>{item.sent_count} envoyé(s) · {item.failed_count} échec(s) · {item.opened_count} ouverture(s) · {item.clicked_count} clic(s) · {new Date(item.created_at).toLocaleString('fr-FR')}</span></div><button type="button" className="workspace-secondary" onClick={() => { setSmtpId(item.smtp_account_id ?? ''); setListeId(item.liste_id ?? ''); setSubject(item.subject + ' (copie)'); setMessage(item.message ?? ''); setReplyTo(item.reply_to ?? ''); setTrackingOpens(item.tracking_opens !== false); setTrackingClicks(item.tracking_clicks !== false); setUnsubscribeEnabled(item.unsubscribe_enabled !== false); setBatchSize(Number(item.batch_size ?? 25)); setBatchDelaySeconds(Number(item.batch_delay_seconds ?? 2)); setActiveTab('campaigns') }}>Dupliquer</button></li>)}</ul>}
         </div>
       </>}
 
