@@ -235,11 +235,27 @@ Ce tableau distingue volontairement les interfaces disponibles des intégrations
 - **Évolutivité :** l'architecture permet d'ajouter progressivement de nouveaux services et intégrations.
 - **Personnalisation :** les modules et les autorisations peuvent être adaptés aux besoins de l'organisation.
 
-## 11. Contact et informations
+## 11. File d'envoi des campagnes e-mail (branche chatgpt)
+
+- Les campagnes peuvent cibler plusieurs listes ; les doublons d'adresses sont supprimés avant l'ajout à la file.
+- Une campagne peut être lancée immédiatement ou planifiée à une date/heure donnée.
+- Le traitement s'effectue côté serveur par lots, sans garder l'écran de préparation ouvert. Jusqu'à trois campagnes peuvent être traitées simultanément par le worker.
+- Le worker Vercel est appelé chaque minute (`vercel.json`). Les lots traités dans une même exécution respectent le délai configuré ; si la campagne dépasse la durée d'une exécution, la reprise dépend du prochain passage du cron et peut donc ajouter jusqu'à environ une minute de décalage.
+
+### Configuration nécessaire
+
+1. Appliquer les nouvelles migrations `20261124180000_email_campaign_queue.sql` et `20261124181000_email_campaign_sent_timestamp.sql` dans Supabase, après les migrations e-mail précédentes.
+2. Ajouter une variable d'environnement Vercel `CRON_SECRET` contenant une valeur aléatoire longue et privée. Ne jamais la committer dans Git.
+3. Redéployer le projet pour activer le cron `/api/cron/email-campaigns`.
+4. Vérifier le premier lancement avec une petite campagne de test et un compte SMTP valide.
+
+Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionné dans `main`.
+
+## 12. Contact et informations
 
 - **Nom du projet :** Anntel Marketing
 - **Dépôt GitHub :** https://github.com/yassinelmiri/marketing
-- **Branche documentée :** `supabase-migration`
+- **Branche de travail e-mail :** `chatgpt`
 
 ---
 
