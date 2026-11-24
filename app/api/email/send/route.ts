@@ -111,6 +111,12 @@ export async function POST(request: NextRequest) {
       liste_nom: liste.nom,
       subject,
       message,
+      reply_to: replyTo || null,
+      tracking_opens: trackingOpens,
+      tracking_clicks: trackingClicks,
+      unsubscribe_enabled: unsubscribeEnabled,
+      batch_size: batchSize,
+      batch_delay_seconds: batchDelaySeconds,
       recipients,
       total_recipients: recipients.length,
       status: 'pending',
@@ -130,17 +136,38 @@ export async function POST(request: NextRequest) {
 
     let sent = 0
     const failures: string[] = []
+    const baseUrl = request.nextUrl.origin
+    const trackingRows = recipients.map((email) => ({ campaign_id: campaignId, email, tracking_token: randomUUID() }))
+    const { error: trackingInsertError } = await admin.from('email_campaign_recipients').insert(trackingRows)
+    if (trackingInsertError) throw trackingInsertError
+    const tokenByEmail = new Map(trackingRows.map((row) => [row.email, row.tracking_token]))
     try {
       await transporter.verify()
-      for (const recipient of recipients) {
+      for (let index = 0; index < recipients.length; index += 1) {
+        const recipient = recipients[index]
+        const token = tokenByEmail.get(recipient)!
         try {
+          const safeHtml = message
+            .replace(/<script[\\s\\S]*?>[\\s\\S]*?<\\/script>/gi, '')
+            .replace(/\\son[a-z]+\\s*=\\s*(['"]).*?\\1/gi, '')
+          const html = safeHtml
+            .replace(/href=(['"])(https?:\\/\\/[^'"]+)\\1/gi, (_match, quote, url) =>
+              trackingClicks ? 'href=' + quote + baseUrl + '/api/email/track/click/' + token + '?url=' + encodeURIComponent(url) + quote : 'href=' + quote + url + quote)
+            + (trackingOpens ? '<img src="' + baseUrl + '/api/email/track/open/' + token + '" width="1" height="1" alt="" style="display:none" />' : '')
+            + (unsubscribeEnabled ? '<p style="font-size:12px;color:#64748b">Pour ne plus recevoir ces e-mails, <a href="' + baseUrl + '/api/email/unsubscribe/' + token + '">désabonnez-vous ici</a>.</p>' : '')
           await transporter.sendMail({
             from: { name: smtp.from_name || smtp.name, address: smtp.email },
             to: recipient,
+            replyTo: replyTo || undefined,
             subject,
-            text: message,
+            text: message.replace(/<[^>]*>/g, ' '),
+            html,
           })
           sent += 1
+          await admin.from('email_campaign_recipients').update({ sent_at: new Date().toISOString() }).eq('campaign_id', campaignId).eq('email', recipient)
+          if (batchDelaySeconds > 0 && (index + 1) % batchSize === 0 && index + 1 < recipients.length) {
+            await new Promise((resolve) => setTimeout(resolve, batchDelaySeconds * 1000))
+          }
         } catch (error) {
           console.error('[email/send] delivery failed:', error)
           failures.push(recipient)
@@ -155,6 +182,7 @@ export async function POST(request: NextRequest) {
       sent_count: sent,
       failed_count: failures.length,
       failed_recipients: failures,
+      sent_at: new Date().toISOString(),
       status,
     }).eq('id', campaignId)
     if (updateError) throw updateError
