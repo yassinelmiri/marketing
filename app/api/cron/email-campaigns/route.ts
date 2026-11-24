@@ -112,9 +112,11 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const { data: liveState } = await admin.from('email_campaigns').select('status').eq('id', campaign.id).maybeSingle()
+      const paused = liveState?.status === 'paused'
       const finished = offset >= recipients.length
-      const nextAt = finished ? null : new Date(Date.now() + (offset % batchSize === 0 ? campaign.batch_delay_seconds * 1000 : 0)).toISOString()
-      const status = finished ? (failed === 0 ? 'sent' : sent > 0 ? 'partial' : 'failed') : 'sending'
+      const nextAt = paused || finished ? null : new Date(Date.now() + (offset % batchSize === 0 ? campaign.batch_delay_seconds * 1000 : 0)).toISOString()
+      const status = paused ? 'paused' : finished ? (failed === 0 ? 'sent' : sent > 0 ? 'partial' : 'failed') : 'sending'
       const { error: updateError } = await admin.from('email_campaigns').update({
         recipient_offset: offset, sent_count: sent, failed_count: failed,
         failed_recipients: failedRecipients, status, next_batch_at: nextAt,
