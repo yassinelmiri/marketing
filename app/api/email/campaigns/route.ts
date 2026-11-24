@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const smtpId = Number(body.smtp_account_id)
+    const smtpIds = Array.from(new Set((Array.isArray(body.smtp_account_ids) ? body.smtp_account_ids : [body.smtp_account_id]).map(Number).filter((id: number) => Number.isSafeInteger(id) && id > 0)))
     const listeIds = Array.from(new Set((Array.isArray(body.liste_ids) ? body.liste_ids : [body.liste_id]).map(Number).filter((id: number) => Number.isSafeInteger(id) && id > 0)))
     const subject = String(body.subject ?? '').trim().slice(0, 250)
     const message = String(body.message ?? '').trim().slice(0, 50000)
@@ -42,14 +42,16 @@ export async function POST(request: NextRequest) {
     const batchDelay = Math.min(3600, Math.max(0, Number(body.batch_delay_seconds) || 0))
     const scheduledAt = body.scheduled_at ? new Date(body.scheduled_at) : new Date()
     const templateId = body.template_id ? Number(body.template_id) : null
-    if (!Number.isSafeInteger(smtpId) || smtpId < 1 || !listeIds.length || !subject || !message || Number.isNaN(scheduledAt.getTime())) {
+    if (!smtpIds.length || !listeIds.length || !subject || !message || Number.isNaN(scheduledAt.getTime())) {
       return NextResponse.json({ error: 'Vérifiez l’expéditeur, les listes, l’objet, le contenu et la date de lancement.' }, { status: 400 })
     }
     if (scheduledAt.getTime() < Date.now() - 60000) return NextResponse.json({ error: 'La date de lancement doit être dans le futur ou maintenant.' }, { status: 400 })
 
     const admin = createAdminClient()
-    const { data: smtp, error: smtpError } = await admin.from('smtp_accounts').select('id,name,email,from_name,is_active').eq('id', smtpId).eq('is_active', true).maybeSingle()
-    if (smtpError || !smtp) return NextResponse.json({ error: 'Compte SMTP introuvable ou désactivé.' }, { status: 404 })
+    const { data: smtpAccounts, error: smtpError } = await admin.from('smtp_accounts').select('id,name,email,from_name,is_active').in('id', smtpIds).eq('is_active', true)
+    if (smtpError || (smtpAccounts ?? []).length !== smtpIds.length) return NextResponse.json({ error: 'Un ou plusieurs comptes expéditeurs sont introuvables ou désactivés.' }, { status: 404 })
+    const orderedSmtp = smtpIds.map(id => smtpAccounts!.find(account => Number(account.id) === id)!).filter(Boolean)
+    const primarySmtp = orderedSmtp[0]
     const { data: lists, error: listsError } = await admin.from('listes').select('id,nom').in('id', listeIds)
     if (listsError || (lists ?? []).length !== listeIds.length) return NextResponse.json({ error: 'Une ou plusieurs listes sont introuvables.' }, { status: 404 })
     const { data: links, error: linksError } = await admin.from('liste_contacts').select('contact_id').in('liste_id', listeIds)
@@ -68,8 +70,8 @@ export async function POST(request: NextRequest) {
 
     const status = scheduledAt.getTime() > Date.now() ? 'scheduled' : 'pending'
     const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
-      smtp_account_id: smtp.id, liste_id: listeIds[0], liste_ids: listeIds,
-      created_by: auth.profile.id, sender_email: smtp.email, sender_name: smtp.from_name || smtp.name,
+      smtp_account_id: primarySmtp.id, smtp_account_ids: smtpIds, liste_id: listeIds[0], liste_ids: listeIds,
+      created_by: auth.profile.id, sender_email: primarySmtp.email, sender_name: primarySmtp.from_name || primarySmtp.name,
       liste_nom: lists!.map((x) => x.nom).join(', '), subject, message, reply_to: replyTo || null,
       template_id: templateId, tracking_opens: body.tracking_opens !== false,
       tracking_clicks: body.tracking_clicks !== false, batch_size: batchSize,
