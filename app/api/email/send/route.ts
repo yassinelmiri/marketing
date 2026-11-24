@@ -36,17 +36,24 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, recipients, failed_recipients, total_recipients, sent_count, failed_count, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, total_recipients, sent_count, failed_count, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
     if (error) throw error
     const ids = (data ?? []).map((item) => Number(item.id))
-    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,event_type').in('campaign_id', ids) : { data: [], error: null }
+    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type').in('campaign_id', ids) : { data: [], error: null }
     if (eventsError) throw eventsError
-    const counts = new Map<number, { opens: number; clicks: number }>()
-    for (const event of events ?? []) { const id = Number(event.campaign_id); const value = counts.get(id) ?? { opens: 0, clicks: 0 }; if (event.event_type === 'open') value.opens += 1; if (event.event_type === 'click') value.clicks += 1; counts.set(id, value) }
-    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens ?? 0, click_count: counts.get(Number(item.id))?.clicks ?? 0 })) })
+    const counts = new Map<number, { opens: Set<string>; clicks: Set<string> }>()
+    for (const event of events ?? []) {
+      const id = Number(event.campaign_id)
+      const value = counts.get(id) ?? { opens: new Set<string>(), clicks: new Set<string>() }
+      const recipient = String(event.recipient_email ?? '').toLowerCase()
+      if (recipient && event.event_type === 'open') value.opens.add(recipient)
+      if (recipient && event.event_type === 'click') value.clicks.add(recipient)
+      counts.set(id, value)
+    }
+    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })) })
   } catch (error) {
     console.error('[email/history] failed:', error)
     return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
@@ -153,7 +160,18 @@ export async function POST(request: NextRequest) {
             const unsubscribeLink = request.nextUrl.origin + '/api/email/unsubscribe/' + unsubscribeToken.token
             let html = /<[a-z][\s\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
             if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
-            await transporter.sendMail({ from: { name: smtp.from_name || smtp.name, address: smtp.email }, to: recipient, ...(replyTo ? { replyTo } : {}), subject, html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel, text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink })
+            await transporter.sendMail({
+              from: { name: smtp.from_name || smtp.name, address: smtp.email },
+              to: recipient,
+              ...(replyTo ? { replyTo } : {}),
+              subject,
+              headers: {
+                'List-Unsubscribe': '<' + unsubscribeLink + '>',
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+              },
+              html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
+              text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
+            })
             sent += 1
           } catch (error) { console.error('[email/send] delivery failed:', error); failures.push(recipient) }
         }
