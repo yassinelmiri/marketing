@@ -1,252 +1,52 @@
 'use client'
-
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { AlertCircle, CheckCircle2, Mail, Plus, Send, Server, ShieldCheck, Trash2, Users, X } from 'lucide-react'
-import type { ListeContact, ListeContactContact } from '@/lib/storage'
-
-type SmtpAccount = {
-  id: number
-  name: string
-  email: string
-  host: string
-  port: number
-  secure: boolean
-  username: string
-  from_name: string | null
-  is_active: boolean
-}
-
-interface EmailSenderViewProps {
-  listes: ListeContact[]
-  listeContacts: ListeContactContact[]
-  isAdmin: boolean
-}
-
-const emptySmtp = {
-  name: '', email: '', host: 'smtp.ionos.fr', port: '587',
-  secure: false, username: '', password: '', from_name: '',
-}
-
-export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderViewProps) {
-  const [accounts, setAccounts] = useState<SmtpAccount[]>([])
-  const [accountsLoading, setAccountsLoading] = useState(true)
-  const [accountError, setAccountError] = useState('')
-  const [form, setForm] = useState(emptySmtp)
-  const [showForm, setShowForm] = useState(false)
-  const [smtpId, setSmtpId] = useState<number | ''>('')
-  const [listeId, setListeId] = useState<number | ''>('')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<{ total: number; sent: number; failed: number; sender: string; message: string } | null>(null)
-  const [history, setHistory] = useState<{ id: number; subject: string; listeNom: string; sender: string; date: string; sent: number; failed: number; message?: string; status?: string }[]>([])
-  const [historyLoading, setHistoryLoading] = useState(true)
-
-  const selectedListe = listeId === '' ? null : listes.find((item) => item.id === listeId) ?? null
-  const contactCount = selectedListe ? listeContacts.filter((link) => link.liste_id === selectedListe.id).length : 0
-  const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts])
-
-  async function loadAccounts() {
-    setAccountsLoading(true)
-    setAccountError('')
-    try {
-      const response = await fetch('/api/email/smtp-accounts', { credentials: 'same-origin', cache: 'no-store' })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Impossible de charger les comptes SMTP.')
-      setAccounts(data.accounts ?? [])
-      if (data.accounts?.length && smtpId === '') {
-        const firstActive = data.accounts.find((item: SmtpAccount) => item.is_active)
-        if (firstActive) setSmtpId(firstActive.id)
-      }
-    } catch (error) {
-      setAccountError(error instanceof Error ? error.message : 'Erreur de chargement.')
-    } finally {
-      setAccountsLoading(false)
-    }
-  }
-
-  useEffect(() => { void loadAccounts() }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    async function loadHistory() {
-      setHistoryLoading(true)
-      try {
-        const response = await fetch('/api/email/send', { credentials: 'same-origin', cache: 'no-store' })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'Historique indisponible.')
-        if (!cancelled) setHistory((data.campaigns ?? []).map((item: any) => ({
-          id: Number(item.id),
-          subject: item.subject,
-          listeNom: item.liste_nom,
-          sender: item.sender_email,
-          date: new Date(item.sent_at || item.created_at).toLocaleString('fr-FR'),
-          sent: Number(item.sent_count),
-          failed: Number(item.failed_count),
-          message: item.message,
-          status: item.status,
-        })))
-      } catch (error) {
-        if (!cancelled) setAccountError(error instanceof Error ? error.message : 'Impossible de charger l’historique.')
-      } finally {
-        if (!cancelled) setHistoryLoading(false)
-      }
-    }
-    void loadHistory()
-    return () => { cancelled = true }
-  }, [])
-
-  async function saveAccount(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSaving(true)
-    setAccountError('')
-    try {
-      const response = await fetch('/api/email/smtp-accounts', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ ...form, port: Number(form.port) }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Création SMTP impossible.')
-      setAccounts((current) => [data.account, ...current])
-      setSmtpId(data.account.id)
-      setForm(emptySmtp)
-      setShowForm(false)
-    } catch (error) {
-      setAccountError(error instanceof Error ? error.message : 'Erreur pendant la sauvegarde.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function toggleAccount(account: SmtpAccount) {
-    const response = await fetch('/api/email/smtp-accounts', {
-      method: 'PATCH',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: account.id, is_active: !account.is_active }),
-    })
-    const data = await response.json()
-    if (!response.ok) {
-      setAccountError(data.error || 'Modification impossible.')
-      return
-    }
-    setAccounts((current) => current.map((item) => item.id === account.id ? data.account : item))
-    if (account.is_active && smtpId === account.id) setSmtpId('')
-  }
-
-  async function deleteAccount(account: SmtpAccount) {
-    if (!window.confirm(`Supprimer le compte SMTP ${account.email} ?`)) return
-    const response = await fetch('/api/email/smtp-accounts', {
-      method: 'DELETE',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: account.id }),
-    })
-    const data = await response.json()
-    if (!response.ok) {
-      setAccountError(data.error || 'Suppression impossible.')
-      return
-    }
-    setAccounts((current) => current.filter((item) => item.id !== account.id))
-    if (smtpId === account.id) setSmtpId('')
-  }
-
-  async function sendEmail() {
-    if (!smtpId || !listeId || !subject.trim() || !message.trim()) {
-      setAccountError('Sélectionnez un expéditeur, une liste, un objet et rédigez votre message.')
-      return
-    }
-    setSending(true)
-    setAccountError('')
-    setResult(null)
-    try {
-      const response = await fetch('/api/email/send', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ smtp_account_id: smtpId, liste_id: listeId, subject, message }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Envoi impossible.')
-      setResult(data)
-      setHistory((current) => [{
-        id: Number(data.campaignId), subject, listeNom: selectedListe?.nom ?? '',
-        sender: data.sender, date: new Date().toLocaleString('fr-FR'),
-        sent: data.sent, failed: data.failed, message, status: data.failed === 0 ? 'sent' : data.sent > 0 ? 'partial' : 'failed',
-      }, ...current])
-    } catch (error) {
-      setAccountError(error instanceof Error ? error.message : 'Erreur pendant l’envoi.')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <section className="workspace-section" style={{ display: 'grid', gap: 18 }}>
-      <div className="workspace-panel">
-        <div className="workspace-panel-header">
-          <h2><Server aria-hidden="true" /> Comptes expéditeurs SMTP</h2>
-          {isAdmin && <button type="button" className="workspace-primary" onClick={() => setShowForm((value) => !value)}><Plus aria-hidden="true" /> Ajouter un e-mail</button>}
-        </div>
-        <p className="form-hint">Chaque adresse dispose de son propre serveur SMTP, identifiant et mot de passe chiffré.</p>
-        {accountError && <div role="alert" className="workspace-note" style={{ color: '#b91c1c' }}><AlertCircle aria-hidden="true" /> {accountError}</div>}
-        {accountsLoading ? <p>Chargement des comptes SMTP…</p> : accounts.length === 0 ? (
-          <div className="workspace-empty"><Mail aria-hidden="true" /><p>Aucun compte expéditeur configuré.</p><span>{isAdmin ? 'Ajoutez votre première adresse SMTP pour activer les envois.' : 'Contactez votre administrateur pour configurer un expéditeur.'}</span></div>
-        ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {accounts.map((account) => (
-              <div key={account.id} className="workspace-note" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Mail aria-hidden="true" />
-                  <div><strong>{account.name}</strong><div>{account.email}{isAdmin && account.host ? ` · ${account.host}:${account.port}` : ''}</div></div>
-                  <span className={account.is_active ? 'status-badge status-active' : 'status-badge'}>{account.is_active ? 'Actif' : 'Désactivé'}</span>
-                </div>
-                {isAdmin && <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" className="workspace-secondary" onClick={() => void toggleAccount(account)}>{account.is_active ? 'Désactiver' : 'Activer'}</button>
-                  <button type="button" className="workspace-icon-button danger" aria-label="Supprimer le compte SMTP" onClick={() => void deleteAccount(account)}><Trash2 aria-hidden="true" /></button>
-                </div>}
-              </div>
-            ))}
-          </div>
-        )}
-        {showForm && isAdmin && (
-          <form onSubmit={saveAccount} className="workspace-panel" style={{ marginTop: 16, padding: 16 }}>
-            <div className="workspace-panel-header"><h3>Ajouter un compte SMTP</h3><button type="button" className="workspace-icon-button" onClick={() => setShowForm(false)}><X aria-hidden="true" /></button></div>
-            <div className="form-grid">
-              <label><span>Nom du compte</span><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="IONOS - Contact" /></label>
-              <label><span>Adresse e-mail expéditrice</span><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value, username: form.username || e.target.value })} placeholder="contact@domaine.fr" /></label>
-              <label><span>Serveur SMTP</span><input required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.ionos.fr" /></label>
-              <label><span>Port</span><input required type="number" min="1" max="65535" value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} /></label>
-              <label><span>Identifiant SMTP</span><input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Adresse ou identifiant SMTP" /></label>
-              <label><span>Mot de passe SMTP</span><input required type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
-              <label><span>Nom affiché (optionnel)</span><input value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} placeholder="Votre entreprise" /></label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.secure} onChange={(e) => setForm({ ...form, secure: e.target.checked })} /> Connexion SSL/TLS directe (port 465)</label>
-            </div>
-            <div className="workspace-import-actions" style={{ marginTop: 12 }}><button type="submit" className="workspace-primary" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer le compte SMTP'}</button></div>
-          </form>
-        )}
-      </div>
-
-      <div className="workspace-panel">
-        <div className="workspace-panel-header"><h2><Send aria-hidden="true" /> Nouvelle campagne e-mail</h2><span>Envoi réel SMTP</span></div>
-        <div className="form-grid">
-          <label className="form-grid-full"><span>Adresse expéditrice</span><select value={smtpId} onChange={(e) => setSmtpId(e.target.value ? Number(e.target.value) : '')}><option value="">— Choisir un compte SMTP —</option>{activeAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.email}</option>)}</select></label>
-          <label className="form-grid-full"><span>Liste cible</span><select value={listeId} onChange={(e) => setListeId(e.target.value ? Number(e.target.value) : '')}><option value="">— Sélectionner une liste —</option>{listes.map((liste) => <option key={liste.id} value={liste.id}>{liste.nom} ({listeContacts.filter((link) => link.liste_id === liste.id).length} contacts)</option>)}</select></label>
-          {selectedListe && <div className="form-grid-full workspace-note"><Users aria-hidden="true" /><p><strong>{contactCount}</strong> contact(s) liés à « {selectedListe.nom} ». Les adresses invalides et doublons seront ignorés.</p></div>}
-          <label className="form-grid-full"><span>Objet</span><input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Objet de votre e-mail" /></label>
-          <label className="form-grid-full"><span>Message</span><textarea rows={9} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Rédigez votre message ici…" /></label>
-        </div>
-        <div className="workspace-import-actions" style={{ marginTop: 14 }}><button type="button" className="workspace-primary" onClick={() => void sendEmail()} disabled={sending || !activeAccounts.length}><Send aria-hidden="true" /> {sending ? 'Envoi en cours…' : 'Envoyer les e-mails'}</button></div>
-        {result && <div className="workspace-note" style={{ marginTop: 14 }}><CheckCircle2 aria-hidden="true" /><p><strong>{result.message}</strong><br />Expéditeur : {result.sender} · Réussis : {result.sent} · Échecs : {result.failed}</p></div>}
-      </div>
-
-      <div className="workspace-panel">
-        <div className="workspace-panel-header"><h2><ShieldCheck aria-hidden="true" /> Historique des campagnes e-mail</h2><span>{history.length} envoi(s) enregistrés</span></div>
-        {historyLoading ? <p>Chargement de l’historique…</p> : history.length === 0 ? <div className="workspace-empty"><Mail aria-hidden="true" /><p>Aucun envoi enregistré pour le moment.</p></div> : <ul className="history-list">{history.map((item) => <li key={item.id}><div><strong>{item.subject}</strong><span>{item.sender} · {item.listeNom} · {item.date} · {item.sent} envoyé(s), {item.failed} échec(s) · {item.status === 'partial' ? 'Partiel' : item.status === 'failed' ? 'Échec' : 'Envoyé'}</span>{item.message && <details><summary>Voir le contenu du message</summary><p style={{ whiteSpace: 'pre-wrap' }}>{item.message}</p></details>}</div></li>)}</ul>}
-      </div>
-    </section>
-  )
+import { useEffect,useMemo,useState,type FormEvent } from 'react'
+import { AlertCircle,BarChart3,Ban,CheckCircle2,Copy,Eye,FileText,LayoutDashboard,List,Mail,MousePointerClick,Plus,Send,Server,Trash2,Users } from 'lucide-react'
+import type { ListeContact,ListeContactContact } from '@/lib/storage'
+type SMTP={id:number;name:string;email:string;host:string;port:number;secure:boolean;username:string;from_name:string|null;is_active:boolean}
+type Campaign={id:number;subject:string;liste_nom:string;sender_email:string;sent_count:number;failed_count:number;status:string;created_at:string;total_recipients?:number}
+type Template={id:number;name:string;subject:string;html_content:string}
+type Unsub={id:number;email:string;reason:string|null;unsubscribed_at:string}
+const tabs=[['dashboard','Dashboard',LayoutDashboard],['campaigns','Campagnes',Send],['lists','Listes',Users],['templates','Templates',FileText],['senders','Expéditeurs',Server],['unsubscribes','Désabonnements',Ban]] as const
+const emptySmtp={name:'',email:'',host:'smtp.ionos.fr',port:'587',secure:false,username:'',password:'',from_name:''}
+export function EmailSenderView({listes,listeContacts,isAdmin}:{listes:ListeContact[];listeContacts:ListeContactContact[];isAdmin:boolean}){
+ const [tab,setTab]=useState('dashboard'),[accounts,setAccounts]=useState<SMTP[]>([]),[campaigns,setCampaigns]=useState<Campaign[]>([]),[templates,setTemplates]=useState<Template[]>([]),[unsubs,setUnsubs]=useState<Unsub[]>([])
+ const [smtp,setSmtp]=useState<number|''>(''),[liste,setListe]=useState<number|''>(''),[template,setTemplate]=useState<number|''>(''),[subject,setSubject]=useState(''),[message,setMessage]=useState(''),[replyTo,setReplyTo]=useState('')
+ const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
+ const [smtpForm,setSmtpForm]=useState(emptySmtp),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false)
+ const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
+ const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selected=liste===''?null:listes.find(x=>x.id===liste):null
+ const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0)
+ async function refresh(){setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!smtp&&ds[0].accounts?.length)setSmtp(ds[0].accounts.find((x:SMTP)=>x.is_active)?.id||'')}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
+ useEffect(()=>{void refresh()},[])
+ function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
+ async function post(url:string,method:string,body:any){const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Opération impossible');return d}
+ async function send(){if(!smtp||!liste||!subject.trim()||!message.trim()){setError('Choisissez un expéditeur, une liste, un objet et un contenu.');return}setBusy(true);setError('');try{const d=await post('/api/email/send','POST',{smtp_account_id:smtp,liste_id:liste,subject,message,reply_to:replyTo,template_id:template||null,tracking_opens:opens,tracking_clicks:clicks,batch_size:Number(batch),batch_delay_seconds:Number(delay)});setResult(d);await refresh()}catch(e){setError(e instanceof Error?e.message:'Envoi impossible')}finally{setBusy(false)}}
+ async function saveSmtp(e:FormEvent){e.preventDefault();setBusy(true);try{await post('/api/email/smtp-accounts','POST',{...smtpForm,port:Number(smtpForm.port)});setSmtpForm(emptySmtp);setShowSmtp(false);await refresh();flash('Expéditeur ajouté')}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setBusy(false)}}
+ async function saveTemplate(e:FormEvent){e.preventDefault();setBusy(true);try{await post('/api/email/templates','POST',templateForm);setTemplateForm({name:'',subject:'',html_content:''});setShowTemplate(false);await refresh();flash('Template enregistré')}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setBusy(false)}}
+ async function addUnsub(e:FormEvent){e.preventDefault();try{await post('/api/email/unsubscribes','POST',{email:blockEmail,reason});setBlockEmail('');setReason('');await refresh();flash('Adresse exclue des prochains envois')}catch(e){setError(e instanceof Error?e.message:'Erreur')}}
+ async function deleteTemplate(id:number){try{await post('/api/email/templates','DELETE',{id});await refresh()}catch(e){setError(e instanceof Error?e.message:'Erreur')}}
+ const cards=[['E-mails envoyés',sent,Send,'blue'],['Non envoyés',failed,AlertCircle,'red'],['E-mails ouverts','—',Eye,'green'],['E-mails non lus','—',Mail,'violet'],['Clics','—',MousePointerClick,'violet'],['Désabonnements',unsubs.length,Ban,'amber']] as const
+ return <section className="workspace-section email-suite" style={{display:'grid',gap:18}}>
+ <nav className="email-suite-tabs" aria-label="Navigation e-mail">{tabs.map(([id,label,Icon])=><button key={id} type="button" className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}</nav>
+ {error&&<div role="alert" className="workspace-note" style={{color:'#f87171'}}><AlertCircle/>{error}</div>}{notice&&<div role="status" className="workspace-note"><CheckCircle2/>{notice}</div>}
+ {loading?<div className="workspace-panel">Chargement…</div>:null}
+ {tab==='dashboard'&&<><div className="email-stats-grid">{cards.map(([label,value,Icon,tone])=><article className="email-stat-card" key={label}><span className={'email-stat-icon '+tone}><Icon size={19}/></span><div><strong>{value}</strong><span>{label}</span></div></article>)}</div><div className="workspace-panel"><div className="workspace-panel-header"><h2><BarChart3/> Campagnes récentes</h2><button className="workspace-secondary" onClick={()=>void refresh()}>Actualiser</button></div><div className="email-table-wrap"><table className="email-table"><thead><tr><th>Objet</th><th>Expéditeur</th><th>Envoyés</th><th>Échecs</th><th>Statut</th><th>Date</th></tr></thead><tbody>{campaigns.map(c=><tr key={c.id}><td>{c.subject}</td><td>{c.sender_email}</td><td>{c.sent_count}</td><td>{c.failed_count}</td><td>{c.status}</td><td>{new Date(c.created_at).toLocaleString('fr-FR')}</td></tr>)}</tbody></table></div></div></>}
+ {tab==='campaigns'&&<div className="workspace-panel"><div className="workspace-panel-header"><h2><Send/> Préparer une campagne</h2><span>Configuration et suivi</span></div><div className="form-grid">
+ <label><span>Liste de destinataires</span><select value={liste} onChange={e=>setListe(e.target.value?Number(e.target.value):'')}><option value="">Sélectionner</option>{listes.map(l=><option key={l.id} value={l.id}>{l.nom} ({listeContacts.filter(x=>x.liste_id===l.id).length})</option>)}</select></label>
+ <label><span>Expéditeur</span><select value={smtp} onChange={e=>setSmtp(e.target.value?Number(e.target.value):'')}><option value="">Sélectionner</option>{active.map(a=><option key={a.id} value={a.id}>{a.name} · {a.email}</option>)}</select></label>
+ <label className="form-grid-full"><span>Objet de l’e-mail</span><input value={subject} onChange={e=>setSubject(e.target.value)} /></label>
+ <label><span>Template</span><select value={template} onChange={e=>{const id=e.target.value?Number(e.target.value):'';setTemplate(id);const t=templates.find(x=>x.id===id);if(t){setSubject(t.subject);setMessage(t.html_content)}}}><option value="">Aucun</option>{templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+ <label><span>Reply-To</span><input type="email" value={replyTo} onChange={e=>setReplyTo(e.target.value)} placeholder="reponse@domaine.fr"/></label>
+ <label className="form-grid-full"><span>Contenu de l’e-mail</span><textarea rows={9} value={message} onChange={e=>setMessage(e.target.value)}/></label></div>
+ <div className="email-options"><strong>Options de tracking</strong><label><input type="checkbox" checked={opens} onChange={e=>setOpens(e.target.checked)}/> Tracking des ouvertures</label><label><input type="checkbox" checked={clicks} onChange={e=>setClicks(e.target.checked)}/> Tracking des clics et redirections</label><p className="form-hint">Le lien de désabonnement et le tracking nécessitent les routes de suivi et l’intégration d’envoi correspondantes.</p></div>
+ <div className="email-batch-grid"><label><span>E-mails par batch</span><input type="number" min="1" max="100" value={batch} onChange={e=>setBatch(e.target.value)}/></label><label><span>Délai entre batches (secondes)</span><input type="number" min="0" max="3600" value={delay} onChange={e=>setDelay(e.target.value)}/></label></div>
+ <div className="workspace-note"><Users/> {selected?listeContacts.filter(x=>x.liste_id===selected.id).length+' contacts dans '+selected.nom:'Choisissez une liste.'}</div>
+ <div className="workspace-import-actions"><button className="workspace-primary" onClick={()=>void send()} disabled={busy||!active.length}><Send/>{busy?'Envoi…':'Envoyer'}</button><button className="workspace-secondary" onClick={()=>{setSubject('');setMessage('');setResult(null)}}>Réinitialiser</button></div>
+ {result&&<div className="workspace-note"><CheckCircle2/><p>{result.message} · Envoyés : {result.sent} · Échecs : {result.failed}</p></div>}
+ <div className="workspace-panel"><h3>Historique</h3><div className="email-table-wrap"><table className="email-table"><thead><tr><th>Objet</th><th>Liste</th><th>Envoyés</th><th>Échecs</th><th>Dupliquer</th></tr></thead><tbody>{campaigns.map(c=><tr key={c.id}><td>{c.subject}</td><td>{c.liste_nom}</td><td>{c.sent_count}</td><td>{c.failed_count}</td><td><button className="workspace-icon-button" onClick={()=>{setSubject(c.subject+' (copie)');setListe('')}}><Copy size={15}/></button></td></tr>)}</tbody></table></div></div></div>}
+ {tab==='lists'&&<div className="workspace-panel"><div className="workspace-panel-header"><h2><List/> Listes de destinataires</h2><span>{listes.length} liste(s)</span></div><div className="email-list-grid">{listes.map(l=><article key={l.id}><strong>{l.nom}</strong><span>{listeContacts.filter(x=>x.liste_id===l.id).length} contacts</span><button className="workspace-secondary" onClick={()=>{setListe(l.id);setTab('campaigns')}}>Choisir cette liste</button></article>)}</div></div>}
+ {tab==='templates'&&<div className="workspace-panel"><div className="workspace-panel-header"><h2><FileText/> Templates</h2><button className="workspace-primary" onClick={()=>setShowTemplate(v=>!v)}><Plus/> Ajouter</button></div>{showTemplate&&<form onSubmit={saveTemplate} className="workspace-panel" style={{padding:16}}><div className="form-grid"><label><span>Nom</span><input required value={templateForm.name} onChange={e=>setTemplateForm(v=>({...v,name:e.target.value}))}/></label><label><span>Objet</span><input value={templateForm.subject} onChange={e=>setTemplateForm(v=>({...v,subject:e.target.value}))}/></label><label className="form-grid-full"><span>Contenu HTML / texte</span><textarea rows={8} value={templateForm.html_content} onChange={e=>setTemplateForm(v=>({...v,html_content:e.target.value}))}/></label></div><button className="workspace-primary" disabled={busy}>Enregistrer</button></form>}<div className="email-list-grid">{templates.map(t=><article key={t.id}><strong>{t.name}</strong><span>{t.subject}</span><div><button className="workspace-secondary" onClick={()=>{setTemplate(t.id);setSubject(t.subject);setMessage(t.html_content);setTab('campaigns')}}>Utiliser</button> <button className="workspace-icon-button danger" onClick={()=>void deleteTemplate(t.id)}><Trash2 size={15}/></button></div></article>)}</div>{!templates.length&&<p>Aucun template.</p>}</div>}
+ {tab==='senders'&&<div className="workspace-panel"><div className="workspace-panel-header"><h2><Server/> Expéditeurs SMTP</h2>{isAdmin&&<button className="workspace-primary" onClick={()=>setShowSmtp(v=>!v)}><Plus/> Ajouter un expéditeur</button>}</div>{showSmtp&&isAdmin&&<form onSubmit={saveSmtp} className="workspace-panel" style={{padding:16}}><div className="form-grid">{[['name','Nom'],['email','Adresse e-mail'],['host','Serveur SMTP'],['port','Port'],['username','Identifiant SMTP'],['password','Mot de passe SMTP'],['from_name','Nom affiché']].map(([k,l])=><label key={k}><span>{l}</span><input required={k!=='from_name'} type={k==='password'?'password':k==='email'?'email':'text'} value={(smtpForm as any)[k]} onChange={e=>setSmtpForm(v=>({...v,[k]:e.target.value,...(k==='email'&&!v.username?{username:e.target.value}:{})}))}/></label>)}<label><span><input type="checkbox" checked={smtpForm.secure} onChange={e=>setSmtpForm(v=>({...v,secure:e.target.checked}))}/> SSL/TLS direct</span></label></div><button className="workspace-primary" disabled={busy}>Enregistrer</button></form>}{accounts.map(a=><div className="workspace-note" key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}><div><strong>{a.name}</strong><div>{a.email} · {a.host}:{a.port}</div><span>{a.is_active?'Actif':'Désactivé'}</span></div>{isAdmin&&<div><button className="workspace-secondary" onClick={async()=>{try{await post('/api/email/smtp-accounts','PATCH',{id:a.id,is_active:!a.is_active});await refresh()}catch(e){setError(String(e))}}}>{a.is_active?'Désactiver':'Activer'}</button> <button className="workspace-icon-button danger" onClick={async()=>{if(confirm('Supprimer cet expéditeur ?')){try{await post('/api/email/smtp-accounts','DELETE',{id:a.id});await refresh()}catch(e){setError(String(e))}}}}><Trash2 size={15}/></button></div>}</div>)}</div>}
+ {tab==='unsubscribes'&&<div className="workspace-panel"><div className="workspace-panel-header"><h2><Ban/> Désabonnements</h2><span>{unsubs.length} adresse(s)</span></div><form className="email-unsubscribe-form" onSubmit={addUnsub}><label><span>Adresse à exclure</span><input type="email" required value={blockEmail} onChange={e=>setBlockEmail(e.target.value)}/></label><label><span>Motif</span><input value={reason} onChange={e=>setReason(e.target.value)}/></label><button className="workspace-primary"><Plus/> Ajouter</button></form><div className="email-table-wrap"><table className="email-table"><thead><tr><th>Adresse</th><th>Motif</th><th>Date</th></tr></thead><tbody>{unsubs.map(u=><tr key={u.id}><td>{u.email}</td><td>{u.reason||'—'}</td><td>{new Date(u.unsubscribed_at).toLocaleString('fr-FR')}</td></tr>)}</tbody></table></div></div>}
+ </section>
 }
