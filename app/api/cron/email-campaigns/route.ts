@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 type Campaign = {
-  id: number; smtp_account_id: number; sender_email: string; sender_name: string | null
+  id: number; smtp_account_id: number; smtp_account_ids?: number[]; sender_email: string; sender_name: string | null
   subject: string; message: string; reply_to: string | null; recipients: string[]
   recipient_offset: number; batch_size: number; batch_delay_seconds: number
   sent_count: number; failed_count: number; failed_recipients: string[]
@@ -47,18 +47,25 @@ export async function GET(request: NextRequest) {
     if (claimError || !claimed) return
 
     const campaign = claimed as Campaign
-    let transporter: ReturnType<typeof nodemailer.createTransport> | null = null
+    const transporters = new Map<number, ReturnType<typeof nodemailer.createTransport>>()
+    const senderAccounts = new Map<number, { email: string; name: string | null }>()
     try {
-      const { data: smtp, error: smtpError } = await admin.from('smtp_accounts')
-        .select('host,port,secure,username,password_encrypted')
-        .eq('id', campaign.smtp_account_id).eq('is_active', true).maybeSingle()
-      if (smtpError || !smtp) throw new Error('SMTP account unavailable')
-      transporter = nodemailer.createTransport({
-        host: smtp.host, port: Number(smtp.port), secure: Boolean(smtp.secure),
-        auth: { user: smtp.username, pass: decryptSmtpPassword(smtp.password_encrypted) },
-        connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 25000,
-      })
-      await transporter.verify()
+      const smtpIds = Array.from(new Set((Array.isArray(campaign.smtp_account_ids) && campaign.smtp_account_ids.length ? campaign.smtp_account_ids : [campaign.smtp_account_id]).map(Number).filter(id => Number.isSafeInteger(id) && id > 0)))
+      if (!smtpIds.length) throw new Error('No SMTP sender configured')
+      const { data: smtpRows, error: smtpError } = await admin.from('smtp_accounts')
+        .select('id,name,email,from_name,host,port,secure,username,password_encrypted')
+        .in('id', smtpIds).eq('is_active', true)
+      if (smtpError || (smtpRows ?? []).length !== smtpIds.length) throw new Error('One or more SMTP accounts are unavailable')
+      for (const smtp of smtpRows ?? []) {
+        const transporter = nodemailer.createTransport({
+          host: smtp.host, port: Number(smtp.port), secure: Boolean(smtp.secure),
+          auth: { user: smtp.username, pass: decryptSmtpPassword(smtp.password_encrypted) },
+          connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 25000,
+        })
+        await transporter.verify()
+        transporters.set(Number(smtp.id), transporter)
+        senderAccounts.set(Number(smtp.id), { email: smtp.email, name: smtp.from_name || smtp.name })
+      }
 
       const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
       const start = Math.max(0, Number(campaign.recipient_offset) || 0)
@@ -89,8 +96,12 @@ export async function GET(request: NextRequest) {
             html = html.replace(/href=["'](https?:\\/\\/[^"']+)["']/gi, (_match, url) =>
               'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
           }
-          await transporter.sendMail({
-            from: { name: campaign.sender_name || campaign.sender_email, address: campaign.sender_email },
+          const senderId = smtpIds[offset % smtpIds.length]
+          const senderTransporter = transporters.get(senderId)
+          const sender = senderAccounts.get(senderId)
+          if (!senderTransporter || !sender) throw new Error('Selected SMTP sender is unavailable')
+          await senderTransporter.sendMail({
+            from: { name: sender.name || sender.email, address: sender.email },
             to: recipient, ...(campaign.reply_to ? { replyTo: campaign.reply_to } : {}),
             subject: campaign.subject,
             headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
@@ -132,7 +143,7 @@ export async function GET(request: NextRequest) {
       }).eq('id', campaign.id)
       processed.push({ id: campaign.id, sent: campaign.sent_count, failed: campaign.failed_count, status: 'failed' })
     } finally {
-      transporter?.close()
+      for (const transporter of transporters.values()) transporter.close()
     }
   }))
 
