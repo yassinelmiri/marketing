@@ -25,7 +25,7 @@ export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
   { key: 'campagnes', label: 'Campagnes' },
   { key: 'listes', label: 'Listes & contacts' },
   { key: 'equipe', label: 'Équipe' },
-  { key: 'whatsapp', label: 'Bot WhatsApp' },
+  { key: 'whatsapp', label: 'Campagnes WhatsApp' },
   { key: 'email', label: 'E-mail' },
   { key: 'sms', label: 'SMS' },
   { key: 'admin-users', label: 'Utilisateurs' },
