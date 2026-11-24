@@ -28,16 +28,26 @@ export async function GET(request: NextRequest) {
   const auth = await authorize()
   if ('response' in auth) return auth.response
   const admin = createAdminClient()
-  const [templates, unsubscribes, campaigns] = await Promise.all([
+  const [templates, unsubscribes, campaigns, recipients] = await Promise.all([
     admin.from('email_templates').select('id,name,subject,content,created_at,updated_at').order('updated_at', { ascending: false }),
     admin.from('email_unsubscribes').select('id,email,unsubscribed_at,source').order('unsubscribed_at', { ascending: false }).limit(1000),
     admin.from('email_campaigns').select('id,subject,total_recipients,sent_count,failed_count,status,created_at,sent_at').order('created_at', { ascending: false }).limit(100),
+    admin.from('email_campaign_recipients').select('campaign_id,opened_at,clicked_at'),
   ])
-  if (templates.error || unsubscribes.error || campaigns.error) {
-    console.error('[email/manage] GET failed:', templates.error || unsubscribes.error || campaigns.error)
+  if (templates.error || unsubscribes.error || campaigns.error || recipients.error) {
+    console.error('[email/manage] GET failed:', templates.error || unsubscribes.error || campaigns.error || recipients.error)
     return NextResponse.json({ error: 'Impossible de charger les données e-mail.' }, { status: 500 })
   }
-  return NextResponse.json({ templates: templates.data ?? [], unsubscribes: unsubscribes.data ?? [], campaigns: campaigns.data ?? [] }, { headers: { 'Cache-Control': 'no-store' } })
+  const events = new Map<number, { opened: number; clicked: number }>()
+  for (const item of recipients.data ?? []) {
+    const id = Number(item.campaign_id)
+    const current = events.get(id) ?? { opened: 0, clicked: 0 }
+    if (item.opened_at) current.opened += 1
+    if (item.clicked_at) current.clicked += 1
+    events.set(id, current)
+  }
+  const enrichedCampaigns = (campaigns.data ?? []).map((campaign) => ({ ...campaign, opened_count: events.get(Number(campaign.id))?.opened ?? 0, clicked_count: events.get(Number(campaign.id))?.clicked ?? 0 }))
+  return NextResponse.json({ templates: templates.data ?? [], unsubscribes: unsubscribes.data ?? [], campaigns: enrichedCampaigns }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: NextRequest) {
