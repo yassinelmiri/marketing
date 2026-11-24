@@ -29,6 +29,9 @@ export function WhatsAppBotView() {
   const [selectedSavedId, setSelectedSavedId] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingSaved, setLoadingSaved] = useState(false)
+  const [nextDelaySeconds, setNextDelaySeconds] = useState(5)
+  const [advanceCountdown, setAdvanceCountdown] = useState(false)
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const refreshSavedCampaigns = useCallback(async () => {
     setLoadingSaved(true)
@@ -46,6 +49,9 @@ export function WhatsAppBotView() {
 
   useEffect(() => {
     void refreshSavedCampaigns()
+    return () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+    }
   }, [refreshSavedCampaigns])
 
   const current = contacts[activeIndex] ?? null
@@ -171,9 +177,17 @@ export function WhatsAppBotView() {
       if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
       setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
       const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
-      if (next >= 0) setActiveIndex(next)
-      else if (activeIndex < contacts.length - 1) setActiveIndex(activeIndex + 1)
-      setNotice(status === 'sent' ? 'Envoi confirmé manuellement et sauvegardé.' : status === 'failed' ? 'Contact marqué en échec.' : 'Contact ignoré.')
+      const nextIndex = next >= 0 ? next : activeIndex < contacts.length - 1 ? activeIndex + 1 : -1
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+      if (nextIndex >= 0) {
+        setAdvanceCountdown(nextDelaySeconds > 0)
+        advanceTimerRef.current = setTimeout(() => {
+          setActiveIndex(nextIndex)
+          setAdvanceCountdown(false)
+          advanceTimerRef.current = null
+        }, nextDelaySeconds * 1000)
+      }
+      setNotice(status === 'sent' ? 'Confirmation manuelle sauvegardée.' : status === 'failed' ? 'Contact marqué en échec.' : 'Contact ignoré.')
       void refreshSavedCampaigns()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Enregistrement du suivi impossible.')
@@ -257,6 +271,11 @@ export function WhatsAppBotView() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Modification de la campagne impossible.')
       setPaused(nextPaused)
+      if (nextPaused && advanceTimerRef.current) {
+        clearTimeout(advanceTimerRef.current)
+        advanceTimerRef.current = null
+        setAdvanceCountdown(false)
+      }
       setNotice(nextPaused ? 'Campagne mise en pause et sauvegardée.' : 'Campagne reprise.')
       void refreshSavedCampaigns()
     } catch (cause) {
@@ -388,6 +407,11 @@ export function WhatsAppBotView() {
               <button type="button" className="wa-icon-button" onClick={resetCampaign} aria-label="Réinitialiser"><RefreshCw /></button>
             </div>
           </div>
+          <div className="wa-queue-settings">
+            <label htmlFor="wa-next-delay">Délai avant le contact suivant</label>
+            <div><input id="wa-next-delay" type="number" min={0} max={120} value={nextDelaySeconds} onChange={(event) => setNextDelaySeconds(Math.min(120, Math.max(0, Number(event.target.value) || 0)))} /><span>secondes</span></div>
+            <small>Après votre confirmation manuelle, le contact suivant sera sélectionné automatiquement. L’envoi dans WhatsApp reste manuel.</small>
+          </div>
           <div className="wa-stat-row">
             <div><strong>{stats.total}</strong><span>Total</span></div>
             <div><strong>{stats.sent}</strong><span>Confirmés</span></div>
@@ -411,6 +435,7 @@ export function WhatsAppBotView() {
               {!consentConfirmed && <p className="wa-inline-warning">Confirmez le consentement des destinataires avant d’enregistrer la campagne.</p>}
               {!campaignId && <p className="wa-inline-warning">Enregistrez d’abord la campagne pour activer le suivi persistant et l’ouverture des conversations.</p>}
               {current.status === 'opened' && <p className="wa-inline-hint">Après avoir cliqué sur Envoyer dans WhatsApp, revenez ici et confirmez avec « Envoyé ».</p>}
+              {advanceCountdown && <p className="wa-inline-hint">Contact suivant dans {nextDelaySeconds} seconde(s)…</p>}
             </div>
           )}
           {completed && <div className="wa-complete"><CheckCircle2 /><div><strong>Campagne terminée</strong><span>Vous pouvez exporter le résultat détaillé ci-dessus.</span></div></div>}
