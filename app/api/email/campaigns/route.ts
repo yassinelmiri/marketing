@@ -85,3 +85,52 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Impossible de préparer cette campagne.' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const origin = originError(request)
+  if (origin) return origin
+  const auth = await authorized()
+  if ('error' in auth) return auth.error
+
+  try {
+    const body = await request.json()
+    const id = Number(body.id)
+    const action = String(body.action ?? '')
+    if (!Number.isSafeInteger(id) || id < 1 || !['pause', 'resume'].includes(action)) {
+      return NextResponse.json({ error: 'Action ou identifiant invalide.' }, { status: 400 })
+    }
+    const admin = createAdminClient()
+    const { data: campaign, error: lookupError } = await admin.from('email_campaigns')
+      .select('id,created_by,status')
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupError || !campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    if (Number(auth.profile.role_id) !== 1 && Number(campaign.created_by) !== Number(auth.profile.id)) {
+      return NextResponse.json({ error: 'Vous ne pouvez pas modifier cette campagne.' }, { status: 403 })
+    }
+
+    if (action === 'pause') {
+      if (!['pending', 'scheduled', 'sending'].includes(campaign.status)) {
+        return NextResponse.json({ error: 'Cette campagne ne peut pas être mise en pause.' }, { status: 409 })
+      }
+      const { error } = await admin.from('email_campaigns')
+        .update({ status: 'paused', next_batch_at: null, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+      return NextResponse.json({ success: true, status: 'paused' })
+    }
+
+    if (campaign.status !== 'paused') {
+      return NextResponse.json({ error: 'Cette campagne n’est pas en pause.' }, { status: 409 })
+    }
+    const now = new Date().toISOString()
+    const { error } = await admin.from('email_campaigns')
+      .update({ status: 'pending', next_batch_at: now, updated_at: now })
+      .eq('id', id)
+    if (error) throw error
+    return NextResponse.json({ success: true, status: 'pending' })
+  } catch (error) {
+    console.error('[email/campaigns] update failed:', error)
+    return NextResponse.json({ error: 'Impossible de modifier cette campagne.' }, { status: 500 })
+  }
+}
