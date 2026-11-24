@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const trackingClicks = body.tracking_clicks !== false
     const unsubscribeEnabled = body.unsubscribe_enabled !== false
     const batchSize = Math.min(100, Math.max(1, Number(body.batch_size) || 25))
-    const batchDelaySeconds = Math.min(60, Math.max(0, Number(body.batch_delay_seconds) || 0))
+    const batchDelaySeconds = Math.min(10, Math.max(0, Number(body.batch_delay_seconds) || 0))
     if (!Number.isInteger(smtpId) || smtpId < 1 || !Number.isInteger(listeId) || listeId < 1 || !subject || !message) {
       return NextResponse.json({ error: 'Choisissez un compte SMTP, une liste, un objet et un message.' }, { status: 400 })
     }
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     let sent = 0
     const failures: string[] = []
     const baseUrl = request.nextUrl.origin
-    const trackingRows = recipients.map((email) => ({ campaign_id: campaignId, email, tracking_token: randomUUID() }))
+    const trackingRows = recipients.map((email) => ({ campaign_id: campaignId!, email, tracking_token: randomUUID() }))
     const { error: trackingInsertError } = await admin.from('email_campaign_recipients').insert(trackingRows)
     if (trackingInsertError) throw trackingInsertError
     const tokenByEmail = new Map(trackingRows.map((row) => [row.email, row.tracking_token]))
