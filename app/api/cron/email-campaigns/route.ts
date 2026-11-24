@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       .eq('id', row.id)
       .in('status', ['pending', 'scheduled', 'sending'])
       .or('worker_locked_at.is.null,worker_locked_at.lt.' + staleLock)
-      .select('id,smtp_account_id,sender_email,sender_name,subject,message,reply_to,recipients,recipient_offset,batch_size,batch_delay_seconds,sent_count,failed_count,failed_recipients,tracking_opens,tracking_clicks')
+      .select('id,smtp_account_id,smtp_account_ids,sender_email,sender_name,subject,message,reply_to,recipients,recipient_offset,batch_size,batch_delay_seconds,sent_count,failed_count,failed_recipients,tracking_opens,tracking_clicks')
       .maybeSingle()
     if (claimError || !claimed) return
 
