@@ -4,7 +4,7 @@
 Anntel Marketing est une application web conçue pour centraliser les opérations marketing et commerciales dans un seul espace. Elle permet de gérer les campagnes, les contacts, les équipes, les tâches et les communications, tout en organisant les accès selon les responsabilités de chaque utilisateur.
 
 **Dépôt du projet :** https://github.com/yassinelmiri/marketing  
-**Branche de développement :** `supabase-migration`
+**Branche de développement :** `chatgpt`
 
 ---
 
@@ -69,13 +69,15 @@ Ses principaux objectifs :
 
 **Important :** dans la version actuelle du dépôt, l'envoi SMS est une simulation côté interface. Un fournisseur SMS et son intégration backend doivent être configurés pour effectuer de véritables envois.
 
-### Bot WhatsApp
-- Interface de préparation des messages WhatsApp.
-- Choix d'une catégorie cible et d'une liste de contacts.
-- Affichage du nombre de contacts ciblés.
-- Historique de simulation dans l'interface.
+### Campagnes WhatsApp
+- Import des contacts depuis les fichiers XLSX, XLS et CSV.
+- Détection de la colonne téléphone, normalisation des numéros marocains et internationaux, suppression des doublons et comptage des numéros invalides.
+- Préparation d'un message avec les variables `{nom}` et `{tel}`.
+- Ouverture de WhatsApp Web dans un onglet séparé pour scanner le QR code si nécessaire.
+- Ouverture successive de chaque conversation avec le texte prérempli ; l'utilisateur vérifie le destinataire et clique lui-même sur Envoyer.
+- Suivi manuel des contacts confirmés, en échec ou ignorés, avec pause/reprise et export XLSX du résultat.
 
-**Important :** dans la version actuelle du dépôt, l'envoi WhatsApp affiché dans cette page est une simulation. Une intégration réelle via WhatsApp Business Platform / Cloud API ou un fournisseur officiellement compatible, avec backend sécurisé, reste nécessaire. La page ne doit pas être présentée comme un service d'envoi WhatsApp opérationnel tant que cette connexion n'est pas réalisée.
+**Limites importantes :** il s'agit d'un mode assisté, pas d'un robot d'envoi automatique. L'application ne peut pas vérifier qu'un message a réellement été envoyé : le statut « confirmé » dépend de l'action manuelle de l'utilisateur. Le suivi est conservé dans l'état de la page et est réinitialisé si celle-ci est rechargée. Utilisez uniquement des contacts ayant donné leur accord et respectez les demandes de désinscription. WhatsApp Web reste un service tiers susceptible de modifier son interface ou ses conditions d'utilisation.
 
 ### Administration
 - Gestion des comptes utilisateurs.

@@ -82,7 +82,7 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'listes', label: 'Listes & contacts', icon: Users },
   { key: 'equipe', label: 'Équipe', icon: UsersRound },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
-  { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
+  { key: 'whatsapp', label: 'Campagnes WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
   { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
@@ -111,8 +111,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
   },
   whatsapp: {
-    title: 'Bot WhatsApp',
-    subtitle: 'Accédez à l’espace de gestion des envois WhatsApp.',
+    title: 'Campagnes WhatsApp',
+    subtitle: 'Importez vos contacts, préparez vos messages et suivez les envois manuels via WhatsApp Web.',
   },
   email: {
     title: 'Envoi e-mail',
