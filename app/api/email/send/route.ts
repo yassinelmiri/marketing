@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
     const candidates = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
       .filter((email) => /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email))))
+    if (candidates.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par campagne pour cet envoi.' }, { status: 400 })
     const { data: suppressed, error: suppressionError } = await admin.from('email_unsubscribes').select('email').in('email', candidates)
     if (suppressionError) throw suppressionError
     const suppressedSet = new Set((suppressed ?? []).map((item) => String(item.email).toLowerCase()))
