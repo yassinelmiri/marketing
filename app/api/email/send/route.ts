@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import nodemailer from 'nodemailer'
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
@@ -63,6 +64,12 @@ export async function POST(request: NextRequest) {
     const listeId = Number(body.liste_id)
     const subject = String(body.subject ?? '').trim().slice(0, 250)
     const message = String(body.message ?? '').trim().slice(0, 50000)
+    const replyTo = String(body.reply_to ?? '').trim().slice(0, 254)
+    const trackingOpens = body.tracking_opens !== false
+    const trackingClicks = body.tracking_clicks !== false
+    const unsubscribeEnabled = body.unsubscribe_enabled !== false
+    const batchSize = Math.min(100, Math.max(1, Number(body.batch_size) || 25))
+    const batchDelaySeconds = Math.min(60, Math.max(0, Number(body.batch_delay_seconds) || 0))
     if (!Number.isInteger(smtpId) || smtpId < 1 || !Number.isInteger(listeId) || listeId < 1 || !subject || !message) {
       return NextResponse.json({ error: 'Choisissez un compte SMTP, une liste, un objet et un message.' }, { status: 400 })
     }
@@ -85,9 +92,13 @@ export async function POST(request: NextRequest) {
     const { data: contacts, error: contactsError } = await admin.from('contacts')
       .select('email').in('id', contactIds)
     if (contactsError) throw contactsError
-    const recipients = Array.from(new Set((contacts ?? [])
+    const candidates = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
       .filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
+    const { data: suppressed, error: suppressionError } = await admin.from('email_unsubscribes').select('email').in('email', candidates)
+    if (suppressionError) throw suppressionError
+    const suppressedSet = new Set((suppressed ?? []).map((item) => String(item.email).toLowerCase()))
+    const recipients = candidates.filter((email) => !suppressedSet.has(email))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
     if (recipients.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
 
