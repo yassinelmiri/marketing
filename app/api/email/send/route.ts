@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
     const listeId = Number(body.liste_id)
     const subject = String(body.subject ?? '').trim().slice(0, 250)
     const message = String(body.message ?? '').trim().slice(0, 50000)
+    const replyTo = String(body.reply_to ?? '').trim().slice(0, 254)
+    const trackingOpens = body.tracking_opens !== false
+    const trackingClicks = body.tracking_clicks !== false
+    const batchSize = Math.min(100, Math.max(1, Number(body.batch_size) || 50))
+    const batchDelay = Math.min(3600, Math.max(0, Number(body.batch_delay_seconds) || 0))
+    const templateId = body.template_id ? Number(body.template_id) : null
     if (!Number.isInteger(smtpId) || smtpId < 1 || !Number.isInteger(listeId) || listeId < 1 || !subject || !message) {
       return NextResponse.json({ error: 'Choisissez un compte SMTP, une liste, un objet et un message.' }, { status: 400 })
     }
@@ -85,10 +91,15 @@ export async function POST(request: NextRequest) {
     const { data: contacts, error: contactsError } = await admin.from('contacts')
       .select('email').in('id', contactIds)
     if (contactsError) throw contactsError
-    const recipients = Array.from(new Set((contacts ?? [])
+    let recipients = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
       .filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
     if (!recipients.length) return NextResponse.json({ error: 'Aucune adresse e-mail valide dans cette liste.' }, { status: 400 })
+    const { data: suppressed, error: suppressedError } = await admin.from('email_unsubscribes').select('email')
+    if (suppressedError) throw suppressedError
+    const excluded = new Set((suppressed ?? []).map((item) => String(item.email).toLowerCase()))
+    recipients = recipients.filter((email) => !excluded.has(email))
+    if (!recipients.length) return NextResponse.json({ error: 'Tous les destinataires sont désabonnés ou exclus.' }, { status: 400 })
     if (recipients.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
 
     const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
@@ -121,19 +132,18 @@ export async function POST(request: NextRequest) {
     const failures: string[] = []
     try {
       await transporter.verify()
-      for (const recipient of recipients) {
-        try {
-          await transporter.sendMail({
-            from: { name: smtp.from_name || smtp.name, address: smtp.email },
-            to: recipient,
-            subject,
-            text: message,
-          })
-          sent += 1
-        } catch (error) {
-          console.error('[email/send] delivery failed:', error)
-          failures.push(recipient)
+      for (let offset = 0; offset < recipients.length; offset += batchSize) {
+        const batch = recipients.slice(offset, offset + batchSize)
+        for (const recipient of batch) {
+          try {
+            const pixel = trackingOpens ? '<img src="' + request.nextUrl.origin + '/api/email/track/open?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />' : ''
+            let html = /<[a-z][\\s\\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\\n/g, '<br>')
+            if (trackingClicks) html = html.replace(/href=[\"'](https?:\\/\\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+            await transporter.sendMail({ from: { name: smtp.from_name || smtp.name, address: smtp.email }, to: recipient, ...(replyTo ? { replyTo } : {}), subject, html: '<div>' + html + '</div>' + pixel, text: message.replace(/<[^>]*>/g, ' ') })
+            sent += 1
+          } catch (error) { console.error('[email/send] delivery failed:', error); failures.push(recipient) }
         }
+        if (offset + batchSize < recipients.length && batchDelay > 0) await new Promise((resolve) => setTimeout(resolve, batchDelay * 1000))
       }
     } finally {
       transporter.close()
