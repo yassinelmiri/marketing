@@ -14,7 +14,7 @@ export function EmailSenderView({listes,listeContacts,isAdmin}:{listes:ListeCont
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
  const [smtpForm,setSmtpForm]=useState(emptySmtp),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false)
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
- const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selected=liste===''?null:listes.find(x=>x.id===liste):null
+ const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selected=liste===''?null:(listes.find(x=>x.id===liste)??null)
  const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0)
  async function refresh(){setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!smtp&&ds[0].accounts?.length)setSmtp(ds[0].accounts.find((x:SMTP)=>x.is_active)?.id||'')}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
  useEffect(()=>{void refresh()},[])
