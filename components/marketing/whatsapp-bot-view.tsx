@@ -75,7 +75,23 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
     }
   }
 
-  useEffect(() => { void refreshSavedCampaigns() }, [])
+  useEffect(() => {
+    let mounted = true
+    setLoadingSaved(true)
+    fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
+        if (mounted) setSavedCampaigns(data.campaigns ?? [])
+      })
+      .catch((cause) => {
+        if (mounted) setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
+      })
+      .finally(() => {
+        if (mounted) setLoadingSaved(false)
+      })
+    return () => { mounted = false }
+  }, [])
 
   const current = contacts[activeIndex] ?? null
   const stats = useMemo(() => ({
