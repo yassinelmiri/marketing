@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, total_recipients, sent_count, failed_count, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, total_recipients, sent_count, failed_count, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
