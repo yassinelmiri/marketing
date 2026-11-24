@@ -77,7 +77,7 @@ Ses principaux objectifs :
 - Ouverture successive de chaque conversation avec le texte prérempli ; l'utilisateur vérifie le destinataire et clique lui-même sur Envoyer.
 - Suivi manuel des contacts confirmés, en échec ou ignorés, avec pause/reprise et export XLSX du résultat.
 
-**Limites importantes :** il s'agit d'un mode assisté, pas d'un robot d'envoi automatique. L'application ne peut pas vérifier qu'un message a réellement été envoyé : le statut « confirmé » dépend de l'action manuelle de l'utilisateur. Le suivi est conservé dans l'état de la page et est réinitialisé si celle-ci est rechargée. Utilisez uniquement des contacts ayant donné leur accord et respectez les demandes de désinscription. WhatsApp Web reste un service tiers susceptible de modifier son interface ou ses conditions d'utilisation.
+**Limites importantes :** il s'agit d'un mode assisté, pas d'un robot d'envoi automatique. L'application ne peut pas vérifier qu'un message a réellement été envoyé : le statut « confirmé » dépend de l'action manuelle de l'utilisateur. Les campagnes et le suivi des destinataires sont sauvegardés dans Supabase après application de la migration WhatsApp. Utilisez uniquement des contacts ayant donné leur accord et respectez les demandes de désinscription. WhatsApp Web reste un service tiers susceptible de modifier son interface ou ses conditions d'utilisation.
 
 ### Administration
 - Gestion des comptes utilisateurs.
@@ -264,3 +264,12 @@ Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionn�
 ---
 
 *Document de présentation fonctionnelle et technique. Les fonctionnalités dépendant de services externes (SMTP, SMS, WhatsApp, hébergement et Supabase) doivent être configurées et testées dans l'environnement cible avant leur mise en production.*
+
+
+### Persistance des campagnes WhatsApp
+- Les campagnes WhatsApp assistées et leurs destinataires sont enregistrés dans Supabase.
+- Une campagne peut être rechargée après fermeture ou actualisation de la page, avec le statut de chaque destinataire et le dernier contact à traiter.
+- Le message, la pause/reprise et les statuts des destinataires sont sauvegardés via une API serveur authentifiée.
+- Les tables sont protégées par RLS sans accès direct depuis le navigateur ; l'API vérifie l'utilisateur et la permission `whatsapp.access`.
+- Migration à appliquer : `supabase/migrations/20261124190000_whatsapp_campaign_persistence.sql`.
+- Les statuts « Envoyé » restent des confirmations manuelles de l'utilisateur ; l'application ne lit pas les confirmations WhatsApp et n'envoie aucun message automatiquement.

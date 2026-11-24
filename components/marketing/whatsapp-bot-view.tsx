@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import * as XLSX from 'xlsx'
 import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
@@ -11,6 +11,7 @@ import type { ListeContact, ListeContactContact } from '@/lib/storage'
 type ContactStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
 type WhatsAppContact = { id: string; name: string; phone: string; status: ContactStatus }
 type WhatsAppBotViewProps = { listes: ListeContact[]; listeContacts: ListeContactContact[] }
+type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
 const PHONE_KEYS = ['telephone', 'téléphone', 'tel', 'tél', 'phone', 'mobile', 'gsm', 'whatsapp', 'numero', 'numéro', 'رقم', 'هاتف']
 const NAME_KEYS = ['nom complet', 'fullname', 'full name', 'name', 'nom', 'contact', 'prenom', 'prénom']
@@ -54,6 +55,43 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
   const [consentConfirmed, setConsentConfirmed] = useState(false)
   const [paused, setPaused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [campaignId, setCampaignId] = useState<number | null>(null)
+  const [savedCampaigns, setSavedCampaigns] = useState<SavedWhatsAppCampaign[]>([])
+  const [selectedSavedId, setSelectedSavedId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loadingSaved, setLoadingSaved] = useState(false)
+
+  async function refreshSavedCampaigns() {
+    setLoadingSaved(true)
+    try {
+      const response = await fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
+      setSavedCampaigns(data.campaigns ?? [])
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
+    } finally {
+      setLoadingSaved(false)
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true
+    setLoadingSaved(true)
+    fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
+        if (mounted) setSavedCampaigns(data.campaigns ?? [])
+      })
+      .catch((cause) => {
+        if (mounted) setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
+      })
+      .finally(() => {
+        if (mounted) setLoadingSaved(false)
+      })
+    return () => { mounted = false }
+  }, [])
 
   const current = contacts[activeIndex] ?? null
   const stats = useMemo(() => ({
@@ -101,6 +139,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       })
       if (!parsed.length) throw new Error('Aucun numéro valide trouvé dans la colonne « ' + phoneColumn + ' ».')
       setContacts(parsed)
+      setCampaignId(null)
+      setSelectedSavedId('')
       setActiveIndex(0)
       setFileName(file.name)
       setDuplicates(duplicateCount)
@@ -119,8 +159,24 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
     window.open('https://web.whatsapp.com/', 'wa-campaign')
   }
 
+  async function persistRecipientStatus(contact: WhatsAppContact, status: ContactStatus) {
+    if (!campaignId) return
+    try {
+      const response = await fetch('/api/whatsapp/campaigns', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_id: campaignId, recipient_id: Number(contact.id), recipient_status: status }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
+      void refreshSavedCampaigns()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Enregistrement du suivi impossible.')
+    }
+  }
+
   function openCurrentChat() {
-    if (!current || paused || !consentConfirmed) return
+    if (!current || paused || !consentConfirmed || !campaignId) return
     const personalized = message.replaceAll('{nom}', current.name || '').replaceAll('{tel}', '+' + current.phone)
     const url = 'https://web.whatsapp.com/send?phone=' + encodeURIComponent(current.phone) + '&text=' + encodeURIComponent(personalized)
     const tab = window.open(url, 'wa-campaign')
@@ -129,17 +185,114 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       return
     }
     setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status: 'opened' } : item))
+    void persistRecipientStatus(current, 'opened')
     setError('')
     setNotice('Conversation ouverte. Vérifiez le destinataire et cliquez vous-même sur Envoyer dans WhatsApp.')
   }
 
-  function completeCurrent(status: 'sent' | 'failed' | 'skipped') {
-    if (!current) return
-    setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
-    const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
-    if (next >= 0) setActiveIndex(next)
-    else if (activeIndex < contacts.length - 1) setActiveIndex(activeIndex + 1)
-    setNotice(status === 'sent' ? 'Envoi confirmé manuellement.' : status === 'failed' ? 'Contact marqué en échec.' : 'Contact ignoré.')
+  async function completeCurrent(status: 'sent' | 'failed' | 'skipped') {
+    if (!current || !campaignId) return
+    try {
+      const response = await fetch('/api/whatsapp/campaigns', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_id: campaignId, recipient_id: Number(current.id), recipient_status: status }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
+      setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
+      const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
+      if (next >= 0) setActiveIndex(next)
+      else if (activeIndex < contacts.length - 1) setActiveIndex(activeIndex + 1)
+      setNotice(status === 'sent' ? 'Envoi confirmé manuellement et sauvegardé.' : status === 'failed' ? 'Contact marqué en échec.' : 'Contact ignoré.')
+      void refreshSavedCampaigns()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Enregistrement du suivi impossible.')
+    }
+  }
+
+  async function loadSavedCampaign(id: number) {
+    setError('')
+    try {
+      const response = await fetch('/api/whatsapp/campaigns?id=' + id, { cache: 'no-store' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Chargement de la campagne impossible.')
+      const restored = (data.recipients ?? []).map((row: { id: number; contact_name: string; phone: string; status: ContactStatus }) => ({
+        id: String(row.id), name: row.contact_name ?? '', phone: row.phone, status: row.status,
+      })) as WhatsAppContact[]
+      setCampaignId(Number(data.campaign.id))
+      setSelectedSavedId(String(data.campaign.id))
+      setContacts(restored)
+      setMessage(data.campaign.message ?? '')
+      setFileName(data.campaign.source_file || data.campaign.name)
+      setConsentConfirmed(Boolean(data.campaign.consent_confirmed_at))
+      setPaused(data.campaign.status === 'paused')
+      const firstOpen = restored.findIndex((item) => item.status === 'pending' || item.status === 'opened')
+      setActiveIndex(firstOpen >= 0 ? firstOpen : Math.max(0, restored.length - 1))
+      setDuplicates(0)
+      setInvalid(0)
+      setNotice('Campagne restaurée. Le suivi a été récupéré depuis Supabase.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Chargement de la campagne impossible.')
+    }
+  }
+
+  async function saveCampaign() {
+    if (!contacts.length || !message.trim() || !consentConfirmed || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      if (campaignId) {
+        const response = await fetch('/api/whatsapp/campaigns', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaign_id: campaignId, message }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Enregistrement du message impossible.')
+        setNotice('Message de la campagne sauvegardé.')
+      } else {
+        const response = await fetch('/api/whatsapp/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fileName.replace(/\.[^.]+$/, '') || 'Campagne WhatsApp',
+            source_file: fileName,
+            message,
+            consent_confirmed: true,
+            recipients: contacts.map((contact) => ({ name: contact.name, phone: contact.phone })),
+          }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Création de la campagne impossible.')
+        await loadSavedCampaign(Number(data.campaign.id))
+        setNotice('Campagne enregistrée dans Supabase. Vous pouvez commencer.')
+      }
+      void refreshSavedCampaigns()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Enregistrement de la campagne impossible.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function togglePause() {
+    if (!campaignId) return
+    const nextPaused = !paused
+    try {
+      const response = await fetch('/api/whatsapp/campaigns', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_id: campaignId, status: nextPaused ? 'paused' : 'in_progress' }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Modification de la campagne impossible.')
+      setPaused(nextPaused)
+      setNotice(nextPaused ? 'Campagne mise en pause et sauvegardée.' : 'Campagne reprise.')
+      void refreshSavedCampaigns()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Modification de la campagne impossible.')
+    }
   }
 
   function exportResults() {
@@ -156,6 +309,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
 
   function resetCampaign() {
     setContacts([])
+    setCampaignId(null)
+    setSelectedSavedId('')
     setMessage('')
     setFileName('')
     setDuplicates(0)
@@ -186,6 +341,22 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
 
       {error && <div className="wa-alert wa-alert-error"><AlertCircle aria-hidden="true" />{error}<button type="button" onClick={() => setError('')} aria-label="Fermer"><XCircle /></button></div>}
       {notice && <div className="wa-alert wa-alert-success"><CheckCircle2 aria-hidden="true" />{notice}<button type="button" onClick={() => setNotice('')} aria-label="Fermer"><XCircle /></button></div>}
+
+      <div className="workspace-panel wa-panel wa-saved-panel">
+        <div className="wa-panel-heading">
+          <div><span className="wa-step">00</span><div><h3>Mes campagnes sauvegardées</h3><p>Reprenez une campagne et son dernier état enregistré</p></div></div>
+          <RefreshCw aria-hidden="true" />
+        </div>
+        <div className="wa-saved-row">
+          <select value={selectedSavedId} onChange={(event) => setSelectedSavedId(event.target.value)}>
+            <option value="">Choisir une campagne existante</option>
+            {savedCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.total_recipients} contacts · {campaign.status === 'paused' ? 'En pause' : campaign.status === 'completed' ? 'Terminée' : campaign.status === 'in_progress' ? 'En cours' : 'Brouillon'}</option>)}
+          </select>
+          <button type="button" className="wa-secondary-button" disabled={!selectedSavedId || loadingSaved} onClick={() => void loadSavedCampaign(Number(selectedSavedId))}>Charger la campagne</button>
+          <button type="button" className="wa-icon-button" disabled={loadingSaved} onClick={() => void refreshSavedCampaigns()} aria-label="Actualiser"><RefreshCw /></button>
+        </div>
+        {savedCampaigns.length === 0 && <p className="wa-saved-empty">{loadingSaved ? 'Chargement…' : 'Aucune campagne sauvegardée pour le moment.'}</p>}
+      </div>
 
       <div className="wa-grid">
         <div className="workspace-panel wa-panel">
@@ -242,7 +413,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
           <div className="wa-progress-top">
             <div><span className="wa-step">04</span><div><h3>Suivi de la campagne</h3><p>{fileName} · {stats.total} destinataire(s)</p></div></div>
             <div className="wa-progress-actions">
-              <button type="button" className="wa-secondary-button" onClick={() => setPaused((value) => !value)}>{paused ? <Play /> : <Pause />}{paused ? 'Reprendre' : 'Pause'}</button>
+              <button type="button" className="wa-secondary-button" onClick={() => void saveCampaign()} disabled={!consentConfirmed || !message.trim() || saving}>{saving ? 'Enregistrement…' : campaignId ? 'Sauvegarder le message' : 'Enregistrer la campagne'}</button>
+              <button type="button" className="wa-secondary-button" onClick={() => void togglePause()} disabled={!campaignId}>{paused ? <Play /> : <Pause />}{paused ? 'Reprendre' : 'Pause'}</button>
               <button type="button" className="wa-secondary-button" onClick={exportResults}>Exporter le suivi</button>
               <button type="button" className="wa-icon-button" onClick={resetCampaign} aria-label="Réinitialiser"><RefreshCw /></button>
             </div>
@@ -262,12 +434,13 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
               <div className="wa-current-label">DESTINATAIRE ACTUEL · {activeIndex + 1} / {stats.total}</div>
               <div className="wa-current-details"><div className="wa-contact-avatar">{(current.name || '+').charAt(0).toUpperCase()}</div><div><strong>{current.name || 'Contact sans nom'}</strong><span>+{current.phone}</span></div><span className={'wa-status wa-status-' + current.status}>{current.status === 'opened' ? 'Conversation ouverte' : 'En attente'}</span></div>
               <div className="wa-current-actions">
-                <button type="button" className="workspace-primary wa-action-button" disabled={paused || !consentConfirmed || !message.trim()} onClick={openCurrentChat}><ExternalLink /> Ouvrir la conversation</button>
+                <button type="button" className="workspace-primary wa-action-button" disabled={paused || !campaignId || !consentConfirmed || !message.trim()} onClick={openCurrentChat}><ExternalLink /> Ouvrir la conversation</button>
                 <button type="button" className="wa-secondary-button" disabled={paused || current.status !== 'opened'} onClick={() => completeCurrent('sent')}><CheckCircle2 /> Envoyé</button>
                 <button type="button" className="wa-secondary-button" disabled={paused || current.status !== 'opened'} onClick={() => completeCurrent('failed')}><XCircle /> Échec</button>
                 <button type="button" className="wa-secondary-button" disabled={paused} onClick={() => completeCurrent('skipped')}><SkipForward /> Ignorer</button>
               </div>
-              {!consentConfirmed && <p className="wa-inline-warning">Confirmez le consentement des destinataires avant de commencer.</p>}
+              {!consentConfirmed && <p className="wa-inline-warning">Confirmez le consentement des destinataires avant d’enregistrer la campagne.</p>}
+              {!campaignId && <p className="wa-inline-warning">Enregistrez d’abord la campagne pour activer le suivi persistant et l’ouverture des conversations.</p>}
               {current.status === 'opened' && <p className="wa-inline-hint">Après avoir cliqué sur Envoyer dans WhatsApp, revenez ici et confirmez avec « Envoyé ».</p>}
             </div>
           )}

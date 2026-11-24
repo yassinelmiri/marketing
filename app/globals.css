@@ -2877,3 +2877,10 @@
 .wa-footnote svg{color:#fbbf24}
 @media(max-width:900px){.wa-grid{grid-template-columns:1fr}.wa-hero{align-items:flex-start;flex-wrap:wrap}.wa-mode-pill{margin-left:70px}}
 @media(max-width:620px){.wa-panel{padding:15px}.wa-hero{padding:17px}.wa-hero h2{font-size:19px}.wa-connect-row,.wa-progress-top{align-items:flex-start;flex-direction:column}.wa-stat-row{grid-template-columns:repeat(3,minmax(0,1fr))}.wa-current-actions>*{flex:1 1 44%}.wa-progress-actions{width:100%}.wa-mode-pill{margin-left:0}}
+
+
+.wa-saved-row{display:flex;align-items:center;gap:9px}
+.wa-saved-row select{min-width:0;flex:1;min-height:39px;padding:8px 11px;border:1px solid var(--workspace-border,rgba(148,163,184,.2));border-radius:10px;background:var(--workspace-input,rgba(15,23,42,.35));color:inherit;font:inherit;font-size:11px}
+.wa-saved-row select option{background:#111827;color:#e2e8f0}
+.wa-saved-empty{margin:0;color:var(--workspace-muted,#94a3b8);font-size:11px}
+@media(max-width:620px){.wa-saved-row{align-items:stretch;flex-direction:column}.wa-saved-row>*{width:100%}}
