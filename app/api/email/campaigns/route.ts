@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       tracking_clicks: body.tracking_clicks !== false, batch_size: batchSize,
       batch_delay_seconds: batchDelay, recipients, total_recipients: recipients.length,
       sent_count: 0, failed_count: 0, failed_recipients: [], recipient_offset: 0,
-      scheduled_at: scheduledAt.toISOString(), next_batch_at: scheduledAt.toISOString(),
+      scheduled_at: scheduledAt.toISOString(), next_batch_at: scheduledAt.toISOString(), sent_at: null,
       status, started_at: null, worker_locked_at: null, updated_at: new Date().toISOString(),
     }).select('id,status,subject,total_recipients,scheduled_at').single()
     if (insertError) throw insertError
