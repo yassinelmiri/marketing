@@ -2294,7 +2294,7 @@
   color: #fff;
 }.workspace-root .workspace-sidebar .workspace-user{
   border-color: rgba(167,139,250,.2);
-}.workspace-root .workspace-sidebar .workspace-user strong{ color:#fff !important; }.workspace-root .workspace-sidebar .workspace-user span{ color:#b8b5dc !important; }.workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,.workspace-import-preview,.liste-item,.checkbox-card,.dashboard-card,.settings-card,.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card{
+}.workspace-root .workspace-sidebar .workspace-user strong{ color:#fff !important; }.workspace-root .workspace-sidebar .workspace-user span{ color:#b8b5dc !important; }.workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,.workspace-import-preview,.liste-item,.checkbox-card,.dashboard-card,.settings-card,.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card){
   background: var(--surface) !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
@@ -2323,7 +2323,7 @@
   color:#dce2ff !important;
 }.workspace-root :is(.workspace-secondary,.btn-secondary):hover{ background:#252c50 !important; }.workspace-root :is(.workspace-toolbar,.workspace-panel-header,.workspace-table-header){
   border-color:var(--border) !important;
-}.workspace-root table :is(th,td){ border-color:var(--border) !important; }.workspace-root table th{ background:#191e38 !important; color:#c5ccef !important; }.workspace-root table tbody tr{ background:transparent !important; }.workspace-root table tbody tr:hover{ background:rgba(111,93,238,.09) !important; }.workspace-root :is(.global-notification-trigger,.global-notification-actions button{
+}.workspace-root table :is(th,td){ border-color:var(--border) !important; }.workspace-root table th{ background:#191e38 !important; color:#c5ccef !important; }.workspace-root table tbody tr{ background:transparent !important; }.workspace-root table tbody tr:hover{ background:rgba(111,93,238,.09) !important; }.workspace-root :is(.global-notification-trigger,.global-notification-actions button){
   background:#191e38 !important;
   border-color:#343c62 !important;
   color:#d7dcf8 !important;
@@ -2412,7 +2412,7 @@
   transform:translateY(-2px);
   border-color:rgba(139,124,255,.48)!important;
   box-shadow:0 14px 32px rgba(2,5,22,.24),0 0 0 1px rgba(139,124,255,.06);
-}.workspace-root :is(button,.workspace-primary,.workspace-secondary,.taskz-iconbtn,.global-notification-trigger{
+}.workspace-root :is(button,.workspace-primary,.workspace-secondary,.taskz-iconbtn,.global-notification-trigger){
   transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease,color .18s ease;
 }.workspace-root button:active{ transform:translateY(1px) scale(.985); }.workspace-root :is(.workspace-primary,.btn-default):hover{
   box-shadow:0 8px 24px rgba(99,102,241,.3);
@@ -2460,8 +2460,9 @@
   }.workspace-root .workspace-content{ padding:18px 14px 34px; }.workspace-root .workspace-nav-item{ min-height:47px; }
 }
 @media(prefers-reduced-motion:reduce) {.workspace-root .workspace-content > *,.workspace-root .workspace-nav-item,.workspace-root :is(.metric-card,.team-card,.channel-card,.liste-item,.campagne-list-item,.taskz-card,.taskz-board-card),.workspace-root button{ animation:none!important;transition:none!important; }.workspace-root :is(.metric-card,.team-card,.channel-card,.liste-item,.campagne-list-item,.taskz-card,.taskz-board-card):hover{ transform:none; }
-}/* =========================================================
-   THEME SWITCH — accessible light palette
+}
+/* =========================================================
+  THEME SWITCH — accessible light palette
    ========================================================= */
 .workspace-theme-toggle{
   min-height:40px;
@@ -2553,7 +2554,7 @@
 }:root[data-workspace-theme="light"] .workspace-root .workspace-sidebar .workspace-user{
   background:linear-gradient(135deg,#f3f0ff,#eff6ff)!important;
   border-color:#e2ddff!important;
-}:root[data-workspace-theme="light"] .workspace-root .workspace-sidebar .workspace-user strong{ color:#172033!important; }:root[data-workspace-theme="light"] .workspace-root .workspace-sidebar .workspace-user span{ color:#64748b!important; }:root[data-workspace-theme="light"] .workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,.workspace-import-preview,.liste-item,.checkbox-card,.dashboard-card,.settings-card,.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card{
+}:root[data-workspace-theme="light"] .workspace-root .workspace-sidebar .workspace-user strong{ color:#172033!important; }:root[data-workspace-theme="light"] .workspace-root .workspace-sidebar .workspace-user span{ color:#64748b!important; }:root[data-workspace-theme="light"] .workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,.workspace-import-preview,.liste-item,.checkbox-card,.dashboard-card,.settings-card,.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card){
   background:#fff!important;
   border-color:#e2e7f1!important;
   color:#475569!important;
@@ -2576,7 +2577,7 @@
   box-shadow:0 4px 18px rgba(35,49,84,.035);
 }:root[data-workspace-theme="light"] .workspace-root .workspace-topbar-left p{ color:#64748b!important; }:root[data-workspace-theme="light"] .workspace-root .workspace-topbar-user :is(span,small){ color:#475569!important; }:root[data-workspace-theme="light"] .workspace-root .workspace-theme-toggle{
   background:#fff;border-color:#dbe2ee;color:#475569;
-}:root[data-workspace-theme="light"] .workspace-root .workspace-theme-toggle:hover{ background:#f3f0ff;border-color:#c4b5fd;color:#5b21b6; }:root[data-workspace-theme="light"] .workspace-root :is(.global-notification-trigger,.global-notification-actions button{
+}:root[data-workspace-theme="light"] .workspace-root .workspace-theme-toggle:hover{ background:#f3f0ff;border-color:#c4b5fd;color:#5b21b6; }:root[data-workspace-theme="light"] .workspace-root :is(.global-notification-trigger,.global-notification-actions button){
   background:#fff!important;border-color:#e2e7f1!important;color:#475569!important;
 }:root[data-workspace-theme="light"] .workspace-root .global-notification-panel{
   background:#fff!important;border-color:#e2e7f1!important;box-shadow:0 20px 55px rgba(15,23,42,.16);
