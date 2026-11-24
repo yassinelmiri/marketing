@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const [templates, unsubscribes, campaigns, recipients] = await Promise.all([
     admin.from('email_templates').select('id,name,subject,content,created_at,updated_at').order('updated_at', { ascending: false }),
     admin.from('email_unsubscribes').select('id,email,unsubscribed_at,source').order('unsubscribed_at', { ascending: false }).limit(1000),
-    admin.from('email_campaigns').select('id,subject,total_recipients,sent_count,failed_count,status,created_at,sent_at').order('created_at', { ascending: false }).limit(100),
+    admin.from('email_campaigns').select('id,smtp_account_id,liste_id,subject,message,reply_to,tracking_opens,tracking_clicks,unsubscribe_enabled,batch_size,batch_delay_seconds,total_recipients,sent_count,failed_count,status,created_at,sent_at').order('created_at', { ascending: false }).limit(100),
     admin.from('email_campaign_recipients').select('campaign_id,opened_at,clicked_at'),
   ])
   if (templates.error || unsubscribes.error || campaigns.error || recipients.error) {
