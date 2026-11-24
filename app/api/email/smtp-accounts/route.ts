@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import nodemailer from 'nodemailer'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { encryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
+import { encryptSmtpPassword, decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,6 +53,26 @@ export async function POST(request: NextRequest) {
     if ('response' in auth) return auth.response
     if (!auth.isAdmin) return NextResponse.json({ error: 'Seul un administrateur peut gérer les comptes SMTP.' }, { status: 403 })
     const body = await request.json()
+    if (body.action === 'test') {
+      const id = Number(body.id)
+      if (!Number.isInteger(id) || id < 1) return NextResponse.json({ error: 'Identifiant SMTP invalide.' }, { status: 400 })
+      const admin = createAdminClient()
+      const { data: account, error: accountError } = await admin.from('smtp_accounts')
+        .select('host,port,secure,username,password_encrypted').eq('id', id).maybeSingle()
+      if (accountError || !account) return NextResponse.json({ error: 'Compte SMTP introuvable.' }, { status: 404 })
+      const transporter = nodemailer.createTransport({
+        host: account.host, port: Number(account.port), secure: Boolean(account.secure),
+        auth: { user: account.username, pass: decryptSmtpPassword(account.password_encrypted) },
+        connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 15000,
+      })
+      try {
+        await transporter.verify()
+        return NextResponse.json({ success: true, message: 'Connexion SMTP vérifiée avec succès.' })
+      } catch (error) {
+        console.error('[smtp] test failed:', error)
+        return NextResponse.json({ error: 'Connexion SMTP impossible. Vérifiez le serveur, le port et les identifiants.' }, { status: 400 })
+      } finally { transporter.close() }
+    }
     const name = String(body.name ?? '').trim().slice(0, 100)
     const email = String(body.email ?? '').trim().toLowerCase()
     const host = String(body.host ?? '').trim().slice(0, 255)
