@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (contactsError) throw contactsError
     const candidates = Array.from(new Set((contacts ?? [])
       .map((contact) => String(contact.email ?? '').trim().toLowerCase())
-      .filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
+      .filter((email) => /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email))))
     const { data: suppressed, error: suppressionError } = await admin.from('email_unsubscribes').select('email').in('email', candidates)
     if (suppressionError) throw suppressionError
     const suppressedSet = new Set((suppressed ?? []).map((item) => String(item.email).toLowerCase()))
@@ -148,10 +148,10 @@ export async function POST(request: NextRequest) {
         const token = tokenByEmail.get(recipient)!
         try {
           const safeHtml = message
-            .replace(/<script[\\s\\S]*?>[\\s\\S]*?<\\/script>/gi, '')
-            .replace(/\\son[a-z]+\\s*=\\s*(['"]).*?\\1/gi, '')
+            .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+            .replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '')
           const html = safeHtml
-            .replace(/href=(['"])(https?:\\/\\/[^'"]+)\\1/gi, (_match, quote, url) =>
+            .replace(/href=(['"])(https?:\/\/[^'"]+)\1/gi, (_match, quote, url) =>
               trackingClicks ? 'href=' + quote + baseUrl + '/api/email/track/click/' + token + '?url=' + encodeURIComponent(url) + quote : 'href=' + quote + url + quote)
             + (trackingOpens ? '<img src="' + baseUrl + '/api/email/track/open/' + token + '" width="1" height="1" alt="" style="display:none" />' : '')
             + (unsubscribeEnabled ? '<p style="font-size:12px;color:#64748b">Pour ne plus recevoir ces e-mails, <a href="' + baseUrl + '/api/email/unsubscribe/' + token + '">désabonnez-vous ici</a>.</p>' : '')
