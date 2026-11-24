@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   if (campaignId > 0) {
     const { data: campaign, error } = await auth.admin
       .from('whatsapp_campaigns')
-      .select('id,user_id,name,source_file,message,status,total_recipients,created_at,updated_at')
+      .select('id,user_id,name,source_file,message,consent_confirmed_at,status,total_recipients,created_at,updated_at')
       .eq('id', campaignId)
       .eq('user_id', auth.userId)
       .maybeSingle()
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
       name,
       source_file: sourceFile,
       message,
+      consent_confirmed_at: new Date().toISOString(),
       status: 'draft',
       total_recipients: cleanRecipients.length,
     })
@@ -203,6 +204,17 @@ export async function PATCH(request: NextRequest) {
   }
 
   const now = new Date().toISOString()
+  if (typeof body.message === 'string') {
+    const message = cleanText(body.message, 10000)
+    if (!message) return NextResponse.json({ error: 'Le message ne peut pas être vide.' }, { status: 400 })
+    const { error } = await auth.admin.from('whatsapp_campaigns')
+      .update({ message, updated_at: now })
+      .eq('id', campaignId)
+      .eq('user_id', auth.userId)
+    if (error) return NextResponse.json({ error: 'Enregistrement du message impossible.' }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
   if (body.recipient_id !== undefined) {
     const recipientId = Number(body.recipient_id)
     const status = body.recipient_status
