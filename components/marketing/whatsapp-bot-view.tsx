@@ -49,13 +49,27 @@ export function WhatsAppBotView() {
   }, [refreshSavedCampaigns])
 
   const current = contacts[activeIndex] ?? null
-  const stats = useMemo(() => ({
-    total: contacts.length,
-    sent: contacts.filter((item) => item.status === 'sent').length,
-    failed: contacts.filter((item) => item.status === 'failed').length,
-    skipped: contacts.filter((item) => item.status === 'skipped').length,
-    pending: contacts.filter((item) => item.status === 'pending' || item.status === 'opened').length,
-  }), [contacts])
+  const stats = useMemo(() => contacts.reduce((counts, contact) => {
+    counts.total += 1
+
+    switch (contact.status) {
+      case 'sent':
+        counts.sent += 1
+        break
+      case 'failed':
+        counts.failed += 1
+        break
+      case 'skipped':
+        counts.skipped += 1
+        break
+      case 'pending':
+      case 'opened':
+        counts.pending += 1
+        break
+    }
+
+    return counts
+  }, { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }), [contacts])
   const progress = stats.total ? Math.round(((stats.sent + stats.failed + stats.skipped) / stats.total) * 100) : 0
   const completed = stats.total > 0 && stats.pending === 0
 
