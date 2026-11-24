@@ -36,7 +36,8 @@ import {
   addCampagneComment,
 } from '@/lib/supabase/marketing-data'
 
-import { GRANTABLE_PAGES, type ViewKey } from '@/lib/permissions'
+import { type ViewKey } from '@/lib/permissions'
+import { resolveWorkspacePermissions } from '@/lib/permissions/workspace'
 import { NAV_ITEMS, PAGE_TITLES } from './workspace-config'
 
 import { createClient } from '@/lib/supabase/client'
@@ -160,56 +161,24 @@ export function MarketingWorkspace() {
           ...(userLinks ?? []).map((item) => Number(item.permission_id)),
         ]))
 
-        let effectivePermissionCodes: string[] = []
-
+        let permissions: { id: number; code: string }[] = []
         if (permissionIds.length > 0) {
-          const { data: permissions, error: permissionsError } = await supabase
+          const { data, error } = await supabase
             .from('permissions')
             .select('id, code')
             .in('id', permissionIds)
-
-          if (permissionsError) throw permissionsError
-
-          const inheritedIds = new Set((roleLinks ?? []).map((item) => Number(item.permission_id)))
-          const overrides = new Map((userLinks ?? []).map((item) => [Number(item.permission_id), Boolean(item.granted)]))
-          effectivePermissionCodes = (permissions ?? [])
-            .filter((permission) => {
-              const permissionId = Number(permission.id)
-              return overrides.has(permissionId)
-                ? overrides.get(permissionId) === true
-                : inheritedIds.has(permissionId)
-            })
-            .map((permission) => permission.code)
+          if (error) throw error
+          permissions = data ?? []
         }
 
         if (!active) return
 
-        // 4. Transformer les codes DB en pages accessibles.
-        const isAdmin = roleId === 1
-        const permissionToPage: Record<string, ViewKey> = {
-          'campagne.read': 'campagnes',
-          'listes.read': 'listes',
-          'equipe.read': 'equipe',
-          'whatsapp.access': 'whatsapp',
-          'email.access': 'email',
-          'sms.access': 'sms',
-        }
-
-        // Aucun accès métier par défaut : seuls les modules explicitement autorisés sont affichés.
-        const pagePermissions = new Set<ViewKey>(
-          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : ['dashboard'],
+        const resolvedPermissions = resolveWorkspacePermissions(
+          roleId,
+          roleLinks ?? [],
+          userLinks ?? [],
+          permissions,
         )
-
-        if (!isAdmin) {
-          for (const code of effectivePermissionCodes) {
-            const page = permissionToPage[code]
-            if (page) pagePermissions.add(page)
-          }
-        }
-
-        // Le tableau de bord et les paramètres personnels restent accessibles à tout compte connecté.
-        pagePermissions.add('dashboard')
-        pagePermissions.add('settings')
 
         // 5. Construire le User attendu par les composants existants.
         // Le mot de passe n'est jamais récupéré depuis Supabase.
@@ -224,7 +193,7 @@ export function MarketingWorkspace() {
           date_creation: new Date().toISOString(),
           date_dernier_login: null,
           ip_address: null,
-          permissions: Array.from(new Set([...pagePermissions, 'tasks'] as ViewKey[])),
+          permissions: resolvedPermissions,
         }
 
         setCurrentUser(workspaceUser)
