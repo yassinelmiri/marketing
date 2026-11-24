@@ -75,6 +75,7 @@ Ses principaux objectifs :
 - Préparation d'un message avec les variables `{nom}` et `{tel}`.
 - Ouverture de WhatsApp Web dans un onglet séparé pour scanner le QR code si nécessaire.
 - Ouverture successive de chaque conversation avec le texte prérempli ; l'utilisateur vérifie le destinataire et clique lui-même sur Envoyer.
+- Après confirmation manuelle d'un contact, passage automatique au contact suivant après un délai réglable (0 à 120 secondes) ; la pause/reprise conserve le suivi et l'avancement.
 - Suivi manuel des contacts confirmés, en échec ou ignorés, avec pause/reprise et export XLSX du résultat.
 
 **Limites importantes :** il s'agit d'un mode assisté, pas d'un robot d'envoi automatique. L'application ne peut pas vérifier qu'un message a réellement été envoyé : le statut « confirmé » dépend de l'action manuelle de l'utilisateur. Les campagnes et le suivi des destinataires sont sauvegardés dans Supabase après application de la migration WhatsApp. Utilisez uniquement des contacts ayant donné leur accord et respectez les demandes de désinscription. WhatsApp Web reste un service tiers susceptible de modifier son interface ou ses conditions d'utilisation.
@@ -159,7 +160,7 @@ La sécurité finale dépend également de la bonne configuration des politiques
 ```bash
 git clone https://github.com/yassinelmiri/marketing.git
 cd marketing
-git checkout supabase-migration
+git checkout chatgpt
 pnpm install
 ```
 
@@ -223,7 +224,7 @@ pnpm start
 | Notifications | Présent |
 | Envoi e-mail SMTP | Intégré, nécessite des comptes SMTP valides et la configuration serveur |
 | SMS | Interface de simulation ; fournisseur et backend réels à intégrer |
-| WhatsApp | Interface de simulation ; intégration officielle et backend réels à réaliser |
+| WhatsApp Web | Mode assisté intégré avec sauvegarde Supabase, ouverture des conversations et progression automatique de la file après confirmation manuelle ; aucun envoi automatique |
 
 Ce tableau distingue volontairement les interfaces disponibles des intégrations externes réellement opérationnelles. Les fonctionnalités doivent être validées dans l'environnement de déploiement avant toute présentation comme service en production.
 
@@ -272,4 +273,4 @@ Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionn�
 - Le message, la pause/reprise et les statuts des destinataires sont sauvegardés via une API serveur authentifiée.
 - Les tables sont protégées par RLS sans accès direct depuis le navigateur ; l'API vérifie l'utilisateur et la permission `whatsapp.access`.
 - Migration à appliquer : `supabase/migrations/20261124190000_whatsapp_campaign_persistence.sql`.
-- Les statuts « Envoyé » restent des confirmations manuelles de l'utilisateur ; l'application ne lit pas les confirmations WhatsApp et n'envoie aucun message automatiquement.
+- Les statuts « Envoyé » restent des confirmations manuelles de l'utilisateur ; l'application ne lit pas les confirmations WhatsApp et n'envoie aucun message automatiquement. Le délai de passage au contact suivant est réglable dans l'interface ; l'utilisateur garde le contrôle de chaque clic sur Envoyer.
