@@ -62,14 +62,16 @@ export async function GET(request: NextRequest) {
 
       const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
       const start = Math.max(0, Number(campaign.recipient_offset) || 0)
-      const end = Math.min(recipients.length, start + Math.max(1, Number(campaign.batch_size) || 25))
+      const batchSize = Math.max(1, Number(campaign.batch_size) || 25)
       let offset = start
       let sent = Number(campaign.sent_count) || 0
       let failed = Number(campaign.failed_count) || 0
       const failedRecipients = Array.isArray(campaign.failed_recipients) ? [...campaign.failed_recipients] : []
       const deadline = Date.now() + 44000
 
-      for (; offset < end && Date.now() < deadline; offset++) {
+      while (offset < recipients.length && Date.now() < deadline) {
+        const batchEnd = Math.min(recipients.length, offset + batchSize)
+        for (; offset < batchEnd && Date.now() < deadline; offset++) {
         const recipient = String(recipients[offset] ?? '').toLowerCase()
         if (!recipient) continue
         try {
@@ -101,10 +103,17 @@ export async function GET(request: NextRequest) {
           failed++
           failedRecipients.push(recipient)
         }
+        }
+        if (offset < batchEnd) break
+        if (offset < recipients.length && campaign.batch_delay_seconds > 0) {
+          const waitMs = campaign.batch_delay_seconds * 1000
+          if (Date.now() + waitMs >= deadline) break
+          await new Promise((resolve) => setTimeout(resolve, waitMs))
+        }
       }
 
       const finished = offset >= recipients.length
-      const nextAt = finished ? null : new Date(Date.now() + (offset >= end ? campaign.batch_delay_seconds * 1000 : 0)).toISOString()
+      const nextAt = finished ? null : new Date(Date.now() + (offset % batchSize === 0 ? campaign.batch_delay_seconds * 1000 : 0)).toISOString()
       const status = finished ? (failed === 0 ? 'sent' : sent > 0 ? 'partial' : 'failed') : 'sending'
       const { error: updateError } = await admin.from('email_campaigns').update({
         recipient_offset: offset, sent_count: sent, failed_count: failed,
