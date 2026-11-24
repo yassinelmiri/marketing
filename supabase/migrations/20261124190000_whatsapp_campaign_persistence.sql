@@ -7,6 +7,7 @@ create table if not exists public.whatsapp_campaigns (
   name text not null check (length(trim(name)) between 1 and 160),
   source_file text not null default '',
   message text not null default '',
+  consent_confirmed_at timestamptz,
   status text not null default 'draft'
     check (status in ('draft','in_progress','paused','completed')),
   total_recipients integer not null default 0 check (total_recipients >= 0),
