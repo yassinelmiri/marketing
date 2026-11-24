@@ -43,6 +43,16 @@ import { NAV_ITEMS, PAGE_TITLES } from './workspace-config'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 
+type WorkspaceProfile = {
+  id: number | string
+  prenom: string | null
+  nom: string | null
+  email: string | null
+  telephone: string | null
+  address: string | null
+  role_id: number | string
+}
+
 export function MarketingWorkspace() {
   const router = useRouter()
   const toast = useToast()
