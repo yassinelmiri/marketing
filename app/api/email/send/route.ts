@@ -187,6 +187,7 @@ export async function POST(request: NextRequest) {
       failed_count: failures.length,
       failed_recipients: failures,
       status,
+      sent_at: new Date().toISOString(),
     }).eq('id', campaignId)
     if (updateError) throw updateError
 
