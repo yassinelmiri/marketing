@@ -2884,3 +2884,10 @@
 .wa-saved-row select option{background:#111827;color:#e2e8f0}
 .wa-saved-empty{margin:0;color:var(--workspace-muted,#94a3b8);font-size:11px}
 @media(max-width:620px){.wa-saved-row{align-items:stretch;flex-direction:column}.wa-saved-row>*{width:100%}}
+
+.wa-queue-settings{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 15px;padding:13px 14px;border:1px solid rgba(139,92,246,.2);border-radius:12px;background:rgba(139,92,246,.045)}
+.wa-queue-settings>label{font-size:12px;font-weight:750}
+.wa-queue-settings>div{display:flex;align-items:center;gap:7px}
+.wa-queue-settings input{width:68px;min-height:34px;padding:6px 8px;border:1px solid var(--workspace-border,rgba(148,163,184,.2));border-radius:8px;background:var(--workspace-input,rgba(15,23,42,.35));color:inherit;font:inherit}
+.wa-queue-settings span,.wa-queue-settings small{color:var(--workspace-muted,#94a3b8);font-size:11px}
+.wa-queue-settings small{flex-basis:100%;line-height:1.5}
