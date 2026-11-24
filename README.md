@@ -264,3 +264,12 @@ Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionn�
 ---
 
 *Document de présentation fonctionnelle et technique. Les fonctionnalités dépendant de services externes (SMTP, SMS, WhatsApp, hébergement et Supabase) doivent être configurées et testées dans l'environnement cible avant leur mise en production.*
+
+
+### Persistance des campagnes WhatsApp
+- Les campagnes WhatsApp assistées et leurs destinataires sont enregistrés dans Supabase.
+- Une campagne peut être rechargée après fermeture ou actualisation de la page, avec le statut de chaque destinataire et le dernier contact à traiter.
+- Le message, la pause/reprise et les statuts des destinataires sont sauvegardés via une API serveur authentifiée.
+- Les tables sont protégées par RLS sans accès direct depuis le navigateur ; l'API vérifie l'utilisateur et la permission `whatsapp.access`.
+- Migration à appliquer : `supabase/migrations/20261124190000_whatsapp_campaign_persistence.sql`.
+- Les statuts « Envoyé » restent des confirmations manuelles de l'utilisateur ; l'application ne lit pas les confirmations WhatsApp et n'envoie aucun message automatiquement.
