@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const excluded = new Set((suppressed ?? []).map((item) => String(item.email).toLowerCase()))
     recipients = recipients.filter((email) => !excluded.has(email))
     if (!recipients.length) return NextResponse.json({ error: 'Tous les destinataires sont désabonnés ou exclus.' }, { status: 400 })
-    if (recipients.length > 100) return NextResponse.json({ error: 'Limite de 100 destinataires par envoi. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
+    if (recipients.length > 5000) return NextResponse.json({ error: 'Limite de 5 000 destinataires par campagne. Divisez votre liste en plusieurs campagnes.' }, { status: 400 })
 
     const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
       smtp_account_id: smtp.id,
@@ -116,6 +116,12 @@ export async function POST(request: NextRequest) {
       liste_nom: liste.nom,
       subject,
       message,
+      reply_to: replyTo || null,
+      template_id: templateId,
+      tracking_opens: trackingOpens,
+      tracking_clicks: trackingClicks,
+      batch_size: batchSize,
+      batch_delay_seconds: batchDelay,
       recipients,
       total_recipients: recipients.length,
       status: 'pending',
