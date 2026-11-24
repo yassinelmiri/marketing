@@ -258,13 +258,11 @@ export function MarketingWorkspace() {
         return
       }
 
-      if (
-        event === 'SIGNED_IN' ||
-        event === 'TOKEN_REFRESHED' ||
-        event === 'USER_UPDATED'
-      ) {
-        setAuthLoading(true)
-
+      // Un rafraîchissement du token ne change ni le profil ni les permissions.
+      // Recharger le Workspace ici faisait réapparaître l'écran de chargement
+      // pendant la navigation, alors que la session était toujours valide.
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Garder l'espace visible pendant une simple actualisation du profil.
         void loadWorkspaceUser({
           id: session.user.id,
           email: session.user.email,
