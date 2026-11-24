@@ -147,6 +147,8 @@ export function MarketingWorkspace() {
   const [roleName, setRoleName] = useState('Membre')
 
   const [activeView, setActiveView] = useState<string>('dashboard')
+  // Conserver les écrans déjà ouverts montés pour préserver leur état lors de la navigation.
+  const [visitedViews, setVisitedViews] = useState<string[]>(['dashboard'])
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [campagnes, setCampagnes] = useState<Campagne[]>([])
   const [commentaires, setCommentaires] = useState<Commentaire[]>([])
@@ -714,6 +716,7 @@ export function MarketingWorkspace() {
                 className={`workspace-nav-item${active ? ' is-active' : ''}`}
                 onClick={() => {
                   setActiveView(item.key)
+                  setVisitedViews((current) => current.includes(item.key) ? current : [...current, item.key])
                   setMobileNavOpen(false)
                 }}
                 aria-current={active ? 'page' : undefined}
@@ -771,7 +774,8 @@ export function MarketingWorkspace() {
         </header>
 
         <div className="workspace-content">
-          {activeView === 'dashboard' && (
+          {visitedViews.includes('dashboard') && (
+            <div hidden={activeView !== 'dashboard'}>
             <DashboardView
               user={currentUser}
               typesCampagnes={typesCampagnes}
@@ -781,9 +785,11 @@ export function MarketingWorkspace() {
               commentaires={commentaires}
               onAddComment={handleAddComment}
             />
+            </div>
           )}
 
-          {activeView === 'campagnes' && (
+          {visitedViews.includes('campagnes') && (
+            <div hidden={activeView !== 'campagnes'}>
             <CampagnesView
               user={currentUser}
               campagnes={campagnes}
@@ -796,11 +802,16 @@ export function MarketingWorkspace() {
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
               onSetListes={handleSetCampagneListes}
-              onOpenListes={() => setActiveView('listes')}
+              onOpenListes={() => {
+                setActiveView('listes')
+                setVisitedViews((current) => current.includes('listes') ? current : [...current, 'listes'])
+              }}
             />
+            </div>
           )}
 
-          {activeView === 'listes' && (
+          {visitedViews.includes('listes') && (
+            <div hidden={activeView !== 'listes'}>
             <ListesView
               user={currentUser}
               listes={listes}
@@ -811,28 +822,43 @@ export function MarketingWorkspace() {
               teamUsers={teamUsers}
               onRefresh={refresh}
             />
+            </div>
           )}
 
-          {activeView === 'equipe' && (
+          {visitedViews.includes('equipe') && (
+            <div hidden={activeView !== 'equipe'}>
             <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
+            </div>
           )}
 
-          {activeView === 'tasks' && <TasksView user={currentUser} isAdmin={isAdmin} />}
+          {visitedViews.includes('tasks') && (
+            <div hidden={activeView !== 'tasks'}><TasksView user={currentUser} isAdmin={isAdmin} /></div>
+          )}
 
-          {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
+          {visitedViews.includes('whatsapp') && (
+            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView listes={listes} listeContacts={listeContacts} /></div>
+          )}
 
-          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} isAdmin={currentUser.role_id === 1} />}
+          {visitedViews.includes('email') && (
+            <div hidden={activeView !== 'email'}><EmailSenderView listes={listes} listeContacts={listeContacts} isAdmin={currentUser.role_id === 1} /></div>
+          )}
 
-          {activeView === 'sms' && <SmsSenderView listes={listes} listeContacts={listeContacts} />}
+          {visitedViews.includes('sms') && (
+            <div hidden={activeView !== 'sms'}><SmsSenderView listes={listes} listeContacts={listeContacts} /></div>
+          )}
 
-          {activeView === 'admin-users' && (
+          {visitedViews.includes('admin-users') && (
+            <div hidden={activeView !== 'admin-users'}>
             <AdminUsersView
               currentUser={currentUser}
               onChange={refresh}
             />
+            </div>
           )}
 
-          {activeView === 'settings' && <SettingsView user={currentUser} onSaved={() => window.location.reload()} />}
+          {visitedViews.includes('settings') && (
+            <div hidden={activeView !== 'settings'}><SettingsView user={currentUser} onSaved={() => { void refresh() }} /></div>
+          )}
         </div>
       </main>
     </div>
