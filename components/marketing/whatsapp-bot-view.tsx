@@ -1,49 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import * as XLSX from 'xlsx'
 import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
   MessageCircle, Pause, Play, RefreshCw, SkipForward, Upload, XCircle,
 } from 'lucide-react'
-import type { ListeContact, ListeContactContact } from '@/lib/storage'
+import { findColumn, NAME_COLUMN_CANDIDATES, normalizePhone, PHONE_COLUMN_CANDIDATES } from '@/lib/whatsapp/contact-import'
 
 type ContactStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
 type WhatsAppContact = { id: string; name: string; phone: string; status: ContactStatus }
-type WhatsAppBotViewProps = { listes: ListeContact[]; listeContacts: ListeContactContact[] }
 type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
-const PHONE_KEYS = ['telephone', 'téléphone', 'tel', 'tél', 'phone', 'mobile', 'gsm', 'whatsapp', 'numero', 'numéro', 'رقم', 'هاتف']
-const NAME_KEYS = ['nom complet', 'fullname', 'full name', 'name', 'nom', 'contact', 'prenom', 'prénom']
-
-function normalizePhone(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  const raw = String(value).trim()
-  if (!raw || raw.toLowerCase() === 'nan' || /e\+\d+$/i.test(raw)) return null
-  let digits = raw.replace(/\D/g, '')
-  if (!digits) return null
-  if (digits.startsWith('00212')) digits = digits.slice(5)
-  else if (digits.startsWith('212')) digits = digits.slice(3)
-  if (digits.startsWith('0') && digits.length === 10) digits = digits.slice(1)
-  if (digits.length === 9 && /^[567]/.test(digits)) return '212' + digits
-  if (digits.length >= 8 && digits.length <= 15 && !digits.startsWith('0')) return digits
-  return null
-}
-
-function findColumn(headers: string[], candidates: string[]): string | null {
-  const normalized = headers.map((header) => ({
-    original: header,
-    key: header.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\u0600-\u06ff]/g, ''),
-  }))
-  for (const candidate of candidates) {
-    const key = candidate.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\u0600-\u06ff]/gi, '').toLowerCase()
-    const match = normalized.find((item) => item.key === key || item.key.includes(key))
-    if (match) return match.original
-  }
-  return null
-}
-
-export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts }: WhatsAppBotViewProps) {
+export function WhatsAppBotView() {
   const fileInput = useRef<HTMLInputElement>(null)
   const [contacts, setContacts] = useState<WhatsAppContact[]>([])
   const [message, setMessage] = useState('')
@@ -61,7 +30,7 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
   const [saving, setSaving] = useState(false)
   const [loadingSaved, setLoadingSaved] = useState(false)
 
-  async function refreshSavedCampaigns() {
+  const refreshSavedCampaigns = useCallback(async () => {
     setLoadingSaved(true)
     try {
       const response = await fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
@@ -73,34 +42,34 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
     } finally {
       setLoadingSaved(false)
     }
-  }
-
-  useEffect(() => {
-    let mounted = true
-    setLoadingSaved(true)
-    fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
-        if (mounted) setSavedCampaigns(data.campaigns ?? [])
-      })
-      .catch((cause) => {
-        if (mounted) setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
-      })
-      .finally(() => {
-        if (mounted) setLoadingSaved(false)
-      })
-    return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    void refreshSavedCampaigns()
+  }, [refreshSavedCampaigns])
+
   const current = contacts[activeIndex] ?? null
-  const stats = useMemo(() => ({
-    total: contacts.length,
-    sent: contacts.filter((item) => item.status === 'sent').length,
-    failed: contacts.filter((item) => item.status === 'failed').length,
-    skipped: contacts.filter((item) => item.status === 'skipped').length,
-    pending: contacts.filter((item) => item.status === 'pending' || item.status === 'opened').length,
-  }), [contacts])
+  const stats = useMemo(() => contacts.reduce((counts, contact) => {
+    counts.total += 1
+
+    switch (contact.status) {
+      case 'sent':
+        counts.sent += 1
+        break
+      case 'failed':
+        counts.failed += 1
+        break
+      case 'skipped':
+        counts.skipped += 1
+        break
+      case 'pending':
+      case 'opened':
+        counts.pending += 1
+        break
+    }
+
+    return counts
+  }, { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }), [contacts])
   const progress = stats.total ? Math.round(((stats.sent + stats.failed + stats.skipped) / stats.total) * 100) : 0
   const completed = stats.total > 0 && stats.pending === 0
 
@@ -120,8 +89,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: '', raw: false })
       if (!rows.length) throw new Error('Aucun contact trouvé dans le fichier.')
       const headers = Object.keys(rows[0])
-      const phoneColumn = findColumn(headers, PHONE_KEYS) ?? headers[0]
-      const nameColumn = findColumn(headers, NAME_KEYS)
+      const phoneColumn = findColumn(headers, PHONE_COLUMN_CANDIDATES) ?? headers[0]
+      const nameColumn = findColumn(headers, NAME_COLUMN_CANDIDATES)
       const seen = new Set<string>()
       const parsed: WhatsAppContact[] = []
       let duplicateCount = 0

@@ -3,22 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  BarChart3,
-  ChevronDown,
-  LayoutDashboard,
-  LogOut,
-  MessageCircle,
-  Mail,
-  Settings,
-  ShieldCheck,
-  Smartphone,
-  Users,
-  UsersRound,
-  ListTodo,
-  Sun,
-  Moon,
-} from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, Sun, Moon } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
 import { CampagnesView } from './campagnes-view'
@@ -51,20 +36,12 @@ import {
   addCampagneComment,
 } from '@/lib/supabase/marketing-data'
 
-import {
-  GRANTABLE_PAGES,
-  type ViewKey,
-} from '@/lib/permissions'
+import { type ViewKey } from '@/lib/permissions'
+import { resolveWorkspacePermissions } from '@/lib/permissions/workspace'
+import { NAV_ITEMS, PAGE_TITLES } from './workspace-config'
 
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
-
-type NavigationItem = {
-  key: ViewKey | 'listes'
-  label: string
-  icon: typeof LayoutDashboard
-  adminOnly?: boolean
-}
 
 type WorkspaceProfile = {
   id: number | string
@@ -74,62 +51,6 @@ type WorkspaceProfile = {
   telephone: string | null
   address: string | null
   role_id: number | string
-}
-
-const NAV_ITEMS: NavigationItem[] = [
-  { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
-  { key: 'listes', label: 'Listes & contacts', icon: Users },
-  { key: 'equipe', label: 'Équipe', icon: UsersRound },
-  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
-  { key: 'whatsapp', label: 'Campagnes WhatsApp', icon: MessageCircle },
-  { key: 'email', label: 'E-mail', icon: Mail },
-  { key: 'sms', label: 'SMS', icon: Smartphone },
-  { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
-  { key: 'settings', label: 'Paramètres', icon: Settings },
-]
-
-const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  dashboard: {
-    title: 'Tableau de bord',
-    subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
-  },
-  campagnes: {
-    title: 'Campagnes',
-    subtitle: 'Créez vos campagnes, associez vos listes de contacts et suivez leur avancement.',
-  },
-  listes: {
-    title: 'Listes & contacts',
-    subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
-  },
-  equipe: {
-    title: 'Équipe',
-    subtitle: 'Consultez les membres de l’équipe et identifiez clairement leur rôle.',
-  },
-  tasks: {
-    title: 'Gestion des tâches',
-    subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
-  },
-  whatsapp: {
-    title: 'Campagnes WhatsApp',
-    subtitle: 'Importez vos contacts, préparez vos messages et suivez les envois manuels via WhatsApp Web.',
-  },
-  email: {
-    title: 'Envoi e-mail',
-    subtitle: 'Configurez vos expéditeurs, choisissez une liste et consultez l’historique des envois.',
-  },
-  sms: {
-    title: 'Envoi SMS',
-    subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
-  },
-  'admin-users': {
-    title: 'Administration',
-    subtitle: 'Gérez les comptes utilisateurs, attribuez les rôles et contrôlez les accès à chaque module.',
-  },
-  settings: {
-    title: 'Paramètres',
-    subtitle: 'Mettez à jour votre profil et modifiez votre mot de passe en toute sécurité.',
-  },
 }
 
 export function MarketingWorkspace() {
@@ -250,56 +171,24 @@ export function MarketingWorkspace() {
           ...(userLinks ?? []).map((item) => Number(item.permission_id)),
         ]))
 
-        let effectivePermissionCodes: string[] = []
-
+        let permissions: { id: number; code: string }[] = []
         if (permissionIds.length > 0) {
-          const { data: permissions, error: permissionsError } = await supabase
+          const { data, error } = await supabase
             .from('permissions')
             .select('id, code')
             .in('id', permissionIds)
-
-          if (permissionsError) throw permissionsError
-
-          const inheritedIds = new Set((roleLinks ?? []).map((item) => Number(item.permission_id)))
-          const overrides = new Map((userLinks ?? []).map((item) => [Number(item.permission_id), Boolean(item.granted)]))
-          effectivePermissionCodes = (permissions ?? [])
-            .filter((permission) => {
-              const permissionId = Number(permission.id)
-              return overrides.has(permissionId)
-                ? overrides.get(permissionId) === true
-                : inheritedIds.has(permissionId)
-            })
-            .map((permission) => permission.code)
+          if (error) throw error
+          permissions = data ?? []
         }
 
         if (!active) return
 
-        // 4. Transformer les codes DB en pages accessibles.
-        const isAdmin = roleId === 1
-        const permissionToPage: Record<string, ViewKey> = {
-          'campagne.read': 'campagnes',
-          'listes.read': 'listes',
-          'equipe.read': 'equipe',
-          'whatsapp.access': 'whatsapp',
-          'email.access': 'email',
-          'sms.access': 'sms',
-        }
-
-        // Aucun accès métier par défaut : seuls les modules explicitement autorisés sont affichés.
-        const pagePermissions = new Set<ViewKey>(
-          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : ['dashboard'],
+        const resolvedPermissions = resolveWorkspacePermissions(
+          roleId,
+          roleLinks ?? [],
+          userLinks ?? [],
+          permissions,
         )
-
-        if (!isAdmin) {
-          for (const code of effectivePermissionCodes) {
-            const page = permissionToPage[code]
-            if (page) pagePermissions.add(page)
-          }
-        }
-
-        // Le tableau de bord et les paramètres personnels restent accessibles à tout compte connecté.
-        pagePermissions.add('dashboard')
-        pagePermissions.add('settings')
 
         // 5. Construire le User attendu par les composants existants.
         // Le mot de passe n'est jamais récupéré depuis Supabase.
@@ -314,7 +203,7 @@ export function MarketingWorkspace() {
           date_creation: new Date().toISOString(),
           date_dernier_login: null,
           ip_address: null,
-          permissions: Array.from(new Set([...pagePermissions, 'tasks'] as ViewKey[])),
+          permissions: resolvedPermissions,
         }
 
         setCurrentUser(workspaceUser)
@@ -435,7 +324,6 @@ export function MarketingWorkspace() {
       })))
     } catch (error) {
       toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
-    } finally {
     }
   }
 
@@ -836,7 +724,7 @@ export function MarketingWorkspace() {
           )}
 
           {visitedViews.includes('whatsapp') && (
-            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView listes={listes} listeContacts={listeContacts} /></div>
+            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView /></div>
           )}
 
           {visitedViews.includes('email') && (
