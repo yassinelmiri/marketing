@@ -20,17 +20,7 @@ type NavigationItem = {
   adminOnly?: boolean
 }
 
-type WorkspaceProfile = {
-  id: number | string
-  prenom: string | null
-  nom: string | null
-  email: string | null
-  telephone: string | null
-  address: string | null
-  role_id: number | string
-}
-
-const NAV_ITEMS: NavigationItem[] = [
+export const NAV_ITEMS: NavigationItem[] = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
@@ -43,7 +33,7 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'settings', label: 'Paramètres', icon: Settings },
 ]
 
-const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: {
     title: 'Tableau de bord',
     subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
