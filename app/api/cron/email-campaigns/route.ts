@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (dueError) return NextResponse.json({ error: 'Queue unavailable.' }, { status: 500 })
   const processed: Array<{ id: number; sent: number; failed: number; status: string }> = []
 
-  for (const row of due ?? []) {
+  await Promise.all((due ?? []).map(async (row) => {
     const lockAt = new Date().toISOString()
     const { data: claimed, error: claimError } = await admin.from('email_campaigns')
       .update({ worker_locked_at: lockAt, status: 'sending', started_at: lockAt, updated_at: lockAt })
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       .or('worker_locked_at.is.null,worker_locked_at.lt.' + staleLock)
       .select('id,smtp_account_id,sender_email,sender_name,subject,message,reply_to,recipients,recipient_offset,batch_size,batch_delay_seconds,sent_count,failed_count,failed_recipients,tracking_opens,tracking_clicks')
       .maybeSingle()
-    if (claimError || !claimed) continue
+    if (claimError || !claimed) return
 
     const campaign = claimed as Campaign
     let transporter: ReturnType<typeof nodemailer.createTransport> | null = null
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     } finally {
       transporter?.close()
     }
-  }
+  }))
 
   return NextResponse.json({ success: true, processed })
 }
