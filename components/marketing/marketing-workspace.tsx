@@ -435,7 +435,6 @@ export function MarketingWorkspace() {
       })))
     } catch (error) {
       toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
-    } finally {
     }
   }
 
@@ -836,7 +835,7 @@ export function MarketingWorkspace() {
           )}
 
           {visitedViews.includes('whatsapp') && (
-            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView listes={listes} listeContacts={listeContacts} /></div>
+            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView /></div>
           )}
 
           {visitedViews.includes('email') && (
