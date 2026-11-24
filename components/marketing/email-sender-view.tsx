@@ -291,7 +291,7 @@ export function EmailSenderView({ listes, listeContacts, isAdmin }: EmailSenderV
             <label className="form-grid-full"><span>Modèle</span><select defaultValue="" onChange={(e) => { const item = templates.find((template) => template.id === Number(e.target.value)); if (item) { setSubject(item.subject); setMessage(item.content) } }}><option value="">— Choisir un modèle —</option>{templates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <label className="form-grid-full"><span>Contenu HTML ou texte</span><textarea rows={10} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Rédigez votre message ou collez votre HTML…" /></label>
             <label><span>Emails par lot</span><input type="number" min="1" max="100" value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))} /></label>
-            <label><span>Délai entre les lots (secondes)</span><input type="number" min="0" max="60" value={batchDelaySeconds} onChange={(e) => setBatchDelaySeconds(Number(e.target.value))} /></label>
+            <label><span>Délai entre les lots (secondes)</span><input type="number" min="0" max="10" value={batchDelaySeconds} onChange={(e) => setBatchDelaySeconds(Number(e.target.value))} /></label>
             <label><input type="checkbox" checked={trackingOpens} onChange={(e) => setTrackingOpens(e.target.checked)} /> Suivi des ouvertures</label>
             <label><input type="checkbox" checked={trackingClicks} onChange={(e) => setTrackingClicks(e.target.checked)} /> Suivi des clics</label>
             <label><input type="checkbox" checked={unsubscribeEnabled} onChange={(e) => setUnsubscribeEnabled(e.target.checked)} /> Lien de désabonnement</label>
