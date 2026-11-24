@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CheckCheck, ClipboardList, MessageCircle, X } from 'lucide-react'
+import { Bell, CheckCheck, ClipboardList, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 type NotificationItem = {
@@ -25,7 +25,7 @@ export function NotificationBell({ userId }: { userId: number }) {
     try {
       const response = await fetch('/api/notifications', { cache: 'no-store' })
       const data = await response.json()
-      if (response.ok) setItems(data.notifications ?? [])
+      if (response.ok) setItems((data.notifications ?? []).filter((item: NotificationItem) => !item.type?.includes('chat')))
     } catch {
       // Notifications remain non-blocking if the endpoint is temporarily unavailable.
     }
@@ -92,7 +92,7 @@ export function NotificationBell({ userId }: { userId: number }) {
                 onClick={() => !item.is_read && void markRead(item.id)}
               >
                 <span className="global-notification-item-icon">
-                  {item.type?.includes('chat') ? <MessageCircle size={16} /> : <ClipboardList size={16} />}
+                  <ClipboardList size={16} />
                 </span>
                 <span className="global-notification-item-copy">
                   <strong>{item.title}</strong>

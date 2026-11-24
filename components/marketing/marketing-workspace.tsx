@@ -16,7 +16,6 @@ import {
   Users,
   UsersRound,
   ListTodo,
-  MessagesSquare,
   Sun,
   Moon,
 } from 'lucide-react'
@@ -32,7 +31,6 @@ import { SmsSenderView } from './sms-sender-view'
 import { SettingsView } from './settings-view'
 import { NotificationBell } from './notification-bell'
 import { TasksView } from './tasks-view'
-import { TeamChatView } from './team-chat-view'
 
 import {
   type Campagne,
@@ -84,7 +82,6 @@ const NAV_ITEMS: NavigationItem[] = [
   { key: 'listes', label: 'Listes & contacts', icon: Users },
   { key: 'equipe', label: 'Équipe', icon: UsersRound },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
-  { key: 'chat', label: 'Chat d’équipe', icon: MessagesSquare },
   { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
@@ -112,10 +109,6 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   tasks: {
     title: 'Gestion des tâches',
     subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
-  },
-  chat: {
-    title: 'Chat d’équipe',
-    subtitle: 'Discutez avec votre équipe et partagez des fichiers dans un espace commun.',
   },
   whatsapp: {
     title: 'Bot WhatsApp',
@@ -319,7 +312,7 @@ export function MarketingWorkspace() {
           date_creation: new Date().toISOString(),
           date_dernier_login: null,
           ip_address: null,
-          permissions: Array.from(new Set([...pagePermissions, 'tasks', 'chat'] as ViewKey[])),
+          permissions: Array.from(new Set([...pagePermissions, 'tasks'] as ViewKey[])),
         }
 
         setCurrentUser(workspaceUser)
@@ -825,8 +818,6 @@ export function MarketingWorkspace() {
           )}
 
           {activeView === 'tasks' && <TasksView user={currentUser} isAdmin={isAdmin} />}
-
-          {activeView === 'chat' && <TeamChatView user={currentUser} />}
 
           {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
 

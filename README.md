@@ -1,5 +1,5 @@
 # Anntel Marketing
-### Plateforme centralisée de gestion marketing, prospection et collaboration d'équipe
+### Plateforme centralisée de gestion marketing et prospection
 
 Anntel Marketing est une application web conçue pour centraliser les opérations marketing et commerciales dans un seul espace. Elle permet de gérer les campagnes, les contacts, les équipes, les tâches et les communications, tout en organisant les accès selon les responsabilités de chaque utilisateur.
 
@@ -16,7 +16,6 @@ Ses principaux objectifs :
 - Centraliser les informations des contacts et des prospects.
 - Organiser les campagnes et suivre leur avancement.
 - Faciliter la répartition et le suivi du travail entre collaborateurs.
-- Regrouper les échanges internes et les notifications.
 - Préparer et gérer les communications par e-mail, SMS et WhatsApp selon le niveau d'intégration disponible.
 - Sécuriser les données et limiter l'accès aux fonctionnalités selon les rôles et autorisations.
 
@@ -51,12 +50,6 @@ Ses principaux objectifs :
 - Attribution des tâches aux membres concernés.
 - Consultation des tâches et de leur état d'avancement.
 - Organisation du travail et meilleure visibilité sur les responsabilités de chacun.
-
-### Chat d'équipe
-- Espace de discussion interne.
-- Échanges entre collaborateurs.
-- Partage de pièces jointes.
-- Actualisation des conversations via les fonctions temps réel de Supabase, selon la configuration du projet.
 
 ### Notifications
 - Centre de notifications accessible depuis l'espace de travail.
@@ -225,7 +218,6 @@ pnpm start
 | Listes et contacts | Présent |
 | Gestion des rôles et permissions | Intégrée |
 | Tâches | Présent |
-| Chat d'équipe et pièces jointes | Présent, nécessite la configuration Supabase correspondante |
 | Notifications | Présent |
 | Envoi e-mail SMTP | Intégré, nécessite des comptes SMTP valides et la configuration serveur |
 | SMS | Interface de simulation ; fournisseur et backend réels à intégrer |
@@ -237,7 +229,7 @@ Ce tableau distingue volontairement les interfaces disponibles des intégrations
 
 - **Centralisation :** les données, campagnes et outils de travail sont réunis dans une seule plateforme.
 - **Gain de temps :** les équipes retrouvent plus rapidement les contacts, les campagnes et les tâches.
-- **Meilleure coordination :** les tâches attribuées, le chat et les notifications facilitent le travail collectif.
+- **Meilleure coordination :** les tâches attribuées et les notifications facilitent le suivi du travail collectif.
 - **Suivi de l'activité :** les campagnes et les listes sont organisées pour améliorer la visibilité opérationnelle.
 - **Maîtrise des accès :** chaque utilisateur accède uniquement aux modules qui lui sont autorisés.
 - **Évolutivité :** l'architecture permet d'ajouter progressivement de nouveaux services et intégrations.
