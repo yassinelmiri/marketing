@@ -75,8 +75,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       const extension = file.name.split('.').pop()?.toLowerCase()
       if (!['xlsx', 'xls', 'csv'].includes(extension ?? '')) throw new Error('Choisissez un fichier XLSX, XLS ou CSV.')
       if (file.size > 15 * 1024 * 1024) throw new Error('Le fichier dépasse 15 Mo.')
-      const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', raw: false })
+      const source = extension === 'csv' ? await file.text() : await file.arrayBuffer()
+      const workbook = XLSX.read(source, { type: extension === 'csv' ? 'string' : 'array', raw: false })
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
       if (!firstSheet) throw new Error('Le fichier ne contient aucune feuille lisible.')
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: '', raw: false })
@@ -116,7 +116,7 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
   }
 
   function openWhatsAppHome() {
-    window.open('https://web.whatsapp.com/', 'wa-campaign', 'noopener,noreferrer')
+    window.open('https://web.whatsapp.com/', 'wa-campaign')
   }
 
   function openCurrentChat() {
