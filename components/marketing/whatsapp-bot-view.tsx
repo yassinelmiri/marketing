@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import * as XLSX from 'xlsx'
 import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
@@ -11,6 +11,7 @@ import type { ListeContact, ListeContactContact } from '@/lib/storage'
 type ContactStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
 type WhatsAppContact = { id: string; name: string; phone: string; status: ContactStatus }
 type WhatsAppBotViewProps = { listes: ListeContact[]; listeContacts: ListeContactContact[] }
+type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
 const PHONE_KEYS = ['telephone', 'téléphone', 'tel', 'tél', 'phone', 'mobile', 'gsm', 'whatsapp', 'numero', 'numéro', 'رقم', 'هاتف']
 const NAME_KEYS = ['nom complet', 'fullname', 'full name', 'name', 'nom', 'contact', 'prenom', 'prénom']
@@ -54,6 +55,27 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
   const [consentConfirmed, setConsentConfirmed] = useState(false)
   const [paused, setPaused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [campaignId, setCampaignId] = useState<number | null>(null)
+  const [savedCampaigns, setSavedCampaigns] = useState<SavedWhatsAppCampaign[]>([])
+  const [selectedSavedId, setSelectedSavedId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loadingSaved, setLoadingSaved] = useState(false)
+
+  async function refreshSavedCampaigns() {
+    setLoadingSaved(true)
+    try {
+      const response = await fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
+      setSavedCampaigns(data.campaigns ?? [])
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
+    } finally {
+      setLoadingSaved(false)
+    }
+  }
+
+  useEffect(() => { void refreshSavedCampaigns() }, [])
 
   const current = contacts[activeIndex] ?? null
   const stats = useMemo(() => ({
@@ -101,6 +123,8 @@ export function WhatsAppBotView({ listes: _listes, listeContacts: _listeContacts
       })
       if (!parsed.length) throw new Error('Aucun numéro valide trouvé dans la colonne « ' + phoneColumn + ' ».')
       setContacts(parsed)
+      setCampaignId(null)
+      setSelectedSavedId('')
       setActiveIndex(0)
       setFileName(file.name)
       setDuplicates(duplicateCount)
