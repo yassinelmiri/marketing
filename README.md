@@ -239,15 +239,17 @@ Ce tableau distingue volontairement les interfaces disponibles des intégrations
 
 - Les campagnes peuvent cibler plusieurs listes ; les doublons d'adresses sont supprimés avant l'ajout à la file.
 - Une campagne peut être lancée immédiatement ou planifiée à une date/heure donnée.
+- Plusieurs comptes SMTP actifs peuvent être sélectionnés pour une campagne ; le worker distribue les destinataires à tour de rôle entre les expéditeurs sélectionnés.
 - Le traitement s'effectue côté serveur par lots, sans garder l'écran de préparation ouvert. Jusqu'à trois campagnes peuvent être traitées simultanément par le worker.
 - Le worker Vercel est appelé chaque minute (`vercel.json`). Les lots traités dans une même exécution respectent le délai configuré ; si la campagne dépasse la durée d'une exécution, la reprise dépend du prochain passage du cron et peut donc ajouter jusqu'à environ une minute de décalage.
 
 ### Configuration nécessaire
 
 1. Appliquer les nouvelles migrations `20261124180000_email_campaign_queue.sql` et `20261124181000_email_campaign_sent_timestamp.sql` dans Supabase, après les migrations e-mail précédentes.
-2. Ajouter une variable d'environnement Vercel `CRON_SECRET` contenant une valeur aléatoire longue et privée. Ne jamais la committer dans Git.
-3. Redéployer le projet pour activer le cron `/api/cron/email-campaigns`.
-4. Vérifier le premier lancement avec une petite campagne de test et un compte SMTP valide.
+2. Appliquer aussi la migration `20261124183000_email_campaign_multiple_senders.sql` pour activer la sélection de plusieurs comptes SMTP.
+3. Ajouter une variable d'environnement Vercel `CRON_SECRET` contenant une valeur aléatoire longue et privée. Ne jamais la committer dans Git.
+4. Redéployer le projet pour activer le cron `/api/cron/email-campaigns`.
+5. Vérifier le premier lancement avec une petite campagne de test et un compte SMTP valide.
 
 Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionné dans `main`.
 
