@@ -320,7 +320,7 @@ export function CampagnesView({
                       >
                         <span className="campaign-member-trigger-copy">
                           <strong>{formMemberIds.length ? `${formMemberIds.length} membre(s) sélectionné(s)` : 'Choisir les membres'}</strong>
-                          <small>{formMemberIds.length ? teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => `${member.prenom} ${member.nom}`).join(', ') : 'Tous les membres disponibles'}</small>
+                          <small>{formMemberIds.length ? teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => `${member.prenom} ${member.nom}`).join(', ') : 'Aucun membre sélectionné'}</small>
                         </span>
                         <ChevronDown size={17} aria-hidden="true" />
                       </button>
