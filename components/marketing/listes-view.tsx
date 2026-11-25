@@ -211,8 +211,11 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        if (!controller.signal.aborted) toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
-      } finally { if (!controller.signal.aborted) setContactsLoading(false) }
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return
+        toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
+      } finally {
+        if (!controller.signal.aborted) setContactsLoading(false)
+      }
     }
     void loadContactPage()
     return () => controller.abort()
