@@ -48,6 +48,7 @@ export function CampagnesView({
   campagneListes,
   campagneMembres,
   teamUsers,
+  contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
