@@ -117,7 +117,7 @@ export function EmailSenderView({listes,listeContacts,contactListCounts,isAdmin}
   <div className="email-picker-popover">
    <label className="email-picker-search"><Search size={15}/><input value={listQuery} onChange={e=>setListQuery(e.target.value)} placeholder="Rechercher une liste…"/></label>
    <div className="email-picker-options">{filteredLists.map(l=><label key={l.id} className="email-picker-option"><input type="checkbox" disabled={editingId!==null} checked={listeIds.includes(l.id)} onChange={e=>setListeIds(ids=>e.target.checked?[...ids,l.id]:ids.filter(id=>id!==l.id))}/><span><strong>{l.nom}</strong><small>{(contactListCounts[l.id] ?? 0)} contacts</small></span></label>)}{!filteredLists.length&&<p className="email-picker-empty">Aucune liste trouvée.</p>}</div>
-   <div className="email-picker-footer"><span>{listeIds.length} sélectionnée(s) · {listeIds.reduce((total,id)=>total+(contactListCounts[id]??0),0)} contacts uniques</span><button type="button" onClick={()=>setListQuery('')}>Effacer la recherche</button></div>
+   <div className="email-picker-footer"><span>{listeIds.length} sélectionnée(s) · {listeIds.reduce((total,id)=>total+(contactListCounts[id]??0),0)} contacts au total</span><button type="button" onClick={()=>setListQuery('')}>Effacer la recherche</button></div>
   </div>
  </details>
  <div className="email-selected-chips">{selectedLists.map(x=><span key={x.id}>{x.nom}</span>)}</div>
