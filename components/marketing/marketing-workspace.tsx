@@ -269,11 +269,20 @@ export function MarketingWorkspace() {
       setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
       setListes(Array.isArray(result.listes) ? result.listes : [])
       setContacts([])
-      const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
-      const countData = await countResponse.json()
-      if (!countResponse.ok) throw new Error(countData.error || 'Impossible de compter les contacts.')
-      setContactsCount(Number(countData.total ?? 0))
-      setContactListCounts(countData.listCounts ?? {})
+      try {
+        const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
+        const countData = await countResponse.json()
+        if (countResponse.ok) {
+          setContactsCount(Number(countData.total ?? 0))
+          setContactListCounts(countData.listCounts ?? {})
+        } else {
+          setContactsCount(0)
+          setContactListCounts({})
+        }
+      } catch {
+        setContactsCount(0)
+        setContactListCounts({})
+      }
       setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
       setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
       setListeContacts([])
