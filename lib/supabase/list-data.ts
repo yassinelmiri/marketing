@@ -32,3 +32,32 @@ export async function createListe(
     created_by: Number(data.created_by ?? 0),
   }
 }
+
+export async function updateListe(
+  id: number,
+  patch: Partial<Pick<ListeContact, 'nom' | 'description' | 'cible' | 'note' | 'ajoute_par_nom'>>,
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('listes')
+    .update({
+      ...patch,
+      description: patch.description || null,
+      cible: patch.cible || null,
+      note: patch.note || null,
+      ajoute_par_nom: patch.ajoute_par_nom || null,
+      date_modification: new Date().toISOString(),
+    })
+    .eq('id', id)
+  throwIfError(error)
+}
+
+export async function deleteListe(id: number): Promise<void> {
+  const supabase = createClient()
+  const { error: contactLinksError } = await supabase.from('liste_contacts').delete().eq('liste_id', id)
+  throwIfError(contactLinksError)
+  const { error: campaignLinksError } = await supabase.from('campagne_listes').delete().eq('liste_id', id)
+  throwIfError(campaignLinksError)
+  const { error } = await supabase.from('listes').delete().eq('id', id)
+  throwIfError(error)
+}
