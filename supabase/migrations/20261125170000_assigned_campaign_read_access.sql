@@ -4,7 +4,7 @@ begin;
 
 drop policy if exists campagnes_module_access on public.campagnes;
 create policy campagnes_module_access on public.campagnes
-  as permissive for all to authenticated
+  as permissive for select to authenticated
   using (
     public.has_permission('campagne.read')
     or exists (
@@ -12,8 +12,7 @@ create policy campagnes_module_access on public.campagnes
       join public.user_profiles p on p.id = cm.user_id
       where cm.campagne_id = campagnes.id and p.auth_user_id = auth.uid()
     )
-  )
-  with check (public.has_permission('campagne.read'));
+  );
 
 drop policy if exists campagnes_module_guard on public.campagnes;
 create policy campagnes_module_guard on public.campagnes
@@ -30,7 +29,7 @@ create policy campagnes_module_guard on public.campagnes
 
 drop policy if exists campagne_listes_module_access on public.campagne_listes;
 create policy campagne_listes_module_access on public.campagne_listes
-  as permissive for all to authenticated
+  as permissive for select to authenticated
   using (
     public.has_permission('campagne.read')
     or exists (
@@ -38,8 +37,7 @@ create policy campagne_listes_module_access on public.campagne_listes
       join public.user_profiles p on p.id = cm.user_id
       where cm.campagne_id = campagne_listes.campagne_id and p.auth_user_id = auth.uid()
     )
-  )
-  with check (public.has_permission('campagne.read'));
+  );
 
 drop policy if exists campagne_listes_module_guard on public.campagne_listes;
 create policy campagne_listes_module_guard on public.campagne_listes
