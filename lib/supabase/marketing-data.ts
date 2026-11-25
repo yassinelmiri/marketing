@@ -17,6 +17,7 @@ export interface MarketingData {
   listes: ListeContact[]
   campagneListes: CampagneListe[]
   typesCampagnes: TypeCampagne[]
+  campagneMembres: { id: number; campagne_id: number; user_id: number }[]
 }
 
 export async function loadMarketingData(): Promise<MarketingData> {
@@ -28,12 +29,14 @@ export async function loadMarketingData(): Promise<MarketingData> {
     listesResult,
     campagneListesResult,
     typesResult,
+    campagneMembresResult,
   ] = await Promise.all([
     supabase.from('campagnes').select('id, type_campagne_id, user_id, titre, cible, note, status, date_creation, date_modification').order('date_modification', { ascending: false }),
     supabase.from('commentaires').select('id, campagne_id, user_id, contenu, date_creation').order('date_creation', { ascending: true }),
     supabase.from('listes').select('id, nom, description, cible, note, ajoute_par_nom, date_creation, date_modification, created_by').order('date_creation', { ascending: false }),
     supabase.from('campagne_listes').select('id, campagne_id, liste_id, date_ajout'),
     supabase.from('type_campagnes').select('id, nom, code, description, icone, actif, date_creation, created_by').eq('actif', true).order('nom'),
+    supabase.from('campagne_membres').select('id, campagne_id, user_id'),
   ])
 
   const errors = [
@@ -42,6 +45,7 @@ export async function loadMarketingData(): Promise<MarketingData> {
     listesResult.error,
     campagneListesResult.error,
     typesResult.error,
+    campagneMembresResult.error,
   ]
   const firstError = errors.find(Boolean)
   throwIfError(firstError ?? null)
@@ -77,6 +81,7 @@ export async function loadMarketingData(): Promise<MarketingData> {
       campagne_id: Number(row.campagne_id),
       liste_id: Number(row.liste_id),
     })),
+    campagneMembres: (campagneMembresResult.data ?? []).map((row) => ({ id: Number(row.id), campagne_id: Number(row.campagne_id), user_id: Number(row.user_id) })),
     typesCampagnes: (typesResult.data ?? []).map((row) => ({
       ...row,
       id: Number(row.id),
@@ -369,4 +374,14 @@ export async function importContactsToListe(
   }
 
   return { created, errors }
+}
+
+export async function setCampagneMembres(campagneId: number, userIds: number[]): Promise<void> {
+  const supabase = createClient()
+  const { error: deleteError } = await supabase.from('campagne_membres').delete().eq('campagne_id', campagneId)
+  throwIfError(deleteError)
+  const uniqueIds = [...new Set(userIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
+  if (!uniqueIds.length) return
+  const { error } = await supabase.from('campagne_membres').insert(uniqueIds.map((user_id) => ({ campagne_id: campagneId, user_id })))
+  throwIfError(error)
 }
