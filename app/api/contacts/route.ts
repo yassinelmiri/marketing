@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const searchFilter = search
       ? 'nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%'
       : null
-    const result = await (async () => {
+    const resultPromise = (async () => {
       if (Number.isSafeInteger(listId) && listId > 0) {
         let filtered = supabase.from('contacts')
           .select(CONTACT_COLUMNS + ',liste_contacts!inner(liste_id)', { count: 'exact' })
@@ -54,8 +54,12 @@ export async function GET(request: NextRequest) {
       if (searchFilter) filtered = filtered.or(searchFilter)
       return filtered.order('date_creation', { ascending: false }).range(from, to)
     })()
+    const [result, totalResult] = await Promise.all([
+      resultPromise,
+      supabase.from('contacts').select('id', { count: 'exact', head: true }),
+    ])
     const { data: rows, count, error } = result
-    const { count: totalCount, error: totalError } = await supabase.from('contacts').select('id', { count: 'exact', head: true })
+    const { count: totalCount, error: totalError } = totalResult
     if (error || totalError) throw error || totalError
 
     const contactIds = (rows ?? []).map((row) => Number(row.id)).filter(Number.isSafeInteger)
