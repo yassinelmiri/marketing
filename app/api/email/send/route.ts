@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import nodemailer from 'nodemailer'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sameOriginError } from '@/lib/api/request-security'
+import { authorizeEmailAccess } from '@/lib/api/email-auth'
 import { decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
 
 export const runtime = 'nodejs'
@@ -22,22 +22,10 @@ function getPublicOrigin(request: NextRequest) {
   return request.nextUrl.origin
 }
 
-async function authorizedSession() {
-  const session = await createClient()
-  const { data: auth, error: authError } = await session.auth.getUser()
-  if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
-  const { data: profile, error: profileError } = await session.from('user_profiles')
-    .select('*').eq('auth_user_id', auth.user.id).maybeSingle()
-  if (profileError || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
-  const isAdmin = Number(profile.role_id) === 1
-  const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
-  if (permissionError || (!isAdmin && !allowed)) return { error: NextResponse.json({ error: 'Vous ne disposez pas de l’autorisation d’accès au module e-mail.' }, { status: 403 }) }
-  return { session, profile, user: auth.user }
-}
 
 export async function GET(request: NextRequest) {
-  const auth = await authorizedSession()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
@@ -115,8 +103,8 @@ export async function POST(request: NextRequest) {
   let campaignId: number | null = null
   const admin = createAdminClient()
   try {
-    const auth = await authorizedSession()
-    if ('error' in auth) return auth.error
+    const auth = await authorizeEmailAccess()
+    if ('response' in auth) return auth.response
 
     const body = await request.json()
     const publicOrigin = getPublicOrigin(request)
