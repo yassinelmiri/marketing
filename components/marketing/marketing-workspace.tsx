@@ -697,14 +697,12 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               listes={listes}
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
-              contactListCounts={contactListCounts}
               teamUsers={teamUsers}
               campagneMembres={campagneMembres}
               onSetMembres={handleSetCampagneMembres}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
-              onSetListes={handleSetCampagneListes}
               onOpenListes={() => {
                 setActiveView('listes')
                 setVisitedViews((current) => current.includes('listes') ? current : [...current, 'listes'])
