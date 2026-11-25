@@ -29,7 +29,6 @@ import {
   deleteListe as deleteListeInDb,
   createContact,
   updateContact,
-  deleteContact as deleteContactInDb,
   setContactListes,
   setCampagneListes,
   importContactsToListe,
@@ -147,6 +146,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
   }, [contactSearch])
 
   useEffect(() => {
+    setSelectedContactIds([])
     const controller = new AbortController()
     async function loadContactPage() {
       if (!selectedListeId) { setContacts([]); setContactLinks([]); setContactTotal(0); setSelectedListCount(0); return }
@@ -169,7 +169,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     }
     void loadContactPage()
     return () => controller.abort()
-    setSelectedContactIds([])
   }, [selectedListeId, contactPage, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
