@@ -26,6 +26,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const setListeIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedListIds(typeof value==='function'?value(listeIds):value))
  const [listQuery,setListQuery]=useState(''),[senderQuery,setSenderQuery]=useState('')
  const senderInitializationDone=useRef(false)
+ const refreshAbortController=useRef<AbortController|null>(null)
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
  const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
@@ -35,8 +36,47 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const filteredSenders=useMemo(()=>active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(senderQuery.toLowerCase())),[active,senderQuery])
  const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
  const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
- async function refresh(showLoading=true){if(showLoading)setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!senderInitializationDone.current){senderInitializationDone.current=true;if(!smtpIds.length&&ds[0].accounts?.length){const first=ds[0].accounts.find((x:SMTP)=>x.is_active);if(first)setSmtpIds([first.id])}}}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{if(showLoading)setLoading(false)}}
- useEffect(()=>{void refresh();const timer=window.setInterval(()=>void refresh(false),15000);return()=>window.clearInterval(timer)},[])
+ async function refresh(showLoading=true){
+  refreshAbortController.current?.abort()
+  const controller=new AbortController()
+  refreshAbortController.current=controller
+  if(showLoading)setLoading(true)
+  try{
+   const endpoints=['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes']
+   const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store',signal:controller.signal})))
+   const data=await Promise.all(responses.map(response=>response.json()))
+   const failedIndex=responses.findIndex(response=>!response.ok)
+   if(failedIndex>=0)throw new Error(data[failedIndex].error||'Erreur de chargement des données e-mail.')
+   if(controller.signal.aborted)return
+   setAccounts(data[0].accounts||[])
+   setCampaigns(data[1].campaigns||[])
+   setTemplates(data[2].templates||[])
+   setUnsubs(data[3].unsubscribes||[])
+   if(!senderInitializationDone.current){
+    senderInitializationDone.current=true
+    if(!smtpIds.length&&data[0].accounts?.length){
+     const first=data[0].accounts.find((account:SMTP)=>account.is_active)
+     if(first)setSmtpIds([first.id])
+    }
+   }
+  }catch(error){
+   if(!controller.signal.aborted)setError(error instanceof Error?error.message:'Erreur de chargement')
+  }finally{
+   if(refreshAbortController.current===controller){
+    refreshAbortController.current=null
+    if(showLoading)setLoading(false)
+   }
+  }
+ }
+ useEffect(()=>{
+  void refresh()
+  const timer=window.setInterval(()=>void refresh(false),15000)
+  return()=>{
+   window.clearInterval(timer)
+   refreshAbortController.current?.abort()
+   refreshAbortController.current=null
+  }
+ },[])
  function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
  async function openActivity(kind:string){
   setActivityKind(kind);setActivitySearch('');setActivityLoading(true);setActivity([]);
