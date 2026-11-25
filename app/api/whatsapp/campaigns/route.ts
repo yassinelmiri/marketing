@@ -224,6 +224,10 @@ export async function PATCH(request: NextRequest) {
       .eq('id', campaignId)
       .eq('user_id', auth.userId)
     if (error) return NextResponse.json({ error: 'Enregistrement du message impossible.' }, { status: 500 })
+    const { error: logError } = await auth.admin.from('whatsapp_campaign_activity_logs').insert({
+      campaign_id: campaignId, user_id: auth.userId, event_type: 'message_updated',
+    })
+    if (logError) console.error('[whatsapp/campaigns] message audit failed:', logError.message)
     return NextResponse.json({ success: true })
   }
 
@@ -232,6 +236,14 @@ export async function PATCH(request: NextRequest) {
     const status = body.recipient_status
     if (!Number.isSafeInteger(recipientId) || recipientId <= 0 || !validRecipientStatus(status)) {
       return NextResponse.json({ error: 'Destinataire ou statut invalide.' }, { status: 400 })
+    }
+
+    const { data: existingRecipient, error: existingRecipientError } = await auth.admin
+      .from('whatsapp_campaign_recipients').select('id,status')
+      .eq('id', recipientId).eq('campaign_id', campaignId).maybeSingle()
+    if (existingRecipientError || !existingRecipient) return NextResponse.json({ error: 'Destinataire introuvable.' }, { status: 404 })
+    if (['sent','failed','skipped'].includes(existingRecipient.status) && existingRecipient.status !== status) {
+      return NextResponse.json({ error: 'Un destinataire déjà traité ne peut pas être réouvert.' }, { status: 409 })
     }
 
     const { data: updatedRecipient, error } = await auth.admin
@@ -245,7 +257,7 @@ export async function PATCH(request: NextRequest) {
 
     const { error: logError } = await auth.admin.from('whatsapp_campaign_activity_logs').insert({
       campaign_id: campaignId, recipient_id: recipientId, user_id: auth.userId,
-      event_type: 'recipient_status', new_status: status,
+      event_type: 'recipient_status', old_status: existingRecipient.status, new_status: status,
     })
     if (logError) console.error('[whatsapp/campaigns] activity log failed:', logError.message)
 
@@ -278,5 +290,10 @@ export async function PATCH(request: NextRequest) {
     .eq('user_id', auth.userId)
 
   if (error) return NextResponse.json({ error: 'Mise à jour de la campagne impossible.' }, { status: 500 })
+  const { error: logError } = await auth.admin.from('whatsapp_campaign_activity_logs').insert({
+    campaign_id: campaignId, user_id: auth.userId, event_type: 'campaign_status',
+    old_status: campaign.status, new_status: status,
+  })
+  if (logError) console.error('[whatsapp/campaigns] status audit failed:', logError.message)
   return NextResponse.json({ success: true, status })
 }
