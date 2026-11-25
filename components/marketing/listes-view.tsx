@@ -132,6 +132,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const [showListeForm, setShowListeForm] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
   const [listeForm, setListeForm] = useState(emptyListeForm)
+  const [listeCampagneId, setListeCampagneId] = useState('')
   const [listeSearch, setListeSearch] = useState('')
   const [listeDateFilter, setListeDateFilter] = useState('all')
   const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
@@ -238,6 +239,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
     setEditingListe(null)
+    setListeCampagneId('')
     const me = user
     setListeForm({
       nom: '',
@@ -288,6 +290,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           created_by: user.id,
         })
         listeId = created.id
+        if (listeCampagneId) await setCampagneListes(Number(listeCampagneId), [created.id])
         setSelectedListeId(created.id)
       }
 
@@ -721,6 +724,14 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   <span>Nom de la liste</span>
                   <input value={listeForm.nom} onChange={(e) => setListeForm({ ...listeForm, nom: e.target.value })} placeholder="Prospects Q1" />
                 </label>
+                {!editingListe && <label className="form-grid-full">
+                  <span>Campagne associée (facultatif)</span>
+                  <select value={listeCampagneId} onChange={(e) => setListeCampagneId(e.target.value)}>
+                    <option value="">Aucune campagne</option>
+                    {allCampagnes.map((campagne) => <option key={campagne.id} value={campagne.id}>{campagne.titre}</option>)}
+                  </select>
+                  <small className="form-hint">Une liste peut être associée à une seule campagne. Une campagne peut contenir plusieurs listes.</small>
+                </label>}
                 <label className="form-grid-full">
                   <span>Cible</span>
                   <input value={listeForm.cible} onChange={(e) => setListeForm({ ...listeForm, cible: e.target.value })} placeholder="Prospects, clients VIP, secteur retail…" />
