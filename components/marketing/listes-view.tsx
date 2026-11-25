@@ -209,7 +209,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        // AbortController cancellation is expected when filters/pages change or the view unmounts.
+        // Ignore failures from an effect that has already been replaced or unmounted.
         // DOMException is not guaranteed to extend Error in every browser/runtime.
         const isAbortError = typeof error === 'object'
           && error !== null
