@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,13 +36,20 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = sameOriginError(request)
+  if (originError) return originError
+
   const access = await auth()
   if ('error' in access) return access.error
 
   try {
-    const body = await request.json()
-    const email = String(body.email ?? '').trim().toLowerCase()
-    const reason = String(body.reason ?? '').trim().slice(0, 500)
+    const body: unknown = await request.json()
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
+    }
+    const payload = body as Record<string, unknown>
+    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : ''
+    const reason = typeof payload.reason === 'string' ? payload.reason.trim().slice(0, 500) : ''
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Adresse e-mail invalide.' }, { status: 400 })
     }
