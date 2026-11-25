@@ -84,6 +84,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
   const [contactSearch, setContactSearch] = useState('')
   const [debouncedContactSearch, setDebouncedContactSearch] = useState('')
   const [contactsLoading, setContactsLoading] = useState(false)
+  const [contactsReloadKey, setContactsReloadKey] = useState(0)
 
   const [showListeForm, setShowListeForm] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
@@ -162,7 +163,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     }
     void loadContactPage()
     return () => controller.abort()
-  }, [selectedListeId, contactPage, debouncedContactSearch, toast])
+  }, [selectedListeId, contactPage, debouncedContactSearch, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
@@ -244,6 +245,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
 
       toast.success(editingListe ? 'Liste mise à jour' : 'Liste créée')
       setShowListeForm(false)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
@@ -255,6 +257,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       await deleteListeInDb(l.id)
       if (selectedListeId === l.id) setSelectedListeId(null)
       toast.success('Liste supprimée', `« ${l.nom} » retirée.`)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
@@ -377,6 +380,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       setShowImport(false)
       setImportRows([])
       setImportFileName('')
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Import impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
