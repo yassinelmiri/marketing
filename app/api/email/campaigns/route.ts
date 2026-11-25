@@ -1,28 +1,18 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sameOriginError } from '@/lib/api/request-security'
+import { authorizeEmailAccess } from '@/lib/api/email-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 
-async function authorized() {
-  const session = await createClient()
-  const { data: auth, error: authError } = await session.auth.getUser()
-  if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
-  const { data: profile, error } = await session.from('user_profiles').select('*').eq('auth_user_id', auth.user.id).maybeSingle()
-  if (error || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
-  const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
-  if (Number(profile.role_id) !== 1 && (permissionError || !allowed)) return { error: NextResponse.json({ error: 'Accès e-mail refusé.' }, { status: 403 }) }
-  return { profile, user: auth.user }
-}
 
 export async function POST(request: NextRequest) {
   const origin = sameOriginError(request)
   if (origin) return origin
-  const auth = await authorized()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
 
   try {
     const body = await request.json()
@@ -94,8 +84,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const origin = sameOriginError(request)
   if (origin) return origin
-  const auth = await authorized()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
 
   try {
     const body = await request.json()
@@ -167,8 +157,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const origin = sameOriginError(request)
   if (origin) return origin
-  const auth = await authorized()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
   try {
     const body = await request.json()
     const id = Number(body.id)
