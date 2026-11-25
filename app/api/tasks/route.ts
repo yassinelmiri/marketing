@@ -220,10 +220,10 @@ export async function POST(request: NextRequest) {
   const description = cleanText(body.description, 5000)
   const recurrenceFrequency = body.recurrence_frequency ?? task.recurrence_frequency ?? 'none'
   const recurrenceInterval = Math.max(1, Math.min(365, Number(body.recurrence_interval ?? task.recurrence_interval) || 1))
-  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
+  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
   const recurrenceFrequency = body.recurrence_frequency ?? task.recurrence_frequency ?? 'none'
   const recurrenceInterval = Math.max(1, Math.min(365, Number(body.recurrence_interval ?? task.recurrence_interval) || 1))
-  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
+  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
   const priority = body.priority
   const status = body.status
   const dueDate =
@@ -363,7 +363,7 @@ export async function PATCH(request: NextRequest) {
   const description = cleanText(body.description, 5000)
   const recurrenceFrequency = body.recurrence_frequency ?? task.recurrence_frequency ?? 'none'
   const recurrenceInterval = Math.max(1, Math.min(365, Number(body.recurrence_interval ?? task.recurrence_interval) || 1))
-  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
+  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : body.recurrence_until === null ? null : (task.recurrence_until ?? null)
   if (!title || !validPriority(body.priority) || !validStatus(body.status) || !validRecurrence(recurrenceFrequency)) {
     return NextResponse.json({ error: 'Titre, priorité ou statut invalide.' }, { status: 400 })
   }
