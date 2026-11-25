@@ -41,6 +41,7 @@ interface ListesViewProps {
   listes: ListeContact[]
   campagnes: Campagne[]
   campagneListes: CampagneListe[]
+  campagneMembres: { id: number; campagne_id: number; user_id: number }[]
   teamUsers: User[]
   onRefresh: () => void
   contactCount: number
@@ -108,7 +109,7 @@ const emptyListeForm = {
   campagne_ids: [] as number[],
 }
 
-export function ListesView({ user, listes, campagnes, campagneListes, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
+export function ListesView({ user, listes, campagnes, campagneListes, campagneMembres, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
   const toast = useToast()
 
   const [selectedListeId, setSelectedListeId] = useState<number | null>(listes[0]?.id ?? null)
@@ -159,7 +160,10 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
   const visibleListes = useMemo(() => {
     const query = listeSearch.trim().toLocaleLowerCase('fr')
     const now = new Date()
-    const filtered = listes.filter((liste) => {
+    const assignedCampaignIds = campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id)
+    const assignedListeIds = campagneListes.filter((link) => assignedCampaignIds.includes(link.campagne_id)).map((link) => link.liste_id)
+    const availableLists = Number(user.role_id) === 1 ? listes : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.includes(liste.id))
+    const filtered = availableLists.filter((liste) => {
       const matchesText = !query || [liste.nom, liste.description, liste.cible]
         .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
       if (!matchesText) return false
@@ -178,7 +182,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       const delta = new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime()
       return listeSort === 'date-asc' ? delta : -delta
     })
-  }, [listes, listeSearch, listeDateFilter, listeSort])
+  }, [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
   const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
@@ -523,15 +527,15 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
           <div className="workspace-toolbar data-list-toolbar">
             <label className="data-search-field">
               <Search aria-hidden="true" />
-              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => setListeSearch(e.target.value)} placeholder="Rechercher une liste…" />
+              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => { setListeSearch(e.target.value); setListePage(1) }} placeholder="Rechercher une liste…" />
             </label>
-            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => setListeDateFilter(e.target.value)} className="workspace-select">
+            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => { setListeDateFilter(e.target.value); setListePage(1) }} className="workspace-select">
               <option value="all">Toutes les dates</option>
               <option value="today">Aujourd’hui</option>
               <option value="7d">7 derniers jours</option>
               <option value="30d">30 derniers jours</option>
             </select>
-            <select aria-label="Trier les listes" value={listeSort} onChange={(e) => setListeSort(e.target.value as typeof listeSort)} className="workspace-select">
+            <select aria-label="Trier les listes" value={listeSort} onChange={(e) => { setListeSort(e.target.value as typeof listeSort); setListePage(1) }} className="workspace-select">
               <option value="date-desc">Plus récentes</option>
               <option value="date-asc">Plus anciennes</option>
               <option value="name-asc">Nom A → Z</option>
