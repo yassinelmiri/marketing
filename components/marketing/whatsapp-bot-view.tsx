@@ -439,7 +439,7 @@ export function WhatsAppBotView() {
 
           {!completed && current && (
             <div className="wa-current-contact">
-              <div className="wa-current-label">DESTINATAIRE ACTUEL · {activeIndex + 1} / {stats.total}</div>
+              <div className="wa-current-label">DESTINATAIRE ACTUEL · {(savedPage - 1) * 50 + activeIndex + 1} / {stats.total}</div>
               <div className="wa-current-details"><div className="wa-contact-avatar">{(current.name || '+').charAt(0).toUpperCase()}</div><div><strong>{current.name || 'Contact sans nom'}</strong><span>+{current.phone}</span></div><span className={'wa-status wa-status-' + current.status}>{current.status === 'opened' ? 'Conversation ouverte' : 'En attente'}</span></div>
               <div className="wa-current-actions">
                 <button type="button" className="workspace-primary wa-action-button" disabled={paused || !campaignId || !consentConfirmed || !message.trim()} onClick={openCurrentChat}><ExternalLink /> Ouvrir la conversation</button>
