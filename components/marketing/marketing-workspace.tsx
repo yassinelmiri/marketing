@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, LayoutDashboard, LogOut, Sun, Moon } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
 import { CampagnesView } from './campagnes-view'
@@ -60,7 +60,6 @@ export function MarketingWorkspace() {
   const supabase = useMemo(() => createClient(), [])
 
   const [mounted, setMounted] = useState(false)
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -87,27 +86,13 @@ export function MarketingWorkspace() {
 
   useEffect(() => {
     setMounted(true)
+    document.documentElement.dataset.workspaceTheme = 'light'
     try {
-      const savedTheme = window.localStorage.getItem('anntel-workspace-theme')
-      if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme)
+      window.localStorage.setItem('anntel-workspace-theme', 'light')
     } catch {
-      // Le thème reste utilisable même si le stockage local est indisponible.
+      // Le thème clair reste actif pour la session courante.
     }
   }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-    document.documentElement.dataset.workspaceTheme = theme
-    try {
-      window.localStorage.setItem('anntel-workspace-theme', theme)
-    } catch {
-      // Le changement de thème reste actif pour la session courante.
-    }
-  }, [theme, mounted])
-
-  function toggleTheme() {
-    setTheme((current) => current === 'dark' ? 'light' : 'dark')
-  }
 
   // ============================================================
   // SUPABASE AUTH + USER PROFILE
@@ -644,16 +629,6 @@ export function MarketingWorkspace() {
             </div>
           </div>
           <div className="workspace-topbar-actions">
-            <button
-              type="button"
-              className="workspace-theme-toggle"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-              title={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
-            >
-              {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-              <span>{theme === 'dark' ? 'Clair' : 'Sombre'}</span>
-            </button>
             <NotificationBell userId={currentUser.id} />
             <div className="workspace-topbar-user"><span>{userName}</span><small>{roleName}</small></div>
           </div>
