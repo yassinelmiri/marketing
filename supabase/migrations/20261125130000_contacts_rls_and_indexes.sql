@@ -49,11 +49,11 @@ language sql
 stable
 security invoker
 set search_path = public
-as $
+as $function$
   select lc.liste_id, count(*)::bigint
   from public.liste_contacts lc
   group by lc.liste_id;
-$;
+$function$;
 grant execute on function public.get_contact_list_counts() to authenticated;
 
 commit;
