@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) throw error
     const ids = (data ?? []).map((item) => Number(item.id))
-    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type,target_url,created_at').in('campaign_id', ids).order('created_at', { ascending: false }).limit(5000) : { data: [], error: null }
+    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type,target_url').in('campaign_id', ids).limit(5000) : { data: [], error: null }
     if (eventsError) throw eventsError
 
     if (request.nextUrl.searchParams.get('details') === '1') {
       const kind = request.nextUrl.searchParams.get('kind') || 'open'
       const campaignById = new Map((data ?? []).map((item) => [Number(item.id), item]))
       if (kind === 'open' || kind === 'click') {
-        const unique = new Map<string, { campaign_id: number; campaign_subject: string; recipient_email: string; event_type: string; target_url: string | null; created_at: string | null }>()
+        const unique = new Map<string, { campaign_id: number; campaign_subject: string; recipient_email: string; event_type: string; target_url: string | null; created_at: null }>()
         for (const event of (events ?? []).filter((item) => item.event_type === kind && campaignById.has(Number(item.campaign_id)))) {
           const campaignId = Number(event.campaign_id)
           const email = String(event.recipient_email ?? '')
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           if (!unique.has(key)) unique.set(key, {
             campaign_id: campaignId, campaign_subject: campaignById.get(campaignId)?.subject ?? '',
             recipient_email: email, event_type: event.event_type,
-            target_url: targetUrl, created_at: event.created_at ?? null,
+            target_url: targetUrl, created_at: null,
           })
         }
         return NextResponse.json({ details: Array.from(unique.values()), kind })
