@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
             const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + unsubscribeToken.token
             let html = /<[a-z][\s\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
             if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
-            await transporter.sendMail({
+            const mailOptions = {
               from: { name: smtp.from_name || smtp.name, address: smtp.email },
               to: recipient,
               ...(replyTo ? { replyTo } : {}),
@@ -210,7 +210,8 @@ export async function POST(request: NextRequest) {
               },
               html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
               text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
-            })
+            }
+            await transporter.sendMail(mailOptions)
             sent += 1
           } catch (error) { console.error('[email/send] delivery failed:', error); failures.push(recipient) }
         }
