@@ -127,9 +127,15 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const visibleListes = useMemo(() => {
     const query = listeSearch.trim().toLocaleLowerCase('fr')
     const now = new Date()
-    const assignedCampaignIds = campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id)
-    const assignedListeIds = campagneListes.filter((link) => assignedCampaignIds.includes(link.campagne_id)).map((link) => link.liste_id)
-    const availableLists = Number(user.role_id) === 1 ? listes : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.includes(liste.id))
+    const assignedCampaignIds = new Set(campagneMembres
+      .filter((assignment) => assignment.user_id === user.id)
+      .map((assignment) => assignment.campagne_id))
+    const assignedListeIds = new Set(campagneListes
+      .filter((link) => assignedCampaignIds.has(link.campagne_id))
+      .map((link) => link.liste_id))
+    const availableLists = Number(user.role_id) === 1
+      ? listes
+      : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.has(liste.id))
     const filtered = availableLists.filter((liste) => {
       const matchesText = !query || [liste.nom, liste.description, liste.cible]
         .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
@@ -161,6 +167,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     setSelectedContactIds([])
 
     async function loadContactPage() {
@@ -180,7 +187,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         if (contactDateFrom) params.set('dateFrom', contactDateFrom)
         if (contactDateTo) params.set('dateTo', contactDateTo)
 
-        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
         if (!active) return
@@ -190,7 +197,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        if (!active) return
+        if (!active || (error instanceof Error && error.name === 'AbortError')) return
         toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
       } finally {
         if (active) setContactsLoading(false)
@@ -200,6 +207,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     void loadContactPage()
     return () => {
       active = false
+      controller.abort()
     }
   }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
