@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, LayoutDashboard, LogOut } from 'lucide-react'
 
@@ -53,7 +53,7 @@ type WorkspaceProfile = {
   role_id: number | string
 }
 
-export function MarketingWorkspace() {
+export function MarketingWorkspace({ initialData = null }: { initialData?: Awaited<ReturnType<typeof import('@/lib/supabase/workspace-initial-data').loadWorkspaceInitialData>> | null }) {
   const router = useRouter()
   const toast = useToast()
 
@@ -70,14 +70,15 @@ export function MarketingWorkspace() {
   // Conserver les écrans déjà ouverts montés pour préserver leur état lors de la navigation.
   const [visitedViews, setVisitedViews] = useState<string[]>(['dashboard'])
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [campagnes, setCampagnes] = useState<Campagne[]>([])
-  const [commentaires, setCommentaires] = useState<Commentaire[]>([])
-  const [listes, setListes] = useState<ListeContact[]>([])
+  const initialDataHydrated = useRef(false)
+  const [campagnes, setCampagnes] = useState<Campagne[]>(initialData?.campagnes ?? [])
+  const [commentaires, setCommentaires] = useState<Commentaire[]>(initialData?.commentaires ?? [])
+  const [listes, setListes] = useState<ListeContact[]>(initialData?.listes ?? [])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactsCount, setContactsCount] = useState(0)
   const [contactListCounts, setContactListCounts] = useState<Record<number, number>>({})
-  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
-  const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
+  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>(initialData?.typesCampagnes ?? [])
+  const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>(initialData?.campagneListes ?? [])
   const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
   const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
@@ -264,10 +265,16 @@ export function MarketingWorkspace() {
   async function refresh() {
     if (!currentUser) return
     try {
-      const result = await loadMarketingData()
-      setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
-      setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
-      setListes(Array.isArray(result.listes) ? result.listes : [])
+      if (initialData && !initialDataHydrated.current) {
+        initialDataHydrated.current = true
+      } else {
+        const result = await loadMarketingData()
+        setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
+        setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
+        setListes(Array.isArray(result.listes) ? result.listes : [])
+        setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
+        setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
+      }
       setContacts([])
       try {
         const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
@@ -283,8 +290,6 @@ export function MarketingWorkspace() {
         setContactsCount(0)
         setContactListCounts({})
       }
-      setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
-      setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
       setListeContacts([])
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError
