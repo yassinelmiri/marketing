@@ -208,7 +208,13 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        if (!active || (error instanceof Error && error.name === 'AbortError')) return
+        // AbortController cancellation is expected when filters/pages change or the view unmounts.
+        // DOMException is not guaranteed to extend Error in every browser/runtime.
+        const isAbortError = typeof error === 'object'
+          && error !== null
+          && 'name' in error
+          && error.name === 'AbortError'
+        if (!active || isAbortError) return
         toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
       } finally {
         if (active) setContactsLoading(false)
