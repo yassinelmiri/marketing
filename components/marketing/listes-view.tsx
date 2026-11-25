@@ -270,7 +270,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     }
 
     try {
-      let listeId: number
       if (editingListe) {
         await updateListe(editingListe.id, {
           nom: listeForm.nom.trim(),
@@ -279,7 +278,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           note: listeForm.note,
           ajoute_par_nom: listeForm.ajoute_par_nom,
         })
-        listeId = editingListe.id
       } else {
         const created = await createListe({
           nom: listeForm.nom.trim(),
@@ -289,8 +287,14 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           ajoute_par_nom: `${user.prenom} ${user.nom}`.trim(),
           created_by: user.id,
         })
-        listeId = created.id
-        if (listeCampagneId) await setCampagneListes(Number(listeCampagneId), [created.id])
+        if (listeCampagneId) {
+          try {
+            await setCampagneListes(Number(listeCampagneId), [created.id])
+          } catch (error) {
+            await deleteListeInDb(created.id)
+            throw error
+          }
+        }
         setSelectedListeId(created.id)
       }
 
