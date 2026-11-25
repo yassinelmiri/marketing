@@ -5,9 +5,9 @@ import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
   MessageCircle, Pause, Play, RefreshCw, SkipForward, Upload, XCircle,
 } from 'lucide-react'
-import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppImportContactStatus } from '@/lib/whatsapp/file-parser'
+import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppContactStatus } from '@/lib/whatsapp/file-parser'
 
-type ContactStatus = WhatsAppImportContactStatus
+type ContactStatus = WhatsAppContactStatus
 type WhatsAppContact = WhatsAppImportContact
 type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
@@ -269,7 +269,8 @@ export function WhatsAppBotView() {
     }
   }
 
-  function exportResults() {
+  async function exportResults() {
+    const XLSX = await import('xlsx')
     const rows = contacts.map((contact) => ({
       Nom: contact.name,
       Telephone: '+' + contact.phone,
