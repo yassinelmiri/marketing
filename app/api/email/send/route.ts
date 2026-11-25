@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, created_by_name, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, failed_recipients, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, created_by_name, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             target_url: targetUrl, created_at: null,
           })
         }
-        return NextResponse.json({ details: Array.from(unique.values()), kind })
+        return NextResponse.json({ details: Array.from(unique.values()), kind }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
       }
       if (kind === 'sent' || kind === 'failed' || kind === 'unread') {
         const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
@@ -95,9 +95,9 @@ export async function GET(request: NextRequest) {
           recipient_email: String(row.email), event_type: kind, target_url: null,
           created_at: row.processed_at ?? campaignById.get(Number(row.campaign_id))?.sent_at ?? null,
         }))
-        return NextResponse.json({ details, kind, total: Number(total ?? 0), page, pageSize, totalPages: Math.max(1, Math.ceil(Number(total ?? 0) / pageSize)) })
+        return NextResponse.json({ details, kind, total: Number(total ?? 0), page, pageSize, totalPages: Math.max(1, Math.ceil(Number(total ?? 0) / pageSize)) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
       }
-      return NextResponse.json({ details: [], kind })
+      return NextResponse.json({ details: [], kind }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
     }
     const counts = new Map<number, { opens: Set<string>; clicks: Set<string> }>()
     for (const event of events ?? []) {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       if (recipient && event.event_type === 'click') value.clicks.add(recipient)
       counts.set(id, value)
     }
-    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })) })
+    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {
     console.error('[email/history] failed:', error)
     return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
