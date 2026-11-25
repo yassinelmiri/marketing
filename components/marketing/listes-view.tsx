@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import {
   CONTACT_IMPORT_COLUMNS,
-  parseCsv,
   type Contact,
   type ListeContact,
   type User,
@@ -36,6 +35,8 @@ import {
 } from '@/lib/supabase/marketing-data'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
+import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
+import { parseContactImportFile } from '@/lib/contacts/file-parser'
 
 interface ListesViewProps {
   user: User
@@ -49,42 +50,7 @@ interface ListesViewProps {
   contactListCounts: Record<number, number>
 }
 
-const IMPORT_FIELD_OPTIONS = [
-  { value: 'nom', label: 'Nom' },
-  { value: 'prenom', label: 'Prénom' },
-  { value: 'reseau_social', label: 'Raison sociale / Segment' },
-  { value: 'telephone', label: 'Téléphone' },
-  { value: 'mobile', label: 'Mobile' },
-  { value: 'address', label: 'Adresse' },
-  { value: 'code_postal', label: 'Code postal' },
-  { value: 'ville', label: 'Ville' },
-  { value: 'email', label: 'E-mail' },
-  { value: 'profile', label: 'Profil / URL' },
-  { value: 'commentaire', label: 'Commentaire' },
-] as const
-
-function buildImportMapping(headers: string[]): Record<string, string> {
-  const aliases: Record<string, string[]> = {
-    nom: ['nom', 'name', 'lastname', 'last name', 'nom de famille'],
-    prenom: ['prenom', 'prénom', 'firstname', 'first name'],
-    reseau_social: ['raison sociale', 'raison_sociale', 'societe', 'société', 'segment', 'reseau social'],
-    telephone: ['telephone', 'téléphone', 'phone', 'tel'],
-    mobile: ['mobile', 'portable', 'cellulaire'],
-    address: ['adresse', 'address', 'rue'],
-    code_postal: ['code postal', 'code_postal', 'postal code', 'zip'],
-    ville: ['ville', 'city', 'localite', 'localité'],
-    email: ['email', 'e-mail', 'mail', 'courriel'],
-    profile: ['profil', 'profile', 'url', 'linkedin'],
-    commentaire: ['commentaire', 'comment', 'note', 'notes'],
-  }
-  const normalize = (value: string) => value.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/\p{M}/gu, '').replace(/[_-]/g, ' ')
-  const used = new Set<string>()
-  return Object.fromEntries(headers.map((header) => {
-    const match = IMPORT_FIELD_OPTIONS.find((option) => aliases[option.value]?.some((alias) => normalize(alias) === normalize(header)) && !used.has(option.value))
-    if (match) used.add(match.value)
-    return [header, match?.value ?? '']
-  }))
-}
+import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
 
 const emptyContactForm = {
   nom: '',
@@ -161,9 +127,15 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const visibleListes = useMemo(() => {
     const query = listeSearch.trim().toLocaleLowerCase('fr')
     const now = new Date()
-    const assignedCampaignIds = campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id)
-    const assignedListeIds = campagneListes.filter((link) => assignedCampaignIds.includes(link.campagne_id)).map((link) => link.liste_id)
-    const availableLists = Number(user.role_id) === 1 ? listes : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.includes(liste.id))
+    const assignedCampaignIds = new Set(campagneMembres
+      .filter((assignment) => assignment.user_id === user.id)
+      .map((assignment) => assignment.campagne_id))
+    const assignedListeIds = new Set(campagneListes
+      .filter((link) => assignedCampaignIds.has(link.campagne_id))
+      .map((link) => link.liste_id))
+    const availableLists = Number(user.role_id) === 1
+      ? listes
+      : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.has(liste.id))
     const filtered = availableLists.filter((liste) => {
       const matchesText = !query || [liste.nom, liste.description, liste.cible]
         .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
@@ -187,6 +159,19 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
+  const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
+  const contactListNamesByContactId = useMemo(() => {
+    const listsById = new Map(listes.map((liste) => [liste.id, liste.nom]))
+    const namesByContactId = new Map<number, string[]>()
+    for (const link of contactLinks) {
+      const listName = listsById.get(link.liste_id)
+      if (!listName) continue
+      const names = namesByContactId.get(link.contact_id) ?? []
+      names.push(listName)
+      namesByContactId.set(link.contact_id, names)
+    }
+    return namesByContactId
+  }, [contactLinks, listes])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedContactSearch(contactSearch.trim()), 300)
@@ -195,6 +180,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     setSelectedContactIds([])
 
     async function loadContactPage() {
@@ -214,7 +200,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         if (contactDateFrom) params.set('dateFrom', contactDateFrom)
         if (contactDateTo) params.set('dateTo', contactDateTo)
 
-        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
         if (!active) return
@@ -224,7 +210,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        if (!active) return
+        if (!active || (error instanceof Error && error.name === 'AbortError')) return
         toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
       } finally {
         if (active) setContactsLoading(false)
@@ -234,6 +220,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     void loadContactPage()
     return () => {
       active = false
+      controller.abort()
     }
   }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
@@ -423,42 +410,16 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   // ── Import CSV ───────────────────────────────────────
   async function handleFile(file: File) {
     setImportFileName(file.name)
-    const lower = file.name.toLowerCase()
-    if (lower.endsWith('.csv')) {
-      const text = await file.text()
-      const { headers, rows } = parseCsv(text)
+    try {
+      const { headers, rows } = await parseContactImportFile(file)
       setImportHeaders(headers)
       setImportMapping(buildImportMapping(headers))
       setImportRows(rows)
-      toast.success('CSV analysé', `${rows.length} ligne(s) détectée(s).`)
-      return
+      toast.success('Fichier analysé', `${rows.length} ligne(s) détectée(s).`)
+    } catch (error) {
+      console.error('[contacts] import file parsing failed:', error)
+      toast.error('Import impossible', error instanceof Error ? error.message : 'Impossible de lire ce fichier.')
     }
-    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
-      try {
-        const XLSX = await import('xlsx')
-        const buffer = await file.arrayBuffer()
-        const wb = XLSX.read(buffer, { type: 'array' })
-        const sheet = wb.Sheets[wb.SheetNames[0]]
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
-        const rows = json.map((row) => {
-          const obj: Record<string, string> = {}
-          Object.entries(row).forEach(([k, v]) => {
-            obj[String(k).trim()] = v == null ? '' : String(v)
-          })
-          return obj
-        })
-        const headers = Object.keys(rows[0] ?? {})
-        setImportHeaders(headers)
-        setImportMapping(buildImportMapping(headers))
-        setImportRows(rows)
-        toast.success('XLSX analysé', `${rows.length} ligne(s) détectée(s).`)
-      } catch (e) {
-        console.error(e)
-        toast.error('Erreur XLSX', 'Installez « xlsx » (npm i xlsx) ou convertissez en CSV.')
-      }
-      return
-    }
-    toast.error('Format non supporté', 'Choisissez un fichier .csv ou .xlsx.')
   }
   async function confirmImport() {
     if (!selectedListe) return
@@ -667,8 +628,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                 </thead>
                 <tbody>
                   {listeContacts.map((c) => {
-                    const author = teamUsers.find((member) => member.id === c.created_by)
-                    const contactListes = contactLinks.filter((link) => link.contact_id === c.id).map((link) => listes.find((liste) => liste.id === link.liste_id)).filter((liste): liste is ListeContact => Boolean(liste))
+                    const author = teamUsersById.get(c.created_by)
+                    const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
                       <tr key={c.id}>
                         <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
@@ -688,7 +649,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                           {c.ville || '—'}
                           <span className="campagne-table-desc">{c.code_postal}</span>
                         </td>
-                        <td>{contactListes.map((l) => l.nom).join(', ') || '—'}</td>
+                        <td>{contactListNames.join(', ') || '—'}</td>
                         <td>
                           {formatDate(c.date_creation)}
                           <span className="campagne-table-desc">
