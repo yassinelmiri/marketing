@@ -2,6 +2,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './design-system.css'
+import './workspace-feature-overrides.css'
 import { ToastProvider } from '@/components/ui/toast'
 import { ReduxProvider } from '@/components/providers/redux-provider'
 import SecurityGuard from '@/components/SecurityGuard'
