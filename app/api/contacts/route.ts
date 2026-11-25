@@ -61,25 +61,20 @@ export async function GET(request: NextRequest) {
     const searchFilter = search
       ? 'nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%'
       : null
-    const resultPromise = (async () => {
-      if (Number.isSafeInteger(listId) && listId > 0) {
-        let filtered = supabase.from('contacts')
-          .select(CONTACT_COLUMNS + ',liste_contacts!inner(liste_id)', { count: 'exact' })
-          .eq('liste_contacts.liste_id', listId)
-        if (searchFilter) filtered = filtered.or(searchFilter)
-        if (dateFrom) filtered = filtered.gte('date_creation', dateFrom + 'T00:00:00.000Z')
-        if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
-        return filtered.order('date_creation', { ascending: false }).range(from, to)
-      }
-      let filtered = supabase.from('contacts').select(CONTACT_COLUMNS, { count: 'exact' })
-      if (searchFilter) filtered = filtered.or(searchFilter)
-      if (dateFrom) filtered = filtered.gte('date_creation', dateFrom + 'T00:00:00.000Z')
-      if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
-      return filtered.order('date_creation', { ascending: false }).range(from, to)
-    })()
-    // Charger la page sans lancer un second comptage global coûteux.
-    // Le count exact ci-dessous concerne uniquement la requête filtrée de cette page.
-    const { data: rows, count, error } = await resultPromise
+    const hasListFilter = Number.isSafeInteger(listId) && listId > 0
+    let filtered = supabase.from('contacts').select(
+      hasListFilter
+        ? CONTACT_COLUMNS + ',liste_contacts!inner(id,liste_id,contact_id,date_ajout)'
+        : CONTACT_COLUMNS,
+      { count: 'exact' },
+    )
+    if (hasListFilter) filtered = filtered.eq('liste_contacts.liste_id', listId)
+    if (searchFilter) filtered = filtered.or(searchFilter)
+    if (dateFrom) filtered = filtered.gte('date_creation', dateFrom + 'T00:00:00.000Z')
+    if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
+
+    // Charger les contacts et leurs associations à la liste dans la même requête.
+    const { data: rows, count, error } = await filtered.order('date_creation', { ascending: false }).range(from, to)
     if (error) {
       console.error('[contacts] read query failed:', {
         code: error.code,
@@ -90,11 +85,18 @@ export async function GET(request: NextRequest) {
       throw error
     }
 
-    const contactIds = (rows ?? []).map((row) => Number(row.id)).filter(Number.isSafeInteger)
-    const { data: links, error: linksError } = contactIds.length
-      ? await supabase.from('liste_contacts').select('id,liste_id,contact_id,date_ajout').in('contact_id', contactIds)
-      : { data: [], error: null }
-    if (linksError) throw linksError
+    const contactIds = (rows ?? []).map((row: any) => Number(row.id)).filter(Number.isSafeInteger)
+    const links = hasListFilter
+      ? (rows ?? []).flatMap((row: any) => Array.isArray(row.liste_contacts) ? row.liste_contacts : [])
+      : await (async () => {
+          if (!contactIds.length) return []
+          const { data, error: linksError } = await supabase
+            .from('liste_contacts')
+            .select('id,liste_id,contact_id,date_ajout')
+            .in('contact_id', contactIds)
+          if (linksError) throw linksError
+          return data ?? []
+        })()
 
     const contacts = (rows ?? []).map((row: any) => ({
       ...row,
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest) {
     }))
     return NextResponse.json({
       contacts,
-      links: (links ?? []).map((link) => ({ ...link, id: Number(link.id), liste_id: Number(link.liste_id), contact_id: Number(link.contact_id) })),
+      links: links.map((link: any) => ({ ...link, id: Number(link.id), liste_id: Number(link.liste_id), contact_id: Number(link.contact_id) })),
       total: Number(count ?? 0),
       listCount: listId > 0 ? Number(count ?? 0) : 0,
       page,
