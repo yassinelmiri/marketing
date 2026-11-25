@@ -77,18 +77,17 @@ export async function GET(request: NextRequest) {
       if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
       return filtered.order('date_creation', { ascending: false }).range(from, to)
     })()
-    const [result, totalResult] = await Promise.all([
-      resultPromise,
-      supabase.rpc('get_visible_contact_total'),
-    ])
-    const { data: rows, count, error } = result
-    const { data: totalCount, error: totalError } = totalResult
-    if (error || totalError) {
-      console.error('[contacts] read query details:', {
-        queryError: error ? { code: error.code, message: error.message, details: error.details, hint: error.hint } : null,
-        totalError: totalError ? { code: totalError.code, message: totalError.message, details: totalError.details, hint: totalError.hint } : null,
+    // Charger la page sans lancer un second comptage global coûteux.
+    // Le count exact ci-dessous concerne uniquement la requête filtrée de cette page.
+    const { data: rows, count, error } = await resultPromise
+    if (error) {
+      console.error('[contacts] read query failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
       })
-      throw error || totalError
+      throw error
     }
 
     const contactIds = (rows ?? []).map((row) => Number(row.id)).filter(Number.isSafeInteger)
@@ -107,7 +106,6 @@ export async function GET(request: NextRequest) {
       contacts,
       links: (links ?? []).map((link) => ({ ...link, id: Number(link.id), liste_id: Number(link.liste_id), contact_id: Number(link.contact_id) })),
       total: Number(count ?? 0),
-      totalContacts: Number(totalCount ?? 0),
       listCount: listId > 0 ? Number(count ?? 0) : 0,
       page,
       pageSize,
