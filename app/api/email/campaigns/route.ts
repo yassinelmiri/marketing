@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
       smtp_account_id: primarySmtp.id, smtp_account_ids: smtpIds, liste_id: listeIds[0], liste_ids: listeIds,
       created_by: auth.profile.id,
-      created_by_name: String(auth.profile.full_name || auth.profile.name || auth.profile.nom_complet || [auth.profile.prenom, auth.profile.nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
+      created_by_name: String((auth.profile as Record<string, unknown>).full_name || (auth.profile as Record<string, unknown>).name || (auth.profile as Record<string, unknown>).nom_complet || [(auth.profile as Record<string, unknown>).prenom, (auth.profile as Record<string, unknown>).nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
       sender_email: primarySmtp.email, sender_name: primarySmtp.from_name || primarySmtp.name,
       liste_nom: lists!.map((x) => x.nom).join(', '), subject, message, reply_to: replyTo || null,
       template_id: templateId, tracking_opens: body.tracking_opens !== false,
