@@ -78,4 +78,19 @@ create policy liste_contacts_module_guard on public.liste_contacts
   using (public.can_read_contact_list(liste_id))
   with check (public.has_permission('listes.read'));
 
+
+-- Recreate the count RPC with valid PostgreSQL dollar quoting.
+create or replace function public.get_contact_list_counts()
+returns table(list_id bigint, contact_count bigint)
+language sql
+stable
+security invoker
+set search_path = public
+as $
+  select lc.liste_id, count(*)::bigint
+  from public.liste_contacts lc
+  group by lc.liste_id;
+$;
+grant execute on function public.get_contact_list_counts() to authenticated;
+
 commit;
