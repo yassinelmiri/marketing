@@ -7,6 +7,18 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+
+function getPublicOrigin(request: NextRequest) {
+  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
+  const vercelHost = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : ''
+  const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\/+$/, '')
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.origin
+  } catch {}
+  return request.nextUrl.origin
+}
+
 type Campaign = {
   id: number; smtp_account_id: number; smtp_account_ids?: number[]; sender_email: string; sender_name: string | null
   subject: string; message: string; reply_to: string | null; recipients: string[]
@@ -22,6 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient()
+  const publicOrigin = getPublicOrigin(request)
   const now = new Date()
   const staleLock = new Date(now.getTime() - 2 * 60 * 1000).toISOString()
   const { data: due, error: dueError } = await admin.from('email_campaigns')
@@ -83,18 +96,18 @@ export async function GET(request: NextRequest) {
         if (!recipient) continue
         try {
           const pixel = campaign.tracking_opens
-            ? '<img src="' + request.nextUrl.origin + '/api/email/track/open?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />'
+            ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />'
             : ''
           const { data: token, error: tokenError } = await admin.from('email_unsubscribe_tokens')
             .upsert({ email: recipient, campaign_id: campaign.id }, { onConflict: 'email,campaign_id' }).select('token').single()
           if (tokenError || !token) throw new Error('Unsubscribe token unavailable')
-          const unsubscribeLink = request.nextUrl.origin + '/api/email/unsubscribe/' + token.token
-          let html = /<[a-z][\\s\\S]*?>/i.test(campaign.message)
+          const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + token.token
+          let html = /<[a-z][\s\S]*?>/i.test(campaign.message)
             ? campaign.message
-            : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\\n/g, '<br>')
+            : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
           if (campaign.tracking_clicks) {
             html = html.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (_match, url) =>
-              'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+              'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
           }
           const senderId = smtpIds[offset % smtpIds.length]
           const senderTransporter = transporters.get(senderId)
@@ -106,7 +119,7 @@ export async function GET(request: NextRequest) {
             subject: campaign.subject,
             headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
             html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
-            text: campaign.message.replace(/<[^>]*>/g, ' ') + '\\n\\nSe désabonner : ' + unsubscribeLink,
+            text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
           })
           sent++
         } catch (error) {
