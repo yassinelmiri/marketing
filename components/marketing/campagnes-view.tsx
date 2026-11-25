@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart3, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import {
   type Campagne,
@@ -69,24 +69,36 @@ export function CampagnesView({
   const localListes = Array.isArray(listes) ? listes : []
   const localTypes = Array.isArray(typesCampagnes) ? typesCampagnes : []
 
-  const types = localTypes.filter((type) => type.actif)
+  const types = useMemo(() => localTypes.filter((type) => type.actif), [localTypes])
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
-  const assignedCampaignIds = new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id))
+  const typeNameById = useMemo(() => new Map(localTypes.map((type) => [type.id, type.nom])), [localTypes])
+  const listNameById = useMemo(() => new Map(localListes.map((list) => [list.id, list.nom])), [localListes])
+  const linkedListNamesByCampaignId = useMemo(() => {
+    const names = new Map<number, string[]>()
+    for (const link of campaignListLinks) {
+      const current = names.get(link.campagne_id) ?? []
+      const listName = listNameById.get(link.liste_id)
+      if (listName) current.push(listName)
+      names.set(link.campagne_id, current)
+    }
+    return new Map([...names].map(([id, values]) => [id, values.join(' ')]))
+  }, [campaignListLinks, listNameById])
+  const assignedCampaignIds = useMemo(
+    () => new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id)),
+    [campagneMembres, user.id],
+  )
   const campaignsVisibleToUser = user.role_id === 1
     ? (Array.isArray(campagnes) ? campagnes : [])
     : (Array.isArray(campagnes) ? campagnes : []).filter((campaign) => assignedCampaignIds.has(campaign.id))
-  const filtered = campaignsVisibleToUser.filter((campaign) => {
+  const filtered = useMemo(() => campaignsVisibleToUser.filter((campaign) => {
     const matchesStatus = filter === 'all' || campaign.status === filter
     if (!matchesStatus) return false
     if (!normalizedSearch) return true
-    const campaignType = localTypes.find((type) => type.id === campaign.type_campagne_id)?.nom ?? ''
-    const linkedListNames = campaignListLinks
-      .filter((link) => link.campagne_id === campaign.id)
-      .map((link) => localListes.find((list) => list.id === link.liste_id)?.nom ?? '')
-      .join(' ')
+    const campaignType = typeNameById.get(campaign.type_campagne_id) ?? ''
+    const linkedListNames = linkedListNamesByCampaignId.get(campaign.id) ?? ''
     return [campaign.titre, campaign.note, campaign.cible, campaignType, linkedListNames, STATUS_LABELS[campaign.status]]
       .join(' ').toLocaleLowerCase('fr').includes(normalizedSearch)
-  })
+  }), [campaignsVisibleToUser, filter, linkedListNamesByCampaignId, normalizedSearch, typeNameById])
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize)
   const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
 
