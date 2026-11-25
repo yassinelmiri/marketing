@@ -34,7 +34,7 @@ async function authorizedSession() {
   const { data: auth, error: authError } = await session.auth.getUser()
   if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
   const { data: profile, error: profileError } = await session.from('user_profiles')
-    .select('id, role_id').eq('auth_user_id', auth.user.id).maybeSingle()
+    .select('*').eq('auth_user_id', auth.user.id).maybeSingle()
   if (profileError || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
   const isAdmin = Number(profile.role_id) === 1
   const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, failed_recipients, recipients, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, created_by_name, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, failed_recipients, recipients, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
       smtp_account_id: smtp.id,
       liste_id: liste.id,
       created_by: auth.profile.id,
+      created_by_name: String((auth.profile as Record<string, unknown>).full_name || (auth.profile as Record<string, unknown>).name || (auth.profile as Record<string, unknown>).nom_complet || [(auth.profile as Record<string, unknown>).prenom, (auth.profile as Record<string, unknown>).nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
       sender_email: smtp.email,
       sender_name: smtp.from_name || smtp.name,
       liste_nom: liste.nom,

@@ -18,11 +18,11 @@ async function authorized() {
   const session = await createClient()
   const { data: auth, error: authError } = await session.auth.getUser()
   if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
-  const { data: profile, error } = await session.from('user_profiles').select('id,role_id').eq('auth_user_id', auth.user.id).maybeSingle()
+  const { data: profile, error } = await session.from('user_profiles').select('*').eq('auth_user_id', auth.user.id).maybeSingle()
   if (error || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
   const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
   if (Number(profile.role_id) !== 1 && (permissionError || !allowed)) return { error: NextResponse.json({ error: 'Accès e-mail refusé.' }, { status: 403 }) }
-  return { profile }
+  return { profile, user: auth.user }
 }
 
 export async function POST(request: NextRequest) {
@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
     const status = scheduledAt.getTime() > Date.now() ? 'scheduled' : 'pending'
     const { data: campaign, error: insertError } = await admin.from('email_campaigns').insert({
       smtp_account_id: primarySmtp.id, smtp_account_ids: smtpIds, liste_id: listeIds[0], liste_ids: listeIds,
-      created_by: auth.profile.id, sender_email: primarySmtp.email, sender_name: primarySmtp.from_name || primarySmtp.name,
+      created_by: auth.profile.id,
+      created_by_name: String((auth.profile as Record<string, unknown>).full_name || (auth.profile as Record<string, unknown>).name || (auth.profile as Record<string, unknown>).nom_complet || [(auth.profile as Record<string, unknown>).prenom, (auth.profile as Record<string, unknown>).nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
+      sender_email: primarySmtp.email, sender_name: primarySmtp.from_name || primarySmtp.name,
       liste_nom: lists!.map((x) => x.nom).join(', '), subject, message, reply_to: replyTo || null,
       template_id: templateId, tracking_opens: body.tracking_opens !== false,
       tracking_clicks: body.tracking_clicks !== false, batch_size: batchSize,

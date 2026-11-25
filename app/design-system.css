@@ -1,0 +1,279 @@
+/* Anntel Marketing — shared application design system.
+   This layer harmonizes legacy page styles without changing component behavior. */
+
+.workspace-root {
+  --ui-accent: #8b5cf6;
+  --ui-accent-strong: #7c3aed;
+  --ui-accent-soft: rgba(139, 92, 246, .14);
+  --ui-blue: #3b82f6;
+  --ui-focus: rgba(139, 92, 246, .22);
+  --ui-radius-sm: 10px;
+  --ui-radius-md: 14px;
+  --ui-radius-lg: 18px;
+  --ui-radius-xl: 22px;
+  --ui-shadow-card: 0 8px 28px rgba(2, 6, 23, .16);
+  --ui-shadow-hover: 0 14px 34px rgba(76, 29, 149, .18);
+  --ui-control-height: 42px;
+  accent-color: var(--ui-accent);
+}
+
+:root[data-workspace-theme="dark"] .workspace-root {
+  --bg: #090d1b;
+  --surface: #11172a;
+  --surface-2: #171e34;
+  --border: rgba(148, 163, 184, .16);
+  --border-strong: rgba(167, 139, 250, .34);
+  --text: #cbd5e1;
+  --text-strong: #f8fafc;
+  --muted: #9aa8c2;
+  --muted-2: #71809c;
+  --blue: #8b5cf6;
+  --blue-600: #7c3aed;
+  --blue-50: rgba(139, 92, 246, .12);
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+:root[data-workspace-theme="light"] .workspace-root {
+  --bg: #f5f6fc;
+  --surface: #ffffff;
+  --surface-2: #f1f2fb;
+  --border: #e5e7f2;
+  --border-strong: #c4b5fd;
+  --text: #475569;
+  --text-strong: #172033;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
+  --blue: #7c3aed;
+  --blue-600: #6d28d9;
+  --blue-50: #f3f0ff;
+  color-scheme: light;
+  background: var(--bg);
+}
+
+/* Application frame */
+.workspace-root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+.workspace-root .workspace-sidebar {
+  border-right: 1px solid var(--border);
+}
+.workspace-root .workspace-nav { gap: 5px; }
+.workspace-root .workspace-nav-item {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.workspace-root .workspace-nav-item.is-active {
+  background: linear-gradient(105deg, rgba(139, 92, 246, .24), rgba(59, 130, 246, .13));
+  border-color: rgba(167, 139, 250, .22);
+  color: #fff;
+}
+.workspace-root .workspace-nav-item.is-active::before {
+  background: linear-gradient(180deg, #a78bfa, #60a5fa);
+  width: 3px;
+  height: 22px;
+  border-radius: 0 6px 6px 0;
+}
+:root[data-workspace-theme="light"] .workspace-root .workspace-nav-item.is-active {
+  color: #5b21b6 !important;
+  background: linear-gradient(105deg, #ede9fe, #eff6ff) !important;
+  border-color: #ddd6fe;
+}
+.workspace-root .workspace-topbar {
+  min-height: 78px;
+  padding: 15px clamp(16px, 3vw, 38px);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.workspace-root .workspace-topbar-left h1 {
+  color: var(--text-strong);
+  letter-spacing: -.035em;
+}
+.workspace-root .workspace-topbar-left p { color: var(--muted); }
+.workspace-root .workspace-content {
+  width: 100%;
+  max-width: 1680px;
+  padding: clamp(18px, 2.6vw, 36px) clamp(14px, 2.8vw, 40px) 48px;
+}
+
+/* Shared surfaces and hierarchy */
+.workspace-root :is(.workspace-panel, .metric-card, .team-card, .channel-card,
+  .dashboard-card, .settings-card, .dashboard-note-card, .taskz-stat-card,
+  .taskz-column, .taskz-board-card, .taskz-card, .data-list-panel,
+  .data-contacts-panel, .data-content-panel, .wa-panel) {
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-card);
+}
+.workspace-root .workspace-panel {
+  padding: clamp(16px, 1.8vw, 22px);
+  background: var(--surface);
+}
+.workspace-root :is(.workspace-panel-header, .data-subpanel-heading) {
+  gap: 14px;
+}
+.workspace-root :is(.workspace-panel-header h2, .data-subpanel-heading h2,
+  .data-panel-heading h2) {
+  color: var(--text-strong);
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+.workspace-root :is(.metric-card, .team-card, .channel-card, .taskz-card,
+  .taskz-board-card, .dashboard-card, .settings-card) {
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.workspace-root :is(.metric-card, .team-card, .channel-card, .taskz-card,
+  .taskz-board-card, .dashboard-card, .settings-card):hover {
+  border-color: rgba(167, 139, 250, .48);
+  box-shadow: var(--ui-shadow-hover);
+}
+
+/* One control language across every module */
+.workspace-root :is(.workspace-primary, .workspace-secondary, .workspace-icon-button,
+  .workspace-theme-toggle, .btn, .wa-action-button, .wa-secondary-button,
+  .taskz-primary, .taskz-iconbtn) {
+  min-height: 38px;
+  border-radius: 11px;
+  font-family: inherit;
+  font-weight: 650;
+  transition: color .18s ease, background .18s ease, border-color .18s ease,
+    box-shadow .18s ease, transform .18s ease;
+}
+.workspace-root :is(.workspace-primary, .btn-default, .taskz-primary, .wa-action-button) {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(115deg, #7c3aed, #3b82f6);
+  box-shadow: 0 5px 14px rgba(99, 102, 241, .18);
+}
+.workspace-root :is(.workspace-primary, .btn-default, .taskz-primary, .wa-action-button):hover {
+  filter: brightness(1.08);
+  box-shadow: 0 9px 22px rgba(99, 102, 241, .28);
+  transform: translateY(-1px);
+}
+.workspace-root :is(.workspace-secondary, .btn-secondary, .wa-secondary-button) {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text-strong);
+}
+.workspace-root :is(.workspace-secondary, .btn-secondary, .wa-secondary-button):hover {
+  background: var(--ui-accent-soft);
+  border-color: var(--ui-accent);
+}
+.workspace-root :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.workspace-root :is(input, select, textarea, .campagne-search, .taskz-search) {
+  border-radius: 11px;
+}
+.workspace-root :is(input, select, textarea):focus {
+  border-color: var(--ui-accent) !important;
+  box-shadow: 0 0 0 3px var(--ui-focus) !important;
+}
+.workspace-root :is(input, select, textarea)::placeholder { color: var(--muted-2); }
+
+/* Tables, lists, tabs and status labels */
+.workspace-root :is(.campagne-table-wrap, .wa-table-wrap, .email-activity-table) {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: auto;
+}
+.workspace-root table { border-collapse: separate; border-spacing: 0; }
+.workspace-root table :is(th, td) { border-color: var(--border); }
+.workspace-root table th {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .035em;
+}
+.workspace-root table tbody tr { transition: background .16s ease; }
+.workspace-root table tbody tr:hover { background: var(--ui-accent-soft); }
+.workspace-root :is(.status-pill, .wa-status, .data-count-pill) {
+  border-radius: 999px;
+  font-weight: 700;
+}
+.workspace-root :is(.email-suite-tabs, .workspace-tabs) button {
+  border-radius: 11px;
+}
+
+/* Email, WhatsApp and task modules share the same palette */
+.workspace-root :is(.email-suite, .wa-campaign, .taskz-page) {
+  --workspace-accent: var(--ui-accent);
+  --workspace-accent-soft: var(--ui-accent-soft);
+}
+.workspace-root .email-suite :is(.email-stat-card, .email-panel, .workspace-panel) {
+  border-radius: var(--ui-radius-lg);
+}
+.workspace-root .email-suite .email-stat-card-button:hover {
+  border-color: var(--ui-accent);
+  box-shadow: var(--ui-shadow-hover);
+}
+.workspace-root .wa-hero {
+  border-color: rgba(139, 92, 246, .28);
+  background: linear-gradient(115deg, rgba(109, 40, 217, .16), rgba(37, 99, 235, .1));
+}
+.workspace-root .wa-upload-zone:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+
+/* Light theme refinements */
+:root[data-workspace-theme="light"] .workspace-root :is(.workspace-panel,
+  .metric-card, .team-card, .channel-card, .dashboard-card, .settings-card,
+  .dashboard-note-card, .taskz-stat-card, .taskz-column, .taskz-board-card,
+  .taskz-card, .data-list-panel, .data-contacts-panel, .data-content-panel,
+  .wa-panel) {
+  background: #fff;
+  border-color: #e5e7f2;
+  box-shadow: 0 7px 24px rgba(35, 49, 84, .055);
+}
+:root[data-workspace-theme="light"] .workspace-root .workspace-topbar {
+  background: rgba(255, 255, 255, .9);
+}
+:root[data-workspace-theme="light"] .workspace-root :is(.workspace-panel,
+  .metric-card, .team-card, .channel-card, .dashboard-card, .settings-card,
+  .taskz-card, .taskz-board-card) :is(h1, h2, h3, h4, strong) {
+  color: #172033;
+}
+:root[data-workspace-theme="light"] .workspace-root :is(.workspace-primary,
+  .btn-default, .taskz-primary, .wa-action-button) {
+  color: #fff;
+}
+:root[data-workspace-theme="light"] .workspace-root :is(.workspace-secondary,
+  .btn-secondary, .wa-secondary-button) {
+  background: #fff;
+  color: #334155;
+  border-color: #dbe2ee;
+}
+:root[data-workspace-theme="light"] .workspace-root table th { background: #f3f2fb; }
+:root[data-workspace-theme="light"] .workspace-root table tbody tr:hover {
+  background: #f7f4ff;
+}
+
+/* Responsive behavior and reduced-motion accessibility */
+@media (max-width: 900px) {
+  .workspace-root .workspace-topbar { padding-inline: 16px; }
+  .workspace-root .workspace-content { padding-inline: 16px; }
+}
+@media (max-width: 640px) {
+  .workspace-root .workspace-topbar { min-height: 68px; gap: 10px; }
+  .workspace-root .workspace-topbar-left { gap: 10px; }
+  .workspace-root .workspace-topbar-left p { display: none; }
+  .workspace-root .workspace-topbar-actions { gap: 7px; }
+  .workspace-root .workspace-topbar-user { display: none; }
+  .workspace-root .workspace-content { padding: 16px 12px 32px; }
+  .workspace-root :is(.workspace-panel, .data-list-panel, .data-contacts-panel,
+    .data-content-panel, .wa-panel) { border-radius: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-root *, .workspace-root *::before, .workspace-root *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
