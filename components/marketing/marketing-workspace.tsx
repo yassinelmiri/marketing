@@ -40,6 +40,7 @@ import { resolveWorkspacePermissions } from '@/lib/permissions/workspace'
 import { NAV_ITEMS, PAGE_TITLES } from './workspace-config'
 
 import { createClient } from '@/lib/supabase/client'
+import { loadWorkspaceTeamData } from '@/lib/supabase/workspace-team-data'
 import { useToast } from '@/components/ui/toast'
 
 type WorkspaceProfile = {
@@ -291,35 +292,9 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         // Ne pas remplacer les dernières statistiques valides par 0 en cas d'erreur réseau.
         console.error('[Workspace] Erreur réseau pendant le chargement des statistiques des contacts:', error)
       }
-      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
-      if (rolesError) throw rolesError
-      setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
-
-      // Les membres ne voient que leur propre profil; seul l'admin charge toute l'équipe.
-      let membersQuery = supabase
-        .from('user_profiles')
-        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-        .order('date_creation', { ascending: false })
-      if (currentUser.role_id !== 1) {
-        const { data: authData, error: authError } = await supabase.auth.getUser()
-        if (authError || !authData.user) throw authError ?? new Error('Session expirée.')
-        membersQuery = membersQuery.eq('auth_user_id', authData.user.id)
-      }
-      const { data: members, error } = await membersQuery
-      if (error) throw error
-      setTeamUsers((members ?? []).map((member) => ({
-        id: Number(member.id),
-        prenom: member.prenom ?? '',
-        nom: member.nom ?? '',
-        email: member.email ?? '',
-        telephone: member.telephone ?? '',
-        address: member.address ?? '',
-        role_id: Number(member.role_id ?? 3),
-        date_creation: member.date_creation,
-        date_dernier_login: null,
-        ip_address: null,
-        permissions: [],
-      })))
+      const teamData = await loadWorkspaceTeamData(supabase, currentUser)
+      setTeamRoles(teamData.roles)
+      setTeamUsers(teamData.users)
     } catch (error) {
       toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
     }
