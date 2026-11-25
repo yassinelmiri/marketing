@@ -141,6 +141,7 @@ export function CampagnesView({
     } else {
       const created = await onCreate(payload)
       if (!created) return
+      setEditingId(created.id)
       await onSetListes(created.id, formListeIds)
       if (user.role_id === 1) await onSetMembres(created.id, formMemberIds)
       toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
