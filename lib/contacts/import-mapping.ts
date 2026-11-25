@@ -1,4 +1,4 @@
-const IMPORT_FIELD_OPTIONS = [
+export const IMPORT_FIELD_OPTIONS = [
   { value: 'nom', label: 'Nom' },
   { value: 'prenom', label: 'Prénom' },
   { value: 'reseau_social', label: 'Raison sociale / Segment' },
@@ -12,7 +12,7 @@ const IMPORT_FIELD_OPTIONS = [
   { value: 'commentaire', label: 'Commentaire' },
 ] as const
 
-function buildImportMapping(headers: string[]): Record<string, string> {
+export function buildImportMapping(headers: string[]): Record<string, string> {
   const aliases: Record<string, string[]> = {
     nom: ['nom', 'name', 'lastname', 'last name', 'nom de famille'],
     prenom: ['prenom', 'prénom', 'firstname', 'first name'],
