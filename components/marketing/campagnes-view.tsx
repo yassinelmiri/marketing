@@ -64,6 +64,8 @@ export function CampagnesView({
   const [formMemberIds, setFormMemberIds] = useState<number[]>([])
   const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   // Les filtres et la recherche sont exécutés localement sur les données déjà chargées.
   const campaignListLinks = Array.isArray(campagneListes) ? campagneListes : []
@@ -85,6 +87,7 @@ export function CampagnesView({
     return [campaign.titre, campaign.note, campaign.cible, campaignType, linkedListNames, STATUS_LABELS[campaign.status]]
       .join(' ').toLocaleLowerCase('fr').includes(normalizedSearch)
   })
+  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize)
   const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
 
   function openCreate() {
@@ -180,7 +183,7 @@ export function CampagnesView({
         <div className="workspace-toolbar data-campaign-toolbar">
             <label className="campagne-search" htmlFor="campagnes-local-search">
               <Search size={17} aria-hidden="true" />
-              <input id="campagnes-local-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher dans les campagnes…" />
+              <input id="campagnes-local-search" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Rechercher dans les campagnes…" />
               {search && <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"><X size={15}/></button>}
             </label>
             <div className="workspace-select">
@@ -219,7 +222,7 @@ export function CampagnesView({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => {
+                {pageItems.map((c) => {
                   const type = localTypes.find((item) => item.id === c.type_campagne_id)
                   const campaignListsForRow = campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => localListes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
                   return (
@@ -252,6 +255,7 @@ export function CampagnesView({
                 })}
               </tbody>
             </table>
+            <div className="pagination-toolbar"><label>Afficher <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select> par page</label><span>{filtered.length} campagnes · page {page}/{Math.max(1,Math.ceil(filtered.length/pageSize))}</span><div><button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Précédent</button><button disabled={page>=Math.ceil(filtered.length/pageSize)} onClick={()=>setPage(p=>p+1)}>Suivant</button></div></div>
           </div>
         )}
       </div>
