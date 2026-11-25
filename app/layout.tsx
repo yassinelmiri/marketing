@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import './design-system.css'
 import { ToastProvider } from '@/components/ui/toast'
+import { ReduxProvider } from '@/components/providers/redux-provider'
 import SecurityGuard from '@/components/SecurityGuard'
 
 export const metadata: Metadata = {
@@ -19,10 +20,12 @@ export default function RootLayout({
   return (
     <html lang="fr" data-workspace-theme="light" suppressHydrationWarning>
       <body>
+        <ReduxProvider>
         <ToastProvider>
           <SecurityGuard />
           {children}
         </ToastProvider>
+        </ReduxProvider>
       </body>
     </html>
   )
