@@ -10,7 +10,7 @@ export const maxDuration = 60
 
 function getPublicOrigin(request: NextRequest) {
   const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
-  const vercelHost = process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : ''
+  const vercelHost = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : ''
   const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\/+$/, '')
   try {
     const parsed = new URL(candidate)
