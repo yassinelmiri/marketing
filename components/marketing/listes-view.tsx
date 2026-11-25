@@ -193,32 +193,47 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   }, [contactSearch])
 
   useEffect(() => {
+    let active = true
     setSelectedContactIds([])
-    const controller = new AbortController()
+
     async function loadContactPage() {
-      if (!selectedListeId) { setContacts([]); setContactLinks([]); setContactTotal(0); setSelectedListCount(0); return }
+      if (!selectedListeId) {
+        setContacts([])
+        setContactLinks([])
+        setContactTotal(0)
+        setSelectedListCount(0)
+        setContactsLoading(false)
+        return
+      }
+
       setContactsLoading(true)
       try {
         const params = new URLSearchParams({ listId: String(selectedListeId), page: String(contactPage), pageSize: String(contactPageSize) })
         if (debouncedContactSearch) params.set('q', debouncedContactSearch)
         if (contactDateFrom) params.set('dateFrom', contactDateFrom)
         if (contactDateTo) params.set('dateTo', contactDateTo)
-        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
+
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
+        if (!active) return
+
         setContacts(data.contacts ?? [])
         setContactLinks(data.links ?? [])
         setContactTotal(Number(data.total ?? 0))
         setSelectedListCount(Number(data.listCount ?? 0))
       } catch (error) {
-        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return
+        if (!active) return
         toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
       } finally {
-        if (!controller.signal.aborted) setContactsLoading(false)
+        if (active) setContactsLoading(false)
       }
     }
+
     void loadContactPage()
-    return () => controller.abort()
+    return () => {
+      active = false
+    }
   }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
