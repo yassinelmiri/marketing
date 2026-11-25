@@ -36,17 +36,7 @@
   --muted: #64748b;
   --muted-2: #94a3b8;
 
-  /* Dark mode */
-  --bg-dark: #0b1220;
-  --surface-dark: #111827;
-  --surface-dark-2: #1f2937;
-  --border-dark: #1f2937;
-  --border-dark-strong: #334155;
-  --text-dark: #e2e8f0;
-  --text-dark-strong: #f8fafc;
-  --muted-dark: #94a3b8;
-
-  /* Rayons */
+/* Rayons */
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
@@ -487,7 +477,7 @@
   border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--text);
-}.landing-feature-icon svg{ width: 24px; height: 24px; }.feature-teal{ background: var(--teal-50); color: var(--teal-600); border: 1px solid #ccfbf1; }.feature-blue{ background: var(--blue-50); color: var(--blue-600); border: 1px solid #dbeafe; }.feature-green{ background: var(--green-50); color: #166534; border: 1px solid #dcfce7; }.feature-amber{ background: var(--amber-50); color: #b45309; border: 1px solid #fde68a; }.feature-lilac{ background: #f5f3ff; color: #6d28d9; border: 1px solid #ede9fe; }.feature-slate{ background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }.landing-feature-link{
+}.landing-feature-icon svg{ width: 24px; height: 24px; }.feature-teal{ background: var(--teal-50); color: var(--teal-600); border: 1px solid #ccfbf1; }.feature-blue{ background: var(--blue-50); color: var(--blue-600); border: 1px solid #dbeafe; }.feature-green{ background: var(--green-50); color: #166534; border: 1px solid #dcfce7; }.feature-amber{ background: var(--amber-50); color: #b45309; border: 1px solid #fde68a; }.feature-lilac{ background: var(--blue-50); color: var(--blue-600); border: 1px solid #dbeafe; }.feature-slate{ background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }.landing-feature-link{
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1960,39 +1950,7 @@
   transition: all 0.15s ease;
 }.toast-close:hover{ color: var(--text); background: var(--surface-2); }.toast-close svg{ width: 14px; height: 14px; }
 
-/* =========================================================
-   DARK MODE
-   ========================================================= */
-@media (prefers-color-scheme: dark) {:root{
-    --bg: var(--bg-dark);
-    --surface: var(--surface-dark);
-    --surface-2: var(--surface-dark-2);
-    --border: var(--border-dark);
-    --border-strong: var(--border-dark-strong);
-    --text: var(--text-dark);
-    --text-strong: var(--text-dark-strong);
-    --muted: var(--muted-dark);
-    --muted-2: #64748b;
-    --blue-50: rgba(37, 99, 235, 0.15);
-    --teal-50: rgba(13, 148, 136, 0.15);
-    --amber-50: rgba(245, 158, 11, 0.12);
-    --red-50: rgba(220, 38, 38, 0.12);
-    --green-50: rgba(22, 163, 74, 0.12);
-  }body{ color-scheme: dark; }.workspace-topbar-left h1,.landing-hero h1,.landing-section-heading h2,.landing-faq-intro h2{ color: var(--text-dark-strong); }.landing-team-panel{ background: #0f172a; }.landing-final-cta{ background: #0f172a; }.preview-chart-empty{ background: rgba(17, 24, 39, 0.85); }.landing-product-preview,.landing-trust-note,.landing-hero-stats,.landing-step-card,.landing-steps-cta,.landing-testimonial-card,.landing-faq-item,.landing-feature-card,.auth-card,.workspace-panel,.metric-card,.team-card,.channel-card,.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,.workspace-import-preview,.liste-item,.checkbox-card,.workspace-user{
-    background: var(--surface-dark);
-    border-color: var(--border-dark);
-  }.campagne-table th,.workspace-modal footer,.preview-metrics > div,.preview-chart,.workspace-import-preview th,.form-grid input,.form-grid select,.form-grid textarea,.auth-input,.role-select,.workspace-select select,.workspace-secondary,.workspace-icon-button,.comment-form textarea,.workspace-header-logout,.workspace-user-badge,.permission-card,.permission-chip,.workspace-menu-toggle{
-    
-    color: var(--text-dark);
-    border-color: var(--border-dark);
-  }.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus,.auth-input:focus-within,.comment-form textarea:focus{
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-  }.workspace-secondary:hover,.workspace-icon-button:hover,.workspace-header-logout:hover,.campagne-table tbody tr:hover,.campagne-list-item:hover,.liste-item:hover,.checkbox-card:hover{ background: var(--surface-dark-2); }.campagne-list-item:hover,.liste-item:hover,.checkbox-card:hover{ border-color: var(--border-dark-strong); }.liste-item.is-active,.checkbox-card.is-on{
-    background: rgba(37, 99, 235, 0.15);
-    border-color: var(--blue);
-  }.liste-item.is-active strong,.checkbox-card.is-on strong{ color: var(--text-dark-strong); }.liste-item strong,.checkbox-card strong{ color: var(--text-dark-strong); }.auth-checkbox,.auth-card-header p,.workspace-topbar-left p,.workspace-empty span,.campagne-table-desc{ color: var(--muted-dark); }.auth-hint{ background: var(--surface-dark-2); border-color: var(--border-dark-strong); }.auth-hint strong{ color: #93c5fd; }.auth-hint-reset{ background: var(--surface-dark); color: var(--text-dark); border-color: var(--border-dark); }.workspace-note{ background: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.3); }.campagne-comments li,.history-list li{ background: var(--surface-dark-2); }.status-draft,.status-archived{ background: var(--surface-dark-2); color: var(--text-dark); border-color: var(--border-dark); }.metric-icon-draft{ background: var(--surface-dark-2); color: var(--text-dark); }.permission-card.is-on{ background: rgba(37, 99, 235, 0.15); color: #93c5fd; border-color: rgba(37, 99, 235, 0.5); }.permission-chip.is-on{ background: rgba(37, 99, 235, 0.15); color: #93c5fd; border-color: rgba(37, 99, 235, 0.5); }.team-avatar{ background: rgba(37, 99, 235, 0.15); color: #93c5fd; border-color: rgba(37, 99, 235, 0.3); }
-}
+
 
 /* =========================================================
    RESPONSIVE
