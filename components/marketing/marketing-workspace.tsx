@@ -281,12 +281,11 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
           setContactsCount(Number(countData.total ?? 0))
           setContactListCounts(countData.listCounts ?? {})
         } else {
-          setContactsCount(0)
-          setContactListCounts({})
+          console.error('[Workspace] Impossible de charger les statistiques des contacts:', countData.error ?? countResponse.status)
         }
-      } catch {
-        setContactsCount(0)
-        setContactListCounts({})
+      } catch (error) {
+        // Ne pas remplacer les dernières statistiques valides par 0 en cas d'erreur réseau.
+        console.error('[Workspace] Erreur réseau pendant le chargement des statistiques des contacts:', error)
       }
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError

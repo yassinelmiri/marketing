@@ -75,7 +75,11 @@ export function CampagnesView({
   const types = localTypes.filter((type) => type.actif)
   const allListes = localListes
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
-  const filtered = (Array.isArray(campagnes) ? campagnes : []).filter((campaign) => {
+  const assignedCampaignIds = new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id))
+  const campaignsVisibleToUser = user.role_id === 1
+    ? (Array.isArray(campagnes) ? campagnes : [])
+    : (Array.isArray(campagnes) ? campagnes : []).filter((campaign) => assignedCampaignIds.has(campaign.id))
+  const filtered = campaignsVisibleToUser.filter((campaign) => {
     const matchesStatus = filter === 'all' || campaign.status === filter
     if (!matchesStatus) return false
     if (!normalizedSearch) return true
@@ -243,12 +247,16 @@ export function CampagnesView({
                       <td>{campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => teamUsers.find((member) => member.id === link.user_id)).filter(Boolean).map((member) => `${member!.prenom} ${member!.nom}`.trim()).join(', ') || '—'}</td>
                       <td>{formatDate(c.date_modification)}</td>
                       <td className="campagne-table-actions">
-                        <button type="button" onClick={() => openEdit(c)} aria-label="Modifier">
-                          <Pencil aria-hidden="true" />
-                        </button>
-                        <button type="button" className="danger" onClick={() => void handleDelete(c)} aria-label="Supprimer">
-                          <Trash2 aria-hidden="true" />
-                        </button>
+                        {user.role_id === 1 ? (
+                          <>
+                            <button type="button" onClick={() => openEdit(c)} aria-label="Modifier">
+                              <Pencil aria-hidden="true" />
+                            </button>
+                            <button type="button" className="danger" onClick={() => void handleDelete(c)} aria-label="Supprimer">
+                              <Trash2 aria-hidden="true" />
+                            </button>
+                          </>
+                        ) : <span className="campagne-table-desc">Campagne assignée</span>}
                       </td>
                     </tr>
                   )
