@@ -2833,7 +2833,7 @@
 
 /* Task dialog: keep the assignee picker visible, scrollable and responsive. */
 .taskz-modal{width:min(100%,760px);max-height:min(90vh,900px);display:flex;flex-direction:column;overflow:hidden}
-.taskz-modal .workspace-modal-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px}
+.taskz-modal .workspace-modal-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px}
 .taskz-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
 .taskz-modal .form-grid-full{grid-column:1/-1;min-width:0}
 .taskz-modal .taskz-member-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0;padding:14px;border:1px solid var(--workspace-border,rgba(148,163,184,.2));border-radius:14px;background:rgba(148,163,184,.035)}
