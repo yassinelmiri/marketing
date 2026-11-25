@@ -549,7 +549,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
             {(contactDateFrom || contactDateTo) && <button type="button" className="workspace-secondary" onClick={() => { setContactDateFrom(''); setContactDateTo(''); setContactPage(1) }}>Réinitialiser</button>}
           </div>}
           {selectedListe && selectedContactIds.length > 0 && <div className="contacts-bulk-toolbar">
-            <span><strong>{selectedContactIds.length}</strong> contact(s) sélectionné(s) sur cette sélection</span>
+            <span><strong>{selectedContactIds.length}</strong> contact(s) sélectionné(s) sur cette page</span>
             <button type="button" className="workspace-danger" disabled={bulkDeleting} onClick={() => void deleteContacts(selectedContactIds)}><Trash2 aria-hidden="true" />{bulkDeleting ? 'Suppression…' : `Supprimer (${selectedContactIds.length})`}</button>
           </div>}
           {!selectedListe ? (
