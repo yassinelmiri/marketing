@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -88,5 +89,34 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[contacts] paginated read failed:', error)
     return NextResponse.json({ error: 'Impossible de charger les contacts.' }, { status: 500, headers: { 'Cache-Control': 'no-store' } })
+  }
+}
+
+ 
+export async function DELETE(request: NextRequest) {
+  const auth = await authorize()
+  if ('response' in auth) return auth.response
+
+  try {
+    const body = await request.json()
+    const rawIds = Array.isArray(body?.ids) ? body.ids : []
+    const ids = [...new Set(rawIds.map((value: unknown) => Number(value)))]
+    if (ids.length === 0 || ids.length > 100 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+      return NextResponse.json({ error: 'Sélection invalide. Choisissez entre 1 et 100 contacts.' }, { status: 400 })
+    }
+
+    // Use a server-only admin client after verifying the user's session and module permission.
+    const admin = createAdminClient()
+    const { error: linksError } = await admin.from('liste_contacts').delete().in('contact_id', ids)
+    if (linksError) throw linksError
+    const { data: deleted, error: deleteError } = await admin.from('contacts').delete().in('id', ids).select('id')
+    if (deleteError) throw deleteError
+
+    return NextResponse.json({ deleted: deleted?.length ?? 0 }, {
+      headers: { 'Cache-Control': 'private, no-store, max-age=0' },
+    })
+  } catch (error) {
+    console.error('[contacts] bulk delete failed:', error)
+    return NextResponse.json({ error: 'Impossible de supprimer les contacts sélectionnés.' }, { status: 500 })
   }
 }
