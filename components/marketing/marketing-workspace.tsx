@@ -660,6 +660,7 @@ export function MarketingWorkspace() {
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
               listeContacts={listeContacts}
+              contactListCounts={contactListCounts}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
