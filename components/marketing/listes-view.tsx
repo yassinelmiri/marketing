@@ -115,6 +115,9 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactLinks, setContactLinks] = useState<ListeContactContact[]>([])
   const [contactPage, setContactPage] = useState(1)
+  const [contactPageSize, setContactPageSize] = useState(25)
+  const [listePage, setListePage] = useState(1)
+  const [listePageSize, setListePageSize] = useState(25)
   const [contactTotal, setContactTotal] = useState(0)
   const [selectedListCount, setSelectedListCount] = useState(0)
   const [contactSearch, setContactSearch] = useState('')
@@ -176,6 +179,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       return listeSort === 'date-asc' ? delta : -delta
     })
   }, [listes, listeSearch, listeDateFilter, listeSort])
+  const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
 
@@ -191,7 +195,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       if (!selectedListeId) { setContacts([]); setContactLinks([]); setContactTotal(0); setSelectedListCount(0); return }
       setContactsLoading(true)
       try {
-        const params = new URLSearchParams({ listId: String(selectedListeId), page: String(contactPage), pageSize: '50' })
+        const params = new URLSearchParams({ listId: String(selectedListeId), page: String(contactPage), pageSize: String(contactPageSize) })
         if (debouncedContactSearch) params.set('q', debouncedContactSearch)
         if (contactDateFrom) params.set('dateFrom', contactDateFrom)
         if (contactDateTo) params.set('dateTo', contactDateTo)
@@ -208,7 +212,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     }
     void loadContactPage()
     return () => controller.abort()
-  }, [selectedListeId, contactPage, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
+  }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
@@ -542,7 +546,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
             </div>
           ) : (
             <ul className="bases-list">
-              {visibleListes.map((l) => (
+              {paginatedListes.map((l) => (
                 <li key={l.id}>
                   <button
                     type="button"
@@ -572,6 +576,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                 </li>
               )}
             </ul>
+            {visibleListes.length > 0 && <div className="pagination-toolbar"><label>Afficher <select value={listePageSize} onChange={e => { setListePageSize(Number(e.target.value)); setListePage(1) }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select> par page</label><span>{visibleListes.length} listes · page {listePage}/{Math.max(1,Math.ceil(visibleListes.length/listePageSize))}</span><div><button disabled={listePage<=1} onClick={()=>setListePage(p=>p-1)}>Précédent</button><button disabled={listePage>=Math.ceil(visibleListes.length/listePageSize)} onClick={()=>setListePage(p=>p+1)}>Suivant</button></div></div>
           )}
         </div>
 
@@ -677,7 +682,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
               </table>
             </div>
           )}
-          {selectedListe && contactTotal > 0 && <div className="workspace-toolbar" style={{ justifyContent: 'space-between', marginTop: 12 }}><span>{contactTotal} contact(s) · page {contactPage} / {Math.max(1, Math.ceil(contactTotal / 50))}</span><div className="workspace-toolbar"><button type="button" className="workspace-secondary" disabled={contactPage <= 1 || contactsLoading} onClick={() => setContactPage(page => page - 1)}>Précédent</button><button type="button" className="workspace-secondary" disabled={contactPage >= Math.ceil(contactTotal / 50) || contactsLoading} onClick={() => setContactPage(page => page + 1)}>Suivant</button></div></div>}
+          {selectedListe && contactTotal > 0 && <div className="workspace-toolbar" style={{ justifyContent: 'space-between', marginTop: 12 }}><span>{contactTotal} contact(s) · page {contactPage} / {Math.max(1, Math.ceil(contactTotal / contactPageSize))}</span><label>Afficher <select value={contactPageSize} onChange={e=>{setContactPageSize(Number(e.target.value));setContactPage(1)}}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select></label><div className="workspace-toolbar"><button type="button" className="workspace-secondary" disabled={contactPage <= 1 || contactsLoading} onClick={() => setContactPage(page => page - 1)}>Précédent</button><button type="button" className="workspace-secondary" disabled={contactPage >= Math.ceil(contactTotal / 50) || contactsLoading} onClick={() => setContactPage(page => page + 1)}>Suivant</button></div></div>}
         </div>
       </div>
       </div>
@@ -887,7 +892,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                         <span title={header}>{header}</span>
                         <select value={importMapping[header] ?? ''} onChange={(event) => setImportMapping((current) => ({ ...current, [header]: event.target.value }))}>
                           <option value="">Ignorer cette colonne</option>
-                          {IMPORT_FIELD_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={option.value !== '' && Object.entries(importMapping).some(([other, value]) => other !== header && value === option.value)}>{option.label}</option>)}
+                          {IMPORT_FIELD_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={Object.entries(importMapping).some(([other, value]) => other !== header && value === option.value)}>{option.label}</option>)}
                         </select>
                       </label>
                     ))}
