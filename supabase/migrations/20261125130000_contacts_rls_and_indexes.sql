@@ -43,4 +43,17 @@ create index if not exists contacts_date_creation_id_idx on public.contacts(date
 create index if not exists contacts_email_lower_idx on public.contacts(lower(email));
 create index if not exists liste_contacts_liste_contact_idx on public.liste_contacts(liste_id, contact_id);
 
+create or replace function public.get_contact_list_counts()
+returns table(list_id bigint, contact_count bigint)
+language sql
+stable
+security invoker
+set search_path = public
+as $
+  select lc.liste_id, count(*)::bigint
+  from public.liste_contacts lc
+  group by lc.liste_id;
+$;
+grant execute on function public.get_contact_list_counts() to authenticated;
+
 commit;
