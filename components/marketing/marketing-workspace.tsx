@@ -268,14 +268,10 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
   async function refresh() {
     if (!currentUser) return
 
-    const shouldLoadMarketingData = !(initialData && !initialDataHydrated.current)
-    if (shouldLoadMarketingData) {
-      // Avoid blocking the first refresh when the server already supplied initial data.
-    } else {
-      initialDataHydrated.current = true
-    }
+    const useInitialData = Boolean(initialData) && !initialDataHydrated.current
+    if (useInitialData) initialDataHydrated.current = true
 
-    const marketingPromise = shouldLoadMarketingData ? loadMarketingData() : Promise.resolve(null)
+    const marketingPromise = useInitialData ? Promise.resolve(null) : loadMarketingData()
     const contactsCountPromise = fetch('/api/contacts?counts=1', { cache: 'no-store' })
       .then(async (response) => {
         const data = await response.json()
