@@ -1,4 +1,4 @@
-import type { Contact, ListeContact } from '@/lib/storage'
+import type { Contact } from '@/lib/storage'
 import { createClient } from '@/lib/supabase/client'
 
 function throwIfError(error: { message: string } | null): void {
