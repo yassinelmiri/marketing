@@ -2,20 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 import nodemailer from 'nodemailer'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 import { decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function originError(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origine manquante.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-  } catch { return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 }) }
-  return null
-}
 
 
 function getPublicOrigin(request: NextRequest) {
@@ -116,7 +109,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
 
   let campaignId: number | null = null
