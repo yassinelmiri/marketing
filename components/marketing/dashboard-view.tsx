@@ -26,6 +26,7 @@ interface DashboardViewProps {
   user: User
   stats: { total: number; enCours: number; terminees: number; brouillons: number; listes: number; contacts: number; membres: number }
   campagnes: Campagne[]
+  campagneMembres: { id: number; campagne_id: number; user_id: number }[]
   commentaires: Commentaire[]
   typesCampagnes: TypeCampagne[]
   teamUsers: User[]
@@ -36,6 +37,7 @@ export function DashboardView({
   user,
   stats,
   campagnes,
+  campagneMembres,
   commentaires,
   typesCampagnes,
   teamUsers,
@@ -46,6 +48,7 @@ export function DashboardView({
   const [draft, setDraft] = useState('')
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
+  const associatedCampaigns = campagnes.filter((campaign) => campagneMembres.some((link) => link.campagne_id === campaign.id && link.user_id === user.id))
   const selectedComments = commentaires.filter((c) => c.campagne_id === selectedCampagneId)
 
   const recent = useMemo(
@@ -89,6 +92,30 @@ export function DashboardView({
         <article><span className="dashboard-secondary-icon"><ListChecks aria-hidden="true" /></span><div><strong>{stats.listes}</strong><span>Listes</span></div></article>
         <article><span className="dashboard-secondary-icon"><ContactRound aria-hidden="true" /></span><div><strong>{stats.contacts}</strong><span>Contacts</span></div></article>
         <article><span className="dashboard-secondary-icon"><UsersRound aria-hidden="true" /></span><div><strong>{stats.membres}</strong><span>Membres visibles</span></div></article>
+      </div>
+
+      <div className="workspace-panel associated-campaigns-panel">
+        <div className="workspace-panel-header">
+          <div><h2>Campagnes associées</h2><p>Les campagnes qui vous sont attribuées par l’administrateur.</p></div>
+          <span>{associatedCampaigns.length} campagne(s)</span>
+        </div>
+        {associatedCampaigns.length === 0 ? (
+          <div className="workspace-empty associated-campaigns-empty">
+            <BarChart3 aria-hidden="true" />
+            <p>Aucune campagne associée pour le moment.</p>
+            <span>Lorsqu’une campagne vous sera attribuée, elle apparaîtra ici, même sans liste de contacts.</span>
+          </div>
+        ) : (
+          <div className="associated-campaigns-list">
+            {associatedCampaigns.map((campaign) => {
+              const type = typesCampagnes.find((item) => item.id === campaign.type_campagne_id)
+              return <article className="associated-campaign-item" key={campaign.id}>
+                <div><strong>{campaign.titre}</strong><span>{type?.nom ?? 'Campagne'} · {STATUS_LABELS[campaign.status]}</span>{campaign.note && <p>{campaign.note}</p>}</div>
+                <small>{formatDate(campaign.date_modification)}</small>
+              </article>
+            })}
+          </div>
+        )}
       </div>
 
       <div className="workspace-panels">
