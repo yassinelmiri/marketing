@@ -21,13 +21,11 @@ interface CampagnesViewProps {
   campagneListes: CampagneListe[]
   campagneMembres: { id: number; campagne_id: number; user_id: number }[]
   teamUsers: User[]
-  contactListCounts: Record<number, number>
   onCreate: (
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
   ) => Promise<Campagne | null>
   onUpdate: (id: number, patch: Partial<Pick<Campagne, 'type_campagne_id' | 'titre' | 'cible' | 'note' | 'status'>>) => Promise<void>
   onDelete: (id: number) => Promise<void>
-  onSetListes: (campagneId: number, listeIds: number[]) => Promise<void>
   onSetMembres: (campagneId: number, userIds: number[]) => Promise<void>
   onOpenListes: () => void
 }
@@ -48,11 +46,9 @@ export function CampagnesView({
   campagneListes,
   campagneMembres,
   teamUsers,
-  contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
-  onSetListes,
   onSetMembres,
   onOpenListes,
 }: CampagnesViewProps) {
@@ -60,7 +56,6 @@ export function CampagnesView({
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
-  const [formListeIds, setFormListeIds] = useState<number[]>([])
   const [formMemberIds, setFormMemberIds] = useState<number[]>([])
   const [memberPickerOpen, setMemberPickerOpen] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
@@ -98,7 +93,6 @@ export function CampagnesView({
   function openCreate() {
     setEditingId(null)
     setForm({ ...emptyForm, type_campagne_id: types[0]?.id ?? 1 })
-    setFormListeIds([])
     setFormMemberIds([])
     setMemberPickerOpen(false)
     setMemberSearch('')
@@ -114,7 +108,6 @@ export function CampagnesView({
       note: c.note,
       status: c.status,
     })
-    setFormListeIds(campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
     setFormMemberIds(campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => link.user_id))
     setMemberPickerOpen(false)
     setMemberSearch('')
@@ -136,21 +129,18 @@ export function CampagnesView({
 
     if (editingId) {
       await onUpdate(editingId, payload)
-      try { await onSetListes(editingId, formListeIds) } catch { return }
       if (user.role_id === 1) await onSetMembres(editingId, formMemberIds)
       toast.success('Campagne mise à jour', `« ${payload.titre} » enregistrée.`)
     } else {
       const created = await onCreate(payload)
       if (!created) return
       setEditingId(created.id)
-      try { await onSetListes(created.id, formListeIds) } catch { return }
       if (user.role_id === 1) await onSetMembres(created.id, formMemberIds)
       toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
     }
     setShowForm(false)
     setEditingId(null)
     setForm(emptyForm)
-    setFormListeIds([])
     setFormMemberIds([])
     setMemberPickerOpen(false)
     setMemberSearch('')
@@ -363,20 +353,6 @@ export function CampagnesView({
                     </div>
                   )}
                 </div>}
-                <div className="form-grid-full campaign-member-field">
-                  <span className="form-label">Listes associées à cette campagne</span>
-                  <p className="form-hint">Sélectionnez plusieurs listes. Chaque liste ne peut appartenir qu'à une seule campagne.</p>
-                  <div className="checkbox-grid">
-                    {localListes.map((list) => {
-                      const assignedElsewhere = campaignListLinks.some((link) => link.liste_id === list.id && link.campagne_id !== editingId)
-                      const checked = formListeIds.includes(list.id)
-                      return <label key={list.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
-                        <input type="checkbox" checked={checked} disabled={assignedElsewhere} onChange={() => setFormListeIds((current) => checked ? current.filter((id) => id !== list.id) : [...current, list.id])} />
-                        <div><strong>{list.nom}</strong><span>{assignedElsewhere ? 'Déjà affectée à une autre campagne' : `${contactListCounts[list.id] ?? 0} contact(s)`}</span></div>
-                      </label>
-                    })}
-                  </div>
-                </div>
                 <label className="form-grid-full">
                   <span>Note</span>
                   <textarea rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Détails internes…" />
