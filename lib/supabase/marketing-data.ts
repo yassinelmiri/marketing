@@ -2,9 +2,7 @@ import type {
   Campagne,
   CampagneListe,
   Commentaire,
-  Contact,
   ListeContact,
-  ListeContactContact,
   TypeCampagne,
 } from '@/lib/storage'
 import { createClient } from '@/lib/supabase/client'
@@ -17,9 +15,7 @@ export interface MarketingData {
   campagnes: Campagne[]
   commentaires: Commentaire[]
   listes: ListeContact[]
-  contacts: Contact[]
   campagneListes: CampagneListe[]
-  listeContacts: ListeContactContact[]
   typesCampagnes: TypeCampagne[]
 }
 
@@ -75,14 +71,12 @@ export async function loadMarketingData(): Promise<MarketingData> {
       ajoute_par_nom: row.ajoute_par_nom ?? '',
       created_by: Number(row.created_by ?? 0),
     })),
-    contacts: [],
     campagneListes: (campagneListesResult.data ?? []).map((row) => ({
       ...row,
       id: Number(row.id),
       campagne_id: Number(row.campagne_id),
       liste_id: Number(row.liste_id),
     })),
-    listeContacts: [],
     typesCampagnes: (typesResult.data ?? []).map((row) => ({
       ...row,
       id: Number(row.id),
