@@ -24,7 +24,7 @@ if (!['dev', 'start'].includes(command)) {
 
 const args = process.argv.slice(3)
 const hasExplicitPort = args.some((arg) => arg === '-p' || arg === '--port' || arg.startsWith('--port='))
-const port = process.env.PORT || readPortFromEnvLocal()
+const port = readPortFromEnvLocal() || process.env.PORT
 if (!hasExplicitPort && port) {
   const parsed = Number(port)
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
