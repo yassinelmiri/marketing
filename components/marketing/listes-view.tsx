@@ -47,6 +47,43 @@ interface ListesViewProps {
   contactListCounts: Record<number, number>
 }
 
+const IMPORT_FIELD_OPTIONS = [
+  { value: 'nom', label: 'Nom' },
+  { value: 'prenom', label: 'Prénom' },
+  { value: 'reseau_social', label: 'Raison sociale / Segment' },
+  { value: 'telephone', label: 'Téléphone' },
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'address', label: 'Adresse' },
+  { value: 'code_postal', label: 'Code postal' },
+  { value: 'ville', label: 'Ville' },
+  { value: 'email', label: 'E-mail' },
+  { value: 'profile', label: 'Profil / URL' },
+  { value: 'commentaire', label: 'Commentaire' },
+] as const
+
+function buildImportMapping(headers: string[]): Record<string, string> {
+  const aliases: Record<string, string[]> = {
+    nom: ['nom', 'name', 'lastname', 'last name', 'nom de famille'],
+    prenom: ['prenom', 'prénom', 'firstname', 'first name'],
+    reseau_social: ['raison sociale', 'raison_sociale', 'societe', 'société', 'segment', 'reseau social'],
+    telephone: ['telephone', 'téléphone', 'phone', 'tel'],
+    mobile: ['mobile', 'portable', 'cellulaire'],
+    address: ['adresse', 'address', 'rue'],
+    code_postal: ['code postal', 'code_postal', 'postal code', 'zip'],
+    ville: ['ville', 'city', 'localite', 'localité'],
+    email: ['email', 'e-mail', 'mail', 'courriel'],
+    profile: ['profil', 'profile', 'url', 'linkedin'],
+    commentaire: ['commentaire', 'comment', 'note', 'notes'],
+  }
+  const normalize = (value: string) => value.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/\p{M}/gu, '').replace(/[_-]/g, ' ')
+  const used = new Set<string>()
+  return Object.fromEntries(headers.map((header) => {
+    const match = IMPORT_FIELD_OPTIONS.find((option) => aliases[option.value]?.some((alias) => normalize(alias) === normalize(header)) && !used.has(option.value))
+    if (match) used.add(match.value)
+    return [header, match?.value ?? '']
+  }))
+}
+
 const emptyContactForm = {
   nom: '',
   prenom: '',
@@ -103,6 +140,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
 
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState<Record<string, string>[]>([])
+  const [importHeaders, setImportHeaders] = useState<string[]>([])
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({})
   const [importFileName, setImportFileName] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -374,7 +413,9 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     const lower = file.name.toLowerCase()
     if (lower.endsWith('.csv')) {
       const text = await file.text()
-      const { rows } = parseCsv(text)
+      const { headers, rows } = parseCsv(text)
+      setImportHeaders(headers)
+      setImportMapping(buildImportMapping(headers))
       setImportRows(rows)
       toast.success('CSV analysé', `${rows.length} ligne(s) détectée(s).`)
       return
@@ -393,6 +434,9 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
           })
           return obj
         })
+        const headers = Object.keys(rows[0] ?? {})
+        setImportHeaders(headers)
+        setImportMapping(buildImportMapping(headers))
         setImportRows(rows)
         toast.success('XLSX analysé', `${rows.length} ligne(s) détectée(s).`)
       } catch (e) {
@@ -409,12 +453,21 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       toast.error('Aucune donnée', 'Aucune ligne à importer.')
       return
     }
+    const mappedRows = importRows.map((row) => {
+      const mapped: Record<string, string> = {}
+      Object.entries(importMapping).forEach(([header, field]) => {
+        if (field && row[header] != null) mapped[field] = row[header]
+      })
+      return mapped
+    })
     try {
-      const res = await importContactsToListe(selectedListe.id, user.id, importRows)
+      const res = await importContactsToListe(selectedListe.id, user.id, mappedRows)
       if (res.created > 0) toast.success('Import terminé', `${res.created} contact(s) créé(s).`)
       if (res.errors.length > 0) toast.error('Import partiel', `${res.errors.length} erreur(s).`)
       setShowImport(false)
       setImportRows([])
+      setImportHeaders([])
+      setImportMapping({})
       setImportFileName('')
       setContactsReloadKey((key) => key + 1)
       await onRefresh()
@@ -798,7 +851,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
             </header>
             <div className="workspace-modal-body">
               <p className="workspace-import-hint">
-                Colonnes&nbsp;: <code>{CONTACT_IMPORT_COLUMNS.join(', ')}</code>. Nom ou e-mail obligatoire.
+                Importez un fichier CSV ou Excel, puis associez les colonnes de votre fichier aux champs du site. Leurs ordres peuvent être différents.
               </p>
               <div className="workspace-import-actions">
                 <button type="button" className="workspace-secondary" onClick={downloadTemplate}>
@@ -824,6 +877,31 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                   Fichier&nbsp;: <strong>{importFileName}</strong> — {importRows.length} ligne(s)
                 </p>
               )}
+              {importHeaders.length > 0 && (
+                <div className="import-column-mapping">
+                  <h4>Associer les colonnes</h4>
+                  <p className="form-hint">Choisissez le champ du site pour chaque colonne. « Ignorer » permet de ne pas importer une colonne.</p>
+                  <div className="import-mapping-grid">
+                    {importHeaders.map((header) => (
+                      <label className="import-mapping-row" key={header}>
+                        <span title={header}>{header}</span>
+                        <select value={importMapping[header] ?? ''} onChange={(event) => setImportMapping((current) => ({ ...current, [header]: event.target.value }))}>
+                          <option value="">Ignorer cette colonne</option>
+                          {IMPORT_FIELD_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={option.value !== '' && Object.entries(importMapping).some(([other, value]) => other !== header && value === option.value)}>{option.label}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <h4>Aperçu des données (5 premières lignes)</h4>
+                  <div className="import-preview-wrap">
+                    <table className="import-preview-table">
+                      <thead><tr>{importHeaders.map((header) => <th key={header}>{header}<small>{IMPORT_FIELD_OPTIONS.find((option) => option.value === importMapping[header])?.label ?? 'Ignorée'}</small></th>)}</tr></thead>
+                      <tbody>{importRows.slice(0, 5).map((row, index) => <tr key={index}>{importHeaders.map((header) => <td key={header}>{row[header] || '—'}</td>)}</tr>)}</tbody>
+                    </table>
+                  </div>
+                  {!Object.values(importMapping).includes('nom') && !Object.values(importMapping).includes('email') && <p className="form-error">Associez au moins la colonne Nom ou E-mail pour importer.</p>}
+                </div>
+              )}
             </div>
             <footer>
               <button type="button" className="workspace-secondary" onClick={() => setShowImport(false)}>
@@ -833,7 +911,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                 type="button"
                 className="workspace-primary"
                 onClick={() => void confirmImport()}
-                disabled={importRows.length === 0}
+                disabled={importRows.length === 0 || (!Object.values(importMapping).includes('nom') && !Object.values(importMapping).includes('email'))}
               >
                 Importer {importRows.length > 0 ? `(${importRows.length})` : ''}
               </button>

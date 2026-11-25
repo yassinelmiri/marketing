@@ -19,6 +19,8 @@ interface CampagnesViewProps {
   listes: ListeContact[]
   typesCampagnes: TypeCampagne[]
   campagneListes: CampagneListe[]
+  campagneMembres: { id: number; campagne_id: number; user_id: number }[]
+  teamUsers: User[]
   contactListCounts: Record<number, number>
   onCreate: (
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
@@ -26,6 +28,7 @@ interface CampagnesViewProps {
   onUpdate: (id: number, patch: Partial<Pick<Campagne, 'type_campagne_id' | 'titre' | 'cible' | 'note' | 'status'>>) => Promise<void>
   onDelete: (id: number) => Promise<void>
   onSetListes: (campagneId: number, listeIds: number[]) => Promise<void>
+  onSetMembres: (campagneId: number, userIds: number[]) => Promise<void>
   onOpenListes: () => void
 }
 
@@ -38,15 +41,19 @@ const emptyForm = {
 }
 
 export function CampagnesView({
+  user,
   campagnes,
   listes,
   typesCampagnes,
   campagneListes,
+  campagneMembres,
+  teamUsers,
   contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
   onSetListes,
+  onSetMembres,
   onOpenListes,
 }: CampagnesViewProps) {
   const toast = useToast()
@@ -54,6 +61,7 @@ export function CampagnesView({
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [formListeIds, setFormListeIds] = useState<number[]>([])
+  const [formMemberIds, setFormMemberIds] = useState<number[]>([])
   const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
   const [search, setSearch] = useState('')
 
@@ -83,6 +91,7 @@ export function CampagnesView({
     setEditingId(null)
     setForm({ ...emptyForm, type_campagne_id: types[0]?.id ?? 1 })
     setFormListeIds([])
+    setFormMemberIds([])
     setShowForm(true)
   }
 
@@ -96,6 +105,7 @@ export function CampagnesView({
       status: c.status,
     })
     setFormListeIds(campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
+    setFormMemberIds(campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => link.user_id))
     setShowForm(true)
   }
 
@@ -121,17 +131,20 @@ export function CampagnesView({
     if (editingId) {
       await onUpdate(editingId, payload)
       await onSetListes(editingId, formListeIds)
+      if (user.role_id === 1) await onSetMembres(editingId, formMemberIds)
       toast.success('Campagne mise à jour', `« ${payload.titre} » enregistrée.`)
     } else {
       const created = await onCreate(payload)
       if (!created) return
       await onSetListes(created.id, formListeIds)
+      if (user.role_id === 1) await onSetMembres(created.id, formMemberIds)
       toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
     }
     setShowForm(false)
     setEditingId(null)
     setForm(emptyForm)
     setFormListeIds([])
+    setFormMemberIds([])
   }
 
   async function handleDelete(c: Campagne) {
@@ -200,6 +213,7 @@ export function CampagnesView({
                   <th>Type</th>
                   <th>Statut</th>
                   <th>Listes</th>
+                  <th>Membres associés</th>
                   <th>Modifiée le</th>
                   <th aria-label="Actions" />
                 </tr>
@@ -223,6 +237,7 @@ export function CampagnesView({
                       <td>
                         {campaignListsForRow.length === 0 ? '—' : campaignListsForRow.map((l) => l.nom).join(', ')}
                       </td>
+                      <td>{campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => teamUsers.find((member) => member.id === link.user_id)).filter(Boolean).map((member) => `${member!.prenom} ${member!.nom}`.trim()).join(', ') || '—'}</td>
                       <td>{formatDate(c.date_modification)}</td>
                       <td className="campagne-table-actions">
                         <button type="button" onClick={() => openEdit(c)} aria-label="Modifier">
@@ -279,6 +294,21 @@ export function CampagnesView({
                   <input value={form.cible} onChange={(e) => setForm({ ...form, cible: e.target.value })} placeholder="Prospects, clients, segment…" />
                 </label>
 
+                {user.role_id === 1 && <div className="form-grid-full">
+                  <span className="form-label">Membres associés à cette campagne</span>
+                  <p className="form-hint">Les membres sélectionnés retrouveront cette campagne dans leur espace, même sans liste de contacts.</p>
+                  {teamUsers.length === 0 ? <p className="form-hint">Aucun membre disponible.</p> : (
+                    <div className="checkbox-grid">
+                      {teamUsers.map((member) => {
+                        const checked = formMemberIds.includes(member.id)
+                        return <label key={member.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
+                          <input type="checkbox" checked={checked} onChange={() => setFormMemberIds((current) => checked ? current.filter((id) => id !== member.id) : [...current, member.id])}/>
+                          <div><strong>{member.prenom} {member.nom}</strong><span>{member.email}</span></div>
+                        </label>
+                      })}
+                    </div>
+                  )}
+                </div>}
                 <div className="form-grid-full">
                   <span className="form-label">Listes ciblées par la campagne</span>
                   {allListes.length === 0 ? (

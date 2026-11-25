@@ -2867,3 +2867,28 @@
 .contacts-select-column{width:38px;text-align:center!important}
 .contacts-select-column input[type="checkbox"]{width:16px;height:16px;accent-color:#6366f1;cursor:pointer}
 @media(max-width:680px){.contacts-filter-toolbar{align-items:stretch}.contacts-filter-toolbar>.data-search-field{flex-basis:100%}.contacts-filter-toolbar>label:not(.data-search-field){flex:1 1 120px}.contacts-bulk-toolbar{align-items:stretch}.contacts-bulk-toolbar .workspace-danger{justify-content:center}}
+
+/* Configurable contacts import mapping and preview */
+.import-column-mapping{display:grid;gap:12px;margin-top:14px}
+.import-column-mapping h4{font-size:13px;margin:4px 0}
+.import-mapping-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.import-mapping-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1.2fr);align-items:center;gap:8px;padding:9px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-width:0}
+.import-mapping-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:650}
+.import-mapping-row select{min-width:0;width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:12px}
+.import-preview-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;max-height:260px}
+.import-preview-table{border-collapse:collapse;min-width:100%;font-size:11px}
+.import-preview-table th,.import-preview-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.import-preview-table th{position:sticky;top:0;background:var(--surface-2);z-index:1}
+.import-preview-table th small{display:block;margin-top:4px;font-size:10px;color:var(--muted);font-weight:500}
+@media(max-width:650px){.import-mapping-grid{grid-template-columns:1fr}.import-mapping-row{grid-template-columns:minmax(0,1fr) minmax(120px,1fr)}}
+
+/* Member dashboard assigned campaigns */
+.associated-campaigns-panel{margin:16px 0}
+.associated-campaigns-list{display:grid;gap:8px;padding:14px}
+.associated-campaign-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.associated-campaign-item>div{min-width:0;display:grid;gap:4px}
+.associated-campaign-item strong{font-size:13px}
+.associated-campaign-item span,.associated-campaign-item p,.associated-campaign-item small{font-size:11px;color:var(--muted)}
+.associated-campaign-item p{margin:4px 0 0;white-space:pre-wrap}
+.associated-campaign-item small{white-space:nowrap}
+.associated-campaigns-empty{padding:18px}
