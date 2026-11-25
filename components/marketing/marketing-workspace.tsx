@@ -684,10 +684,8 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
             <ListesView
               user={currentUser}
               listes={listes}
-              contacts={contacts}
               campagnes={campagnes}
               campagneListes={campagneListes}
-              listeContacts={listeContacts}
               contactCount={contactsCount}
               contactListCounts={contactListCounts}
               teamUsers={teamUsers}
