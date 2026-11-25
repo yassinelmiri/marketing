@@ -2,16 +2,15 @@
 
 import { useState } from 'react'
 import { Send, Smartphone, Users } from 'lucide-react'
-import type { ListeContact, ListeContactContact } from '@/lib/storage'
+import type { ListeContact } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 
 interface SmsSenderViewProps {
   listes: ListeContact[]
-  listeContacts: ListeContactContact[]
   contactListCounts: Record<number, number>
 }
 
-export function SmsSenderView({ listes: allListes, listeContacts, contactListCounts }: SmsSenderViewProps) {
+export function SmsSenderView({ listes: allListes, contactListCounts }: SmsSenderViewProps) {
   const toast = useToast()
   const [text, setText] = useState('')
   const [listeId, setListeId] = useState<number | ''>('')
