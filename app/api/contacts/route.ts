@@ -35,23 +35,27 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.max(10, Math.min(100, Number(request.nextUrl.searchParams.get('pageSize')) || 50))
     const listId = Number(request.nextUrl.searchParams.get('listId') || 0)
     const rawSearch = (request.nextUrl.searchParams.get('q') || '').trim().slice(0, 100)
-    const search = rawSearch.replace(/[,%()\\]/g, ' ').replace(/\s+/g, ' ').trim()
+    const search = rawSearch.replace(/[,%()\\"]/g, ' ').replace(/\s+/g, ' ').trim()
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
 
-    let query = supabase.from('contacts').select(CONTACT_COLUMNS, { count: 'exact' })
-      .order('date_creation', { ascending: false }).range(from, to)
-    if (search) query = query.or('nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%')
-    if (Number.isSafeInteger(listId) && listId > 0) {
-      query = supabase.from('contacts').select(CONTACT_COLUMNS + ',liste_contacts!inner(liste_id)', { count: 'exact' })
-        .eq('liste_contacts.liste_id', listId).order('date_creation', { ascending: false }).range(from, to)
-      if (search) query = query.or('nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%')
-    }
-
-    const [{ data: rows, count, error }, { count: totalCount, error: totalError }] = await Promise.all([
-      query,
-      supabase.from('contacts').select('id', { count: 'exact', head: true }),
-    ])
+    const searchFilter = search
+      ? 'nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%'
+      : null
+    const result = await (async () => {
+      if (Number.isSafeInteger(listId) && listId > 0) {
+        let filtered = supabase.from('contacts')
+          .select(CONTACT_COLUMNS + ',liste_contacts!inner(liste_id)', { count: 'exact' })
+          .eq('liste_contacts.liste_id', listId)
+        if (searchFilter) filtered = filtered.or(searchFilter)
+        return filtered.order('date_creation', { ascending: false }).range(from, to)
+      }
+      let filtered = supabase.from('contacts').select(CONTACT_COLUMNS, { count: 'exact' })
+      if (searchFilter) filtered = filtered.or(searchFilter)
+      return filtered.order('date_creation', { ascending: false }).range(from, to)
+    })()
+    const { data: rows, count, error } = result
+    const { count: totalCount, error: totalError } = await supabase.from('contacts').select('id', { count: 'exact', head: true })
     if (error || totalError) throw error || totalError
 
     const contactIds = (rows ?? []).map((row) => Number(row.id)).filter(Number.isSafeInteger)
