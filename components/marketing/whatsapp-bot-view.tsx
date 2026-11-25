@@ -224,6 +224,13 @@ export function WhatsAppBotView() {
       setPaused(data.campaign.status === 'paused')
       const firstOpen = restored.findIndex((item) => item.status === 'pending' || item.status === 'opened')
       setActiveIndex(firstOpen >= 0 ? firstOpen : Math.max(0, restored.length - 1))
+      if (firstOpen < 0 && page < Number(data.totalPages ?? 1)) {
+        if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+        advanceTimerRef.current = setTimeout(() => {
+          void loadSavedCampaign(id, page + 1)
+          advanceTimerRef.current = null
+        }, 0)
+      }
       setDuplicates(0)
       setInvalid(0)
       setNotice('Campagne restaurée. Le suivi a été récupéré depuis Supabase.')
