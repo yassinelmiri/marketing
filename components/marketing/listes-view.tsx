@@ -31,7 +31,7 @@ import {
   updateContact,
   setContactListes,
   setCampagneListes,
-  setListeCampagne,
+  setListeCampagnes,
   importContactsToListe,
 } from '@/lib/supabase/marketing-data'
 import { useToast } from '@/components/ui/toast'
@@ -133,7 +133,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const [showListeForm, setShowListeForm] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
   const [listeForm, setListeForm] = useState(emptyListeForm)
-  const [listeCampagneId, setListeCampagneId] = useState('')
+  const [listeCampagneIds, setListeCampagneIds] = useState<number[]>([])
   const [listeSearch, setListeSearch] = useState('')
   const [listeDateFilter, setListeDateFilter] = useState('all')
   const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
@@ -240,7 +240,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
     setEditingListe(null)
-    setListeCampagneId('')
+    setListeCampagneIds([])
     const me = user
     setListeForm({
       nom: '',
@@ -254,8 +254,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   }
   function openEditListe(l: ListeContact) {
     setEditingListe(l)
-    const associatedCampaign = campagneListes.find((link) => link.liste_id === l.id)
-    setListeCampagneId(associatedCampaign ? String(associatedCampaign.campagne_id) : '')
+    setListeCampagneIds(campagneListes.filter((link) => link.liste_id === l.id).map((link) => link.campagne_id))
     setListeForm({
       nom: l.nom,
       description: l.description,
@@ -281,9 +280,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           note: listeForm.note,
           ajoute_par_nom: listeForm.ajoute_par_nom,
         })
-        const currentCampaignId = campagneListes.find((link) => link.liste_id === editingListe.id)?.campagne_id ?? null
-        const nextCampaignId = listeCampagneId ? Number(listeCampagneId) : null
-        if (currentCampaignId !== nextCampaignId) await setListeCampagne(editingListe.id, nextCampaignId)
+        await setListeCampagnes(editingListe.id, listeCampagneIds)
       } else {
         const created = await createListe({
           nom: listeForm.nom.trim(),
@@ -293,9 +290,9 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           ajoute_par_nom: `${user.prenom} ${user.nom}`.trim(),
           created_by: user.id,
         })
-        if (listeCampagneId) {
+        if (listeCampagneIds.length > 0) {
           try {
-            await setCampagneListes(Number(listeCampagneId), [created.id])
+            await setListeCampagnes(created.id, listeCampagneIds)
           } catch (error) {
             await deleteListeInDb(created.id)
             throw error
@@ -734,14 +731,23 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   <span>Nom de la liste</span>
                   <input value={listeForm.nom} onChange={(e) => setListeForm({ ...listeForm, nom: e.target.value })} placeholder="Prospects Q1" />
                 </label>
-                <label className="form-grid-full">
-                  <span>Campagne associée (facultatif)</span>
-                  <select value={listeCampagneId} onChange={(e) => setListeCampagneId(e.target.value)}>
-                    <option value="">Aucune campagne</option>
-                    {allCampagnes.map((campagne) => <option key={campagne.id} value={campagne.id}>{campagne.titre}</option>)}
-                  </select>
-                  <small className="form-hint">Une liste peut être associée à une seule campagne. Une campagne peut contenir plusieurs listes.</small>
-                </label>
+                <div className="form-grid-full liste-campaign-field">
+                  <span className="form-label">Campagnes associées (facultatif)</span>
+                  <p className="form-hint">Sélectionnez une ou plusieurs campagnes pour cette liste.</p>
+                  {allCampagnes.length === 0 ? <p className="form-hint">Aucune campagne disponible.</p> : (
+                    <div className="liste-campaign-options">
+                      {allCampagnes.map((campagne) => {
+                        const checked = listeCampagneIds.includes(campagne.id)
+                        return (
+                          <label key={campagne.id} className={`liste-campaign-option${checked ? ' is-selected' : ''}`}>
+                            <input type="checkbox" checked={checked} onChange={() => setListeCampagneIds((current) => checked ? current.filter((id) => id !== campagne.id) : [...current, campagne.id])} />
+                            <span>{campagne.titre}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
                 <label className="form-grid-full">
                   <span>Cible</span>
                   <input value={listeForm.cible} onChange={(e) => setListeForm({ ...listeForm, cible: e.target.value })} placeholder="Prospects, clients VIP, secteur retail…" />
