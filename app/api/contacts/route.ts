@@ -23,14 +23,17 @@ export async function GET(request: NextRequest) {
 
   try {
     if (request.nextUrl.searchParams.get('counts') === '1') {
-      // Les statistiques doivent refléter les données réelles même si les politiques RLS
-      // limitent la lecture directe côté navigateur. L'accès reste protégé par authorize().
-      const admin = createAdminClient()
+      // authorize() a déjà vérifié la permission listes.read.
+      // Utiliser la session de l'utilisateur permet à has_permission() de fonctionner
+      // correctement dans la fonction get_contact_list_counts (SECURITY INVOKER).
       const [{ count: total, error: totalError }, { data: counts, error: countsError }] = await Promise.all([
-        admin.from('contacts').select('id', { count: 'exact', head: true }),
-        admin.rpc('get_contact_list_counts'),
+        supabase.from('contacts').select('id', { count: 'exact', head: true }),
+        supabase.rpc('get_contact_list_counts'),
       ])
-      if (totalError || countsError) throw totalError || countsError
+      if (totalError || countsError) {
+        console.error('[contacts] counts query failed:', { totalError, countsError })
+        throw totalError || countsError
+      }
       const listCounts = Object.fromEntries((counts ?? []).map((row: { list_id: number; contact_count: number }) => [Number(row.list_id), Number(row.contact_count)]))
       return NextResponse.json({ total: Number(total ?? 0), listCounts }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
     }
