@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 type Profile = { id: number; role_id: number; prenom: string; nom: string }
 type TaskStatus = 'todo' | 'in_progress' | 'waiting' | 'done'
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 async function access() {
   const session = await createClient()
@@ -41,6 +42,82 @@ function validStatus(value: unknown): value is TaskStatus {
 
 function validPriority(value: unknown): value is TaskPriority {
   return ['low', 'medium', 'high', 'urgent'].includes(String(value))
+}
+
+
+function validRecurrence(value: unknown): value is RecurrenceFrequency {
+  return ['none', 'daily', 'weekly', 'monthly', 'yearly'].includes(String(value))
+}
+
+async function createNextOccurrence(admin: ReturnType<typeof createAdminClient>, taskId: number) {
+  const { data: task, error: taskError } = await admin.from('tasks').select('*').eq('id', taskId).maybeSingle()
+  if (taskError || !task || task.recurrence_frequency === 'none' || !task.due_date) return
+
+  const next = new Date(String(task.due_date) + 'T12:00:00.000Z')
+  const interval = Math.max(1, Math.min(365, Number(task.recurrence_interval) || 1))
+  if (task.recurrence_frequency === 'daily') next.setUTCDate(next.getUTCDate() + interval)
+  if (task.recurrence_frequency === 'weekly') next.setUTCDate(next.getUTCDate() + 7 * interval)
+  if (task.recurrence_frequency === 'monthly') {
+    const day = next.getUTCDate()
+    next.setUTCDate(1)
+    next.setUTCMonth(next.getUTCMonth() + interval)
+    const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate()
+    next.setUTCDate(Math.min(day, lastDay))
+  }
+  if (task.recurrence_frequency === 'yearly') {
+    const month = next.getUTCMonth()
+    const day = next.getUTCDate()
+    next.setUTCDate(1)
+    next.setUTCFullYear(next.getUTCFullYear() + interval)
+    next.setUTCMonth(month)
+    const lastDay = new Date(Date.UTC(next.getUTCFullYear(), month + 1, 0)).getUTCDate()
+    next.setUTCDate(Math.min(day, lastDay))
+  }
+  const nextDueDate = next.toISOString().slice(0, 10)
+  if (task.recurrence_until && nextDueDate > String(task.recurrence_until)) return
+
+  const seriesId = Number(task.recurrence_series_id ?? task.id)
+  const { data: nextTask, error: insertError } = await admin.from('tasks').insert({
+    title: task.title,
+    description: task.description,
+    priority: task.priority,
+    status: 'todo',
+    due_date: nextDueDate,
+    created_by: task.created_by,
+    recurrence_frequency: task.recurrence_frequency,
+    recurrence_interval: interval,
+    recurrence_until: task.recurrence_until,
+    recurrence_series_id: seriesId,
+  }).select('*').single()
+
+  // A unique series/date index makes concurrent completion requests idempotent.
+  if (insertError?.code === '23505') return
+  if (insertError || !nextTask) {
+    console.error('[tasks] next recurring occurrence could not be created:', insertError?.message)
+    return
+  }
+
+  const { data: assignments, error: assignmentsError } = await admin
+    .from('task_assignments').select('user_id').eq('task_id', taskId)
+  if (assignmentsError || !assignments?.length) return
+
+  const userIds = assignments.map((row) => Number(row.user_id))
+  const { error: assignmentError } = await admin.from('task_assignments').insert(
+    userIds.map((user_id) => ({ task_id: nextTask.id, user_id })),
+  )
+  if (assignmentError) {
+    await admin.from('tasks').delete().eq('id', nextTask.id)
+    console.error('[tasks] next recurring assignments failed:', assignmentError.message)
+    return
+  }
+
+  await admin.from('notifications').insert(userIds.map((user_id) => ({
+    user_id,
+    type: 'task_assigned',
+    title: 'Nouvelle occurrence de tâche',
+    body: task.title,
+    task_id: nextTask.id,
+  })))
 }
 
 function cleanText(value: unknown, max: number) {
@@ -150,9 +227,11 @@ export async function POST(request: NextRequest) {
     : []
 
   if (!title) return NextResponse.json({ error: 'Le titre de la tâche est obligatoire.' }, { status: 400 })
-  if (!validPriority(priority) || !validStatus(status)) {
+  if (!validPriority(priority) || !validStatus(status) || !validRecurrence(recurrenceFrequency)) {
     return NextResponse.json({ error: 'Priorité ou statut invalide.' }, { status: 400 })
   }
+  if (recurrenceFrequency !== 'none' && !dueDate) return NextResponse.json({ error: 'Une date limite est obligatoire pour une tâche répétitive.' }, { status: 400 })
+  if (recurrenceUntil && dueDate && recurrenceUntil < dueDate) return NextResponse.json({ error: 'La date de fin doit être après la première échéance.' }, { status: 400 })
   if (assigneeIds.length === 0) {
     return NextResponse.json({ error: 'Affectez la tâche à au moins un membre.' }, { status: 400 })
   }
@@ -175,11 +254,23 @@ export async function POST(request: NextRequest) {
       status,
       due_date: dueDate,
       created_by: result.profile.id,
+      recurrence_frequency: recurrenceFrequency,
+      recurrence_interval: recurrenceInterval,
+      recurrence_until: recurrenceUntil,
+      recurrence_series_id: null,
     })
     .select('*')
     .single()
 
   if (error || !task) return NextResponse.json({ error: 'Création de tâche impossible.' }, { status: 500 })
+
+  if (recurrenceFrequency !== 'none') {
+    const { error: seriesError } = await result.admin.from('tasks').update({ recurrence_series_id: task.id }).eq('id', task.id)
+    if (seriesError) {
+      await result.admin.from('tasks').delete().eq('id', task.id)
+      return NextResponse.json({ error: 'Initialisation de la répétition impossible.' }, { status: 500 })
+    }
+  }
 
   const { error: assignmentError } = await result.admin
     .from('task_assignments')
@@ -244,6 +335,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', id)
 
     if (error) return NextResponse.json({ error: 'Mise à jour du statut impossible.' }, { status: 500 })
+    if (task.status !== 'done' && body.status === 'done') await createNextOccurrence(result.admin, id)
 
     if (task.created_by && Number(task.created_by) !== result.profile.id) {
       await result.admin.from('notifications').insert({
@@ -260,7 +352,7 @@ export async function PATCH(request: NextRequest) {
 
   const title = cleanText(body.title, 160)
   const description = cleanText(body.description, 5000)
-  if (!title || !validPriority(body.priority) || !validStatus(body.status)) {
+  if (!title || !validPriority(body.priority) || !validStatus(body.status) || !validRecurrence(recurrenceFrequency)) {
     return NextResponse.json({ error: 'Titre, priorité ou statut invalide.' }, { status: 400 })
   }
 
@@ -270,6 +362,8 @@ export async function PATCH(request: NextRequest) {
     ? [...new Set(body.assignee_ids.map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))]
     : []
 
+  if (recurrenceFrequency !== 'none' && !dueDate) return NextResponse.json({ error: 'Une date limite est obligatoire pour une tâche répétitive.' }, { status: 400 })
+  if (recurrenceUntil && dueDate && recurrenceUntil < dueDate) return NextResponse.json({ error: 'La date de fin doit être après la première échéance.' }, { status: 400 })
   if (assigneeIds.length === 0) return NextResponse.json({ error: 'Affectez au moins un membre.' }, { status: 400 })
 
   const { data: members, error: membersError } = await result.admin
@@ -296,6 +390,10 @@ export async function PATCH(request: NextRequest) {
       priority: body.priority,
       status: body.status,
       due_date: dueDate,
+      recurrence_frequency: recurrenceFrequency,
+      recurrence_interval: recurrenceInterval,
+      recurrence_until: recurrenceUntil,
+      recurrence_series_id: recurrenceFrequency === 'none' ? null : (task.recurrence_series_id ?? task.id),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -310,6 +408,8 @@ export async function PATCH(request: NextRequest) {
     .insert(assigneeIds.map((user_id) => ({ task_id: id, user_id })))
 
   if (insertError) return NextResponse.json({ error: 'Enregistrement des affectations impossible.' }, { status: 500 })
+
+  if (task.status !== 'done' && body.status === 'done') await createNextOccurrence(result.admin, id)
 
   const newlyAssigned = assigneeIds.filter((userId) => !previousIds.has(userId))
   if (newlyAssigned.length) {
