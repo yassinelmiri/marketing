@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
           const chunk = recipients.slice(chunkStart, Math.min(batchEnd, chunkStart + sendConcurrency))
           const results = await Promise.all(chunk.map(async (rawRecipient, chunkIndex) => {
             const recipient = String(rawRecipient ?? '').trim().toLowerCase()
-            if (!recipient) return { sent: false, failed: false, recipient }
+            if (!recipient) return { sent: false, failed: false, recipient, error: 'Adresse e-mail vide.', smtp_account_id: null }
             try {
               const pixel = campaign.tracking_opens
                 ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />'
@@ -126,16 +126,24 @@ export async function GET(request: NextRequest) {
                 html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
                 text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
               })
-              return { sent: true, failed: false, recipient }
+              return { sent: true, failed: false, recipient, error: null, smtp_account_id: senderId }
             } catch (error) {
               console.error('[email/worker] recipient failed:', campaign.id, recipient, error)
-              return { sent: false, failed: true, recipient }
+              return { sent: false, failed: true, recipient, error: error instanceof Error ? error.message.slice(0, 500) : 'Erreur SMTP inconnue.', smtp_account_id: null }
             }
           }))
           for (const result of results) {
             if (result.sent) sent++
             if (result.failed) { failed++; failedRecipients.push(result.recipient) }
           }
+          const { error: logError } = await admin.from('email_delivery_logs').insert(results.map((result) => ({
+            campaign_id: campaign.id,
+            recipient_email: result.recipient,
+            status: result.sent ? 'sent' : result.failed ? 'failed' : 'skipped',
+            error_message: result.error,
+            smtp_account_id: result.smtp_account_id,
+          })))
+          if (logError) console.error('[email/worker] delivery log insert failed:', campaign.id, logError.message)
           offset += chunk.length
           if (offset < batchEnd && Date.now() >= deadline) shouldStop = true
         }
