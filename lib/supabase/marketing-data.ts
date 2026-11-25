@@ -144,46 +144,37 @@ export async function deleteCampagne(id: number): Promise<void> {
   throwIfError(error)
 }
 
-export async function setListeCampagne(listeId: number, campagneId: number | null): Promise<void> {
+export async function setListeCampagnes(listeId: number, campagneIds: number[]): Promise<void> {
   const supabase = createClient()
+  const uniqueCampaignIds = [...new Set(campagneIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
   const { data: existing, error: readError } = await supabase
     .from('campagne_listes')
-    .select('id,campagne_id,liste_id')
+    .select('id,campagne_id')
     .eq('liste_id', listeId)
-    .maybeSingle()
   throwIfError(readError)
 
-  if (existing?.campagne_id === campagneId) return
+  const existingRows = existing ?? []
+  const existingIds = new Set(existingRows.map((row) => Number(row.campagne_id)))
+  const nextIds = new Set(uniqueCampaignIds)
+  const toInsert = uniqueCampaignIds.filter((id) => !existingIds.has(id))
+  const toDelete = existingRows.filter((row) => !nextIds.has(Number(row.campagne_id)))
 
-  if (existing) {
-    const { error } = await supabase.from('campagne_listes').delete().eq('id', existing.id)
+  if (toInsert.length) {
+    const { error } = await supabase.from('campagne_listes').insert(
+      toInsert.map((campagne_id) => ({ campagne_id, liste_id: listeId })),
+    )
     throwIfError(error)
   }
-
-  if (campagneId !== null) {
-    const { error } = await supabase.from('campagne_listes').insert({ campagne_id: campagneId, liste_id: listeId })
-    if (error) {
-      if (existing) await supabase.from('campagne_listes').insert({ campagne_id: existing.campagne_id, liste_id: listeId })
-      throwIfError(error)
-    }
+  if (toDelete.length) {
+    const { error } = await supabase.from('campagne_listes').delete().in('id', toDelete.map((row) => row.id))
+    throwIfError(error)
   }
 }
+
 export async function setCampagneListes(campagneId: number, listeIds: number[]): Promise<void> {
   const supabase = createClient()
   const uniqueListeIds = [...new Set(listeIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
 
-  // Une liste ne peut appartenir qu'à une seule campagne.
-  if (uniqueListeIds.length > 0) {
-    const { data: conflicts, error: conflictError } = await supabase
-      .from('campagne_listes')
-      .select('liste_id,campagne_id')
-      .in('liste_id', uniqueListeIds)
-      .neq('campagne_id', campagneId)
-    throwIfError(conflictError)
-    if (conflicts?.length) {
-      throw new Error('Une ou plusieurs listes sélectionnées sont déjà associées à une autre campagne.')
-    }
-  }
 
   const { error: deleteError } = await supabase
     .from('campagne_listes')
