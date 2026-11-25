@@ -581,7 +581,24 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                 </li>
               )}
             </ul>
-            {visibleListes.length > 0 && <div className="pagination-toolbar"><label>Afficher <select value={listePageSize} onChange={e => { setListePageSize(Number(e.target.value)); setListePage(1) }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select> par page</label><span>{visibleListes.length} listes · page {listePage}/{Math.max(1,Math.ceil(visibleListes.length/listePageSize))}</span><div><button disabled={listePage<=1} onClick={()=>setListePage(p=>p-1)}>Précédent</button><button disabled={listePage>=Math.ceil(visibleListes.length/listePageSize)} onClick={()=>setListePage(p=>p+1)}>Suivant</button></div></div>
+            {visibleListes.length > 0 && (
+              <div className="pagination-toolbar">
+                <label>
+                  Afficher{' '}
+                  <select value={listePageSize} onChange={(e) => { setListePageSize(Number(e.target.value)); setListePage(1) }}>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>{' '}
+                  par page
+                </label>
+                <span>{visibleListes.length} listes · page {listePage}/{Math.max(1, Math.ceil(visibleListes.length / listePageSize))}</span>
+                <div>
+                  <button disabled={listePage <= 1} onClick={() => setListePage((p) => p - 1)}>Précédent</button>
+                  <button disabled={listePage >= Math.ceil(visibleListes.length / listePageSize)} onClick={() => setListePage((p) => p + 1)}>Suivant</button>
+                </div>
+              </div>
+            )}
             </>
           )}
         </div>
