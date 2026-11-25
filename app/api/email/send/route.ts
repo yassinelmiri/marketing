@@ -12,9 +12,21 @@ function originError(request: NextRequest) {
   const origin = request.headers.get('origin')
   if (!origin) return NextResponse.json({ error: 'Origine manquante.' }, { status: 403 })
   try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
+    if (new URL(origin).origin !== publicOrigin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
   } catch { return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 }) }
   return null
+}
+
+
+function getPublicOrigin(request: NextRequest) {
+  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
+  const vercelHost = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ''
+  const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\\/+$/, '')
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.origin
+  } catch {}
+  return publicOrigin
 }
 
 async function authorizedSession() {
@@ -71,6 +83,7 @@ export async function POST(request: NextRequest) {
     if ('error' in auth) return auth.error
 
     const body = await request.json()
+    const publicOrigin = getPublicOrigin(request)
     const smtpId = Number(body.smtp_account_id)
     const listeId = Number(body.liste_id)
     const subject = String(body.subject ?? '').trim().slice(0, 250)
@@ -154,12 +167,12 @@ export async function POST(request: NextRequest) {
         const batch = recipients.slice(offset, offset + batchSize)
         for (const recipient of batch) {
           try {
-            const pixel = trackingOpens ? '<img src="' + request.nextUrl.origin + '/api/email/track/open?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />' : ''
+            const pixel = trackingOpens ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />' : ''
             const { data: unsubscribeToken, error: tokenError } = await admin.from('email_unsubscribe_tokens').upsert({ email: recipient, campaign_id: campaignId }, { onConflict: 'email,campaign_id' }).select('token').single()
             if (tokenError) throw tokenError
-            const unsubscribeLink = request.nextUrl.origin + '/api/email/unsubscribe/' + unsubscribeToken.token
+            const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + unsubscribeToken.token
             let html = /<[a-z][\s\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
-            if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+            if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
             await transporter.sendMail({
               from: { name: smtp.from_name || smtp.name, address: smtp.email },
               to: recipient,
