@@ -2966,3 +2966,20 @@
 .workspace-root .admin-permission-tags span.is-empty{color:#ef4444}
 @media(max-width:900px){.workspace-root .admin-users-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.workspace-root .admin-users-panel{padding:14px}.workspace-root .admin-users-heading{align-items:flex-start;flex-direction:column}.workspace-root .admin-users-heading>.workspace-primary{width:100%;justify-content:center}.workspace-root .admin-users-stats{grid-template-columns:1fr 1fr;gap:8px}.workspace-root .admin-users-stat{padding:10px;gap:8px}.workspace-root .admin-users-stat-icon{width:32px;height:32px;flex-basis:32px}.workspace-root .admin-users-toolbar{align-items:stretch}.workspace-root .admin-users-search{flex-basis:100%}.workspace-root .admin-users-role-filter{flex:1}.workspace-root .admin-users-results{width:100%;margin:0}}
+
+
+/* Compact member selection rows and multi-campaign list picker */
+.workspace-root .campaign-member-options{max-height:190px;gap:3px;padding:5px 0}
+.workspace-root .campaign-member-option{gap:7px;padding:5px 7px;min-height:38px}
+.workspace-root .campaign-member-option input{width:14px;height:14px;margin:0}
+.workspace-root .campaign-member-avatar{width:25px;height:25px;flex-basis:25px;font-size:10px}
+.workspace-root .campaign-member-menu{padding:8px}
+.workspace-root .campaign-member-chips{gap:4px}
+.workspace-root .campaign-member-chips button{padding:3px 7px;font-size:11px}
+.workspace-root .liste-campaign-field{display:grid;gap:7px}
+.workspace-root .liste-campaign-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px;max-height:190px;overflow:auto;padding:2px}
+.workspace-root .liste-campaign-option{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);cursor:pointer;transition:border-color .15s,background .15s}
+.workspace-root .liste-campaign-option.is-selected{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 9%,var(--surface))}
+.workspace-root .liste-campaign-option input{width:15px;height:15px;flex:0 0 15px;margin:0;accent-color:var(--blue)}
+.workspace-root .liste-campaign-option span{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){.workspace-root .liste-campaign-options{grid-template-columns:1fr}}
