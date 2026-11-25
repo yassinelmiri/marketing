@@ -159,6 +159,19 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
+  const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
+  const contactListNamesByContactId = useMemo(() => {
+    const listsById = new Map(listes.map((liste) => [liste.id, liste.nom]))
+    const namesByContactId = new Map<number, string[]>()
+    for (const link of contactLinks) {
+      const listName = listsById.get(link.liste_id)
+      if (!listName) continue
+      const names = namesByContactId.get(link.contact_id) ?? []
+      names.push(listName)
+      namesByContactId.set(link.contact_id, names)
+    }
+    return namesByContactId
+  }, [contactLinks, listes])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedContactSearch(contactSearch.trim()), 300)
@@ -615,8 +628,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                 </thead>
                 <tbody>
                   {listeContacts.map((c) => {
-                    const author = teamUsers.find((member) => member.id === c.created_by)
-                    const contactListes = contactLinks.filter((link) => link.contact_id === c.id).map((link) => listes.find((liste) => liste.id === link.liste_id)).filter((liste): liste is ListeContact => Boolean(liste))
+                    const author = teamUsersById.get(c.created_by)
+                    const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
                       <tr key={c.id}>
                         <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
@@ -636,7 +649,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                           {c.ville || '—'}
                           <span className="campagne-table-desc">{c.code_postal}</span>
                         </td>
-                        <td>{contactListes.map((l) => l.nom).join(', ') || '—'}</td>
+                        <td>{contactListNames.join(', ') || '—'}</td>
                         <td>
                           {formatDate(c.date_creation)}
                           <span className="campagne-table-desc">
