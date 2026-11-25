@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { BarChart3, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import {
   type Campagne,
   type CampagneStatus,
@@ -48,7 +48,6 @@ export function CampagnesView({
   campagneListes,
   campagneMembres,
   teamUsers,
-  contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
@@ -62,6 +61,8 @@ export function CampagnesView({
   const [form, setForm] = useState(emptyForm)
   const [formListeIds, setFormListeIds] = useState<number[]>([])
   const [formMemberIds, setFormMemberIds] = useState<number[]>([])
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false)
+  const [memberSearch, setMemberSearch] = useState('')
   const [filter, setFilter] = useState<CampagneStatus | 'all'>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -73,7 +74,6 @@ export function CampagnesView({
   const localTypes = Array.isArray(typesCampagnes) ? typesCampagnes : []
 
   const types = localTypes.filter((type) => type.actif)
-  const allListes = localListes
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
   const assignedCampaignIds = new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id))
   const campaignsVisibleToUser = user.role_id === 1
@@ -99,6 +99,8 @@ export function CampagnesView({
     setForm({ ...emptyForm, type_campagne_id: types[0]?.id ?? 1 })
     setFormListeIds([])
     setFormMemberIds([])
+    setMemberPickerOpen(false)
+    setMemberSearch('')
     setShowForm(true)
   }
 
@@ -113,13 +115,9 @@ export function CampagnesView({
     })
     setFormListeIds(campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => link.liste_id))
     setFormMemberIds(campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => link.user_id))
+    setMemberPickerOpen(false)
+    setMemberSearch('')
     setShowForm(true)
-  }
-
-  function toggleFormListe(listeId: number) {
-    setFormListeIds((ids) =>
-      ids.includes(listeId) ? ids.filter((id) => id !== listeId) : [...ids, listeId],
-    )
   }
 
   async function submit() {
@@ -152,6 +150,8 @@ export function CampagnesView({
     setForm(emptyForm)
     setFormListeIds([])
     setFormMemberIds([])
+    setMemberPickerOpen(false)
+    setMemberSearch('')
   }
 
   async function handleDelete(c: Campagne) {
@@ -306,48 +306,61 @@ export function CampagnesView({
                   <input value={form.cible} onChange={(e) => setForm({ ...form, cible: e.target.value })} placeholder="Prospects, clients, segment…" />
                 </label>
 
-                {user.role_id === 1 && <div className="form-grid-full">
+                {user.role_id === 1 && <div className="form-grid-full campaign-member-field">
                   <span className="form-label">Membres associés à cette campagne</span>
-                  <p className="form-hint">Les membres sélectionnés retrouveront cette campagne dans leur espace, même sans liste de contacts.</p>
+                  <p className="form-hint">Sélectionnez un ou plusieurs membres. Ils retrouveront cette campagne dans leur espace.</p>
                   {teamUsers.length === 0 ? <p className="form-hint">Aucun membre disponible.</p> : (
-                    <div className="checkbox-grid">
-                      {teamUsers.map((member) => {
-                        const checked = formMemberIds.includes(member.id)
-                        return <label key={member.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
-                          <input type="checkbox" checked={checked} onChange={() => setFormMemberIds((current) => checked ? current.filter((id) => id !== member.id) : [...current, member.id])}/>
-                          <div><strong>{member.prenom} {member.nom}</strong><span>{member.email}</span></div>
-                        </label>
-                      })}
+                    <div className="campaign-member-picker">
+                      <button
+                        type="button"
+                        className={`campaign-member-trigger${memberPickerOpen ? ' is-open' : ''}`}
+                        onClick={() => setMemberPickerOpen((open) => !open)}
+                        aria-expanded={memberPickerOpen}
+                        aria-haspopup="listbox"
+                      >
+                        <span className="campaign-member-trigger-copy">
+                          <strong>{formMemberIds.length ? `${formMemberIds.length} membre(s) sélectionné(s)` : 'Choisir les membres'}</strong>
+                          <small>{formMemberIds.length ? teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => `${member.prenom} ${member.nom}`).join(', ') : 'Aucun membre sélectionné'}</small>
+                        </span>
+                        <ChevronDown size={17} aria-hidden="true" />
+                      </button>
+                      {memberPickerOpen && (
+                        <div className="campaign-member-menu">
+                          <label className="campaign-member-search">
+                            <Search size={15} aria-hidden="true" />
+                            <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Rechercher un membre…" />
+                          </label>
+                          <div className="campaign-member-options" role="listbox" aria-multiselectable="true" aria-label="Membres associés">
+                            {teamUsers.filter((member) => `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(memberSearch.trim().toLocaleLowerCase('fr'))).map((member) => {
+                              const checked = formMemberIds.includes(member.id)
+                              return (
+                                <label key={member.id} className={`campaign-member-option${checked ? ' is-selected' : ''}`}>
+                                  <input type="checkbox" checked={checked} onChange={() => setFormMemberIds((current) => checked ? current.filter((id) => id !== member.id) : [...current, member.id])} />
+                                  <span className="campaign-member-avatar">{member.prenom?.charAt(0)}{member.nom?.charAt(0)}</span>
+                                  <span className="campaign-member-option-copy"><strong>{member.prenom} {member.nom}</strong><small>{member.email}</small></span>
+                                  {checked && <Check size={16} aria-hidden="true" />}
+                                </label>
+                              )
+                            })}
+                            {teamUsers.filter((member) => `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(memberSearch.trim().toLocaleLowerCase('fr'))).length === 0 && <p className="form-hint campaign-member-empty">Aucun membre correspondant.</p>}
+                          </div>
+                          <div className="campaign-member-menu-footer">
+                            <span>{formMemberIds.length} sélectionné(s)</span>
+                            <button type="button" onClick={() => setFormMemberIds([])}>Tout désélectionner</button>
+                            <button type="button" onClick={() => setMemberPickerOpen(false)}>Terminé</button>
+                          </div>
+                        </div>
+                      )}
+                      {formMemberIds.length > 0 && <div className="campaign-member-chips">
+                        {teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => (
+                          <button key={member.id} type="button" onClick={() => setFormMemberIds((current) => current.filter((id) => id !== member.id))} aria-label={`Retirer ${member.prenom} ${member.nom}`}>
+                            {member.prenom} {member.nom}<X size={12} />
+                          </button>
+                        ))}
+                      </div>}
                     </div>
                   )}
                 </div>}
-                <div className="form-grid-full">
-                  <span className="form-label">Listes ciblées par la campagne</span>
-                  {allListes.length === 0 ? (
-                    <p className="form-hint">
-                      Aucune liste disponible.{' '}
-                      <button type="button" className="link-button" onClick={onOpenListes}>
-                        Créer une liste
-                      </button>
-                    </p>
-                  ) : (
-                    <div className="checkbox-grid">
-                      {allListes.map((l) => {
-                        const checked = formListeIds.includes(l.id)
-                        return (
-                          <label key={l.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleFormListe(l.id)} />
-                            <div>
-                              <strong>{l.nom}</strong>
-                              <span>{l.cible || 'Sans cible'} · {(contactListCounts[l.id] ?? 0)} contacts</span>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 <label className="form-grid-full">
                   <span>Note</span>
                   <textarea rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Détails internes…" />

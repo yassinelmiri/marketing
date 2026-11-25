@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, X, Check, LockKeyhole } from 'lucide-react'
+import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, X, Check, LockKeyhole, Search, Users, Shield, RefreshCw } from 'lucide-react'
 import { ADMIN_ROLE_ID, SUPER_ADMIN_EMAIL, type User, type Role } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
@@ -53,6 +53,18 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   const [permissionUser, setPermissionUser] = useState<AdminUser | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const [savingPermissions, setSavingPermissions] = useState(false)
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
+
+  const filteredUsers = users.filter((user) => {
+    const query = search.trim().toLocaleLowerCase('fr')
+    const matchesSearch = !query || `${user.prenom} ${user.nom} ${user.email} ${user.telephone ?? ''}`.toLocaleLowerCase('fr').includes(query)
+    const matchesRole = roleFilter === 'all' || String(user.role_id) === roleFilter
+    return matchesSearch && matchesRole
+  })
+  const adminCount = users.filter((user) => user.role_id === ADMIN_ROLE_ID).length
+  const memberCount = users.length - adminCount
+  const permissionLabel = (code: string) => MODULE_PERMISSIONS.find((permission) => permission.code === code)?.label ?? code
 
   async function loadUsers() {
     setLoading(true)
@@ -247,27 +259,42 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
 
   return (
     <section className="workspace-section">
-      <div className="workspace-panel">
-        <div className="workspace-panel-header">
-          <div>
-            <h2><ShieldCheck aria-hidden="true" /> Administration — Utilisateurs & accès</h2>
-            <p className="campagne-table-desc">Gérez les comptes, les rôles et les modules accessibles à chaque membre.</p>
+      <div className="workspace-panel admin-users-panel">
+        <div className="admin-users-heading">
+          <div className="admin-users-title">
+            <span className="data-eyebrow">GESTION DE L’ÉQUIPE</span>
+            <h1><ShieldCheck aria-hidden="true" /> Utilisateurs & accès</h1>
+            <p>Centralisez les comptes, attribuez les rôles et contrôlez précisément les modules accessibles.</p>
           </div>
           <button type="button" className="workspace-primary" onClick={openCreate}>
             <UserPlus aria-hidden="true" /> Nouvel utilisateur
           </button>
         </div>
 
-        <div className="workspace-metrics" style={{ marginBottom: 18 }}>
-          <article className="metric-card">
-            <div><span>Comptes utilisateurs</span><strong>{users.length}</strong></div>
-          </article>
-          <article className="metric-card">
-            <div><span>Modules contrôlables</span><strong>{MODULE_PERMISSIONS.length}</strong></div>
-          </article>
-          <article className="metric-card">
-            <div><span>Rôles disponibles</span><strong>{roles.length}</strong></div>
-          </article>
+        <div className="admin-users-stats">
+          <article className="admin-users-stat"><span className="admin-users-stat-icon"><Users size={18}/></span><div><small>Comptes utilisateurs</small><strong>{users.length}</strong><em>Tous les profils</em></div></article>
+          <article className="admin-users-stat"><span className="admin-users-stat-icon"><Shield size={18}/></span><div><small>Administrateurs</small><strong>{adminCount}</strong><em>Accès complet</em></div></article>
+          <article className="admin-users-stat"><span className="admin-users-stat-icon"><KeyRound size={18}/></span><div><small>Membres</small><strong>{memberCount}</strong><em>Accès personnalisés</em></div></article>
+          <article className="admin-users-stat"><span className="admin-users-stat-icon"><LockKeyhole size={18}/></span><div><small>Modules disponibles</small><strong>{MODULE_PERMISSIONS.length}</strong><em>{roles.length} rôle(s) configuré(s)</em></div></article>
+        </div>
+
+        <div className="admin-users-toolbar">
+          <label className="admin-users-search">
+            <Search size={17} aria-hidden="true"/>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un nom, un e-mail ou un téléphone…" />
+            {search && <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"><X size={14}/></button>}
+          </label>
+          <label className="admin-users-role-filter">
+            <span>Rôle</span>
+            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              <option value="all">Tous les rôles</option>
+              {roles.map((role) => <option key={role.id} value={String(role.id)}>{role.nom}</option>)}
+            </select>
+          </label>
+          <button type="button" className="workspace-secondary admin-users-refresh" onClick={() => void loadUsers()} disabled={loading}>
+            <RefreshCw size={15} className={loading ? 'admin-users-spinning' : ''}/> Actualiser
+          </button>
+          <span className="admin-users-results">{filteredUsers.length} / {users.length} utilisateur(s)</span>
         </div>
 
         {loading ? (
@@ -280,7 +307,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
           </div>
         ) : users.length === 0 ? (
           <div className="workspace-empty">
-            <p>Aucun utilisateur trouvé.</p>
+            <p>{search || roleFilter !== 'all' ? 'Aucun utilisateur ne correspond à ces filtres.' : 'Aucun utilisateur trouvé.'}</p>
             <p className="campagne-table-desc">La connexion à l’API fonctionne, mais aucun profil n’est retourné par Supabase.</p>
           </div>
         ) : (
@@ -290,14 +317,16 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                 <tr><th>Utilisateur</th><th>E-mail</th><th>Rôle</th><th>Modules actifs</th><th>Créé le</th><th aria-label="Actions" /></tr>
               </thead>
               <tbody>
-                {users.map((user) => {
+                {filteredUsers.map((user) => {
                   const isRoot = user.email.toLowerCase() === SUPER_ADMIN_EMAIL
                   const isAdmin = user.role_id === ADMIN_ROLE_ID
                   return (
                     <tr key={user.id}>
                       <td>
-                        <strong>{user.prenom} {user.nom}</strong>
-                        {user.id === currentUser.id && <span className="campagne-table-desc">Vous</span>}
+                        <div className="admin-user-identity">
+                          <span className="admin-user-avatar">{user.prenom?.charAt(0)}{user.nom?.charAt(0)}</span>
+                          <span><strong>{user.prenom} {user.nom}</strong>{user.id === currentUser.id && <small>Votre compte</small>}</span>
+                        </div>
                       </td>
                       <td>
                         {user.email}
@@ -320,9 +349,16 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                       </td>
                       <td>
                         {isAdmin ? (
-                          <span className="campagne-table-desc">Tous les modules</span>
+                          <span className="admin-permission-summary is-admin"><ShieldCheck size={13}/> Tous les modules</span>
                         ) : (
-                          <span className="campagne-table-desc">{user.permissions.length} / {MODULE_PERMISSIONS.length} autorisés</span>
+                          <div className="admin-permission-cell">
+                            <span className="admin-permission-summary">{user.permissions.length} / {MODULE_PERMISSIONS.length} autorisés</span>
+                            <div className="admin-permission-tags">
+                              {user.permissions.slice(0, 3).map((code) => <span key={code}>{permissionLabel(code)}</span>)}
+                              {user.permissions.length > 3 && <span>+{user.permissions.length - 3}</span>}
+                              {user.permissions.length === 0 && <span className="is-empty">Aucun accès</span>}
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td>{formatDate(user.date_creation)}</td>
