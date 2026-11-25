@@ -440,6 +440,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
       await refresh()
     } catch (error) {
       toast.error('Affectation impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+      throw error
     }
   }
 

@@ -106,7 +106,6 @@ const emptyListeForm = {
   note: '',
   ajoute_par_nom: '',
   date_creation: '',
-  campagne_ids: [] as number[],
 }
 
 export function ListesView({ user, listes, campagnes, campagneListes, campagneMembres, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
@@ -247,15 +246,11 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       note: '',
       ajoute_par_nom: `${me.prenom} ${me.nom}`.trim(),
       date_creation: '',
-      campagne_ids: [],
     })
     setShowListeForm(true)
   }
   function openEditListe(l: ListeContact) {
     setEditingListe(l)
-    const linkedCampagnes = campagneListes
-      .filter((link) => link.liste_id === l.id)
-      .map((link) => link.campagne_id)
     setListeForm({
       nom: l.nom,
       description: l.description,
@@ -263,17 +258,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       note: l.note ?? '',
       ajoute_par_nom: l.ajoute_par_nom ?? '',
       date_creation: (l.date_creation ?? new Date().toISOString()).slice(0, 16),
-      campagne_ids: linkedCampagnes,
     })
     setShowListeForm(true)
-  }
-  function toggleCampagneInListe(campagneId: number) {
-    setListeForm((f) => ({
-      ...f,
-      campagne_ids: f.campagne_ids.includes(campagneId)
-        ? f.campagne_ids.filter((id) => id !== campagneId)
-        : [...f.campagne_ids, campagneId],
-    }))
   }
   async function submitListe() {
     if (!listeForm.nom.trim()) {
@@ -303,15 +289,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         })
         listeId = created.id
         setSelectedListeId(created.id)
-      }
-
-      for (const campaign of campagnes) {
-        const linked = campagneListes.some((link) => link.campagne_id === campaign.id && link.liste_id === listeId)
-        const shouldLink = listeForm.campagne_ids.includes(campaign.id)
-        if (linked !== shouldLink) {
-          const currentIds = campagneListes.filter((link) => link.campagne_id === campaign.id).map((link) => link.liste_id)
-          await setCampagneListes(campaign.id, shouldLink ? [...currentIds, listeId] : currentIds.filter((id) => id !== listeId))
-        }
       }
 
       toast.success(editingListe ? 'Liste mise à jour' : 'Liste créée')
@@ -756,27 +733,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   <span>Note</span>
                   <textarea rows={2} value={listeForm.note} onChange={(e) => setListeForm({ ...listeForm, note: e.target.value })} placeholder="Détails internes, contexte…" />
                 </label>
-                <div className="form-grid-full">
-                  <span className="form-label">Campagnes associées</span>
-                  {allCampagnes.length === 0 ? (
-                    <p className="form-hint">Aucune campagne disponible. Créez d’abord une campagne.</p>
-                  ) : (
-                    <div className="checkbox-grid">
-                      {allCampagnes.map((c) => {
-                        const checked = listeForm.campagne_ids.includes(c.id)
-                        return (
-                          <label key={c.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleCampagneInListe(c.id)} />
-                            <div>
-                              <strong>{c.titre}</strong>
-                              <span>{c.cible || 'Sans cible'}</span>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
             <footer>
