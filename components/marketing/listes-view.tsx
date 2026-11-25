@@ -75,7 +75,7 @@ function buildImportMapping(headers: string[]): Record<string, string> {
     profile: ['profil', 'profile', 'url', 'linkedin'],
     commentaire: ['commentaire', 'comment', 'note', 'notes'],
   }
-  const normalize = (value: string) => value.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/\\p{Diacritic}/gu, '').replace(/[_-]/g, ' ')
+  const normalize = (value: string) => value.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/\p{M}/gu, '').replace(/[_-]/g, ' ')
   const used = new Set<string>()
   return Object.fromEntries(headers.map((header) => {
     const match = IMPORT_FIELD_OPTIONS.find((option) => aliases[option.value]?.some((alias) => normalize(alias) === normalize(header)) && !used.has(option.value))
