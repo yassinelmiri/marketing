@@ -1,7 +1,7 @@
 'use client'
 import { useEffect,useMemo,useRef,useState,type FormEvent } from 'react'
 import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,Edit2,Eye,FileText,LayoutDashboard,List,Mail,Monitor,MousePointerClick,Plus,Search,Send,Server,Smartphone,Trash2,Users,X } from 'lucide-react'
-import type { ListeContact,ListeContactContact } from '@/lib/storage'
+import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
 type SMTP={id:number;name:string;email:string;host:string;port:number;secure:boolean;username:string;from_name:string|null;is_active:boolean}
