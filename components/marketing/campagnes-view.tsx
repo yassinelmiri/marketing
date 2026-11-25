@@ -41,6 +41,7 @@ const emptyForm = {
 }
 
 export function CampagnesView({
+  user,
   campagnes,
   listes,
   typesCampagnes,
@@ -130,13 +131,13 @@ export function CampagnesView({
     if (editingId) {
       await onUpdate(editingId, payload)
       await onSetListes(editingId, formListeIds)
-      await onSetMembres(editingId, formMemberIds)
+      if (user.role_id === 1) await onSetMembres(editingId, formMemberIds)
       toast.success('Campagne mise à jour', `« ${payload.titre} » enregistrée.`)
     } else {
       const created = await onCreate(payload)
       if (!created) return
       await onSetListes(created.id, formListeIds)
-      await onSetMembres(created.id, formMemberIds)
+      if (user.role_id === 1) await onSetMembres(created.id, formMemberIds)
       toast.success('Campagne créée', `« ${payload.titre} » ajoutée.`)
     }
     setShowForm(false)
@@ -293,7 +294,7 @@ export function CampagnesView({
                   <input value={form.cible} onChange={(e) => setForm({ ...form, cible: e.target.value })} placeholder="Prospects, clients, segment…" />
                 </label>
 
-                <div className="form-grid-full">
+                {user.role_id === 1 && <div className="form-grid-full">
                   <span className="form-label">Membres associés à cette campagne</span>
                   <p className="form-hint">Les membres sélectionnés retrouveront cette campagne dans leur espace, même sans liste de contacts.</p>
                   {teamUsers.length === 0 ? <p className="form-hint">Aucun membre disponible.</p> : (
@@ -307,7 +308,7 @@ export function CampagnesView({
                       })}
                     </div>
                   )}
-                </div>
+                </div>}
                 <div className="form-grid-full">
                   <span className="form-label">Listes ciblées par la campagne</span>
                   {allListes.length === 0 ? (
