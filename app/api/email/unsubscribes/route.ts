@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return NextResponse.json({ error: 'Requête invalide.' }, { status: 400 })
     }
-    const payload = body as Record<string, unknown>
-    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : ''
-    const reason = typeof payload.reason === 'string' ? payload.reason.trim().slice(0, 500) : ''
+    const requestBody = body as Record<string, unknown>
+    const email = typeof requestBody.email === 'string' ? requestBody.email.trim().toLowerCase() : ''
+    const reason = typeof requestBody.reason === 'string' ? requestBody.reason.trim().slice(0, 500) : ''
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Adresse e-mail invalide.' }, { status: 400 })
     }
