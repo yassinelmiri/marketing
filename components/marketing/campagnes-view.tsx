@@ -9,7 +9,6 @@ import {
   type ListeContact,
   type TypeCampagne,
   type CampagneListe,
-  type Contact,
 } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
@@ -18,7 +17,6 @@ interface CampagnesViewProps {
   user: User
   campagnes: Campagne[]
   listes: ListeContact[]
-  contacts: Contact[]
   typesCampagnes: TypeCampagne[]
   campagneListes: CampagneListe[]
   contactListCounts: Record<number, number>
@@ -42,7 +40,6 @@ const emptyForm = {
 export function CampagnesView({
   campagnes,
   listes,
-  contacts,
   typesCampagnes,
   campagneListes,
   contactListCounts,
