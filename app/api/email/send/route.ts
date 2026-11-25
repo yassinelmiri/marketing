@@ -101,11 +101,12 @@ export async function POST(request: NextRequest) {
   if (origin) return origin
 
   let campaignId: number | null = null
-  const admin = createAdminClient()
+  let admin: ReturnType<typeof createAdminClient> | null = null
   try {
     const auth = await authorizeEmailAccess()
     if ('response' in auth) return auth.response
 
+    admin = createAdminClient()
     const body = await request.json()
     const publicOrigin = getPublicOrigin(request)
     const smtpId = Number(body.smtp_account_id)
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[email/send] failed:', error)
-    if (campaignId !== null) {
+    if (campaignId !== null && admin) {
       await admin.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId)
     }
     const message = error instanceof Error ? error.message : ''
