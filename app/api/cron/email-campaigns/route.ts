@@ -138,10 +138,26 @@ export async function GET(request: NextRequest) {
       processed.push({ id: campaign.id, sent, failed, status })
     } catch (error) {
       console.error('[email/worker] campaign failed:', campaign.id, error)
+      // A campaign-level failure (SMTP verification, missing sender, etc.) must
+      // count every unprocessed recipient as failed so the UI never stays at 0%.
+      const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
+      const offset = Math.max(0, Number(campaign.recipient_offset) || 0)
+      const remaining = recipients.slice(offset).map((email) => String(email ?? '').trim().toLowerCase()).filter(Boolean)
+      const sent = Number(campaign.sent_count) || 0
+      const failed = (Number(campaign.failed_count) || 0) + remaining.length
+      const failedRecipients = [...(Array.isArray(campaign.failed_recipients) ? campaign.failed_recipients : []), ...remaining]
       await admin.from('email_campaigns').update({
-        status: 'failed', worker_locked_at: null, updated_at: new Date().toISOString(),
+        recipient_offset: recipients.length,
+        sent_count: sent,
+        failed_count: failed,
+        failed_recipients: failedRecipients,
+        status: sent > 0 ? 'partial' : 'failed',
+        next_batch_at: null,
+        sent_at: new Date().toISOString(),
+        worker_locked_at: null,
+        updated_at: new Date().toISOString(),
       }).eq('id', campaign.id)
-      processed.push({ id: campaign.id, sent: campaign.sent_count, failed: campaign.failed_count, status: 'failed' })
+      processed.push({ id: campaign.id, sent, failed, status: sent > 0 ? 'partial' : 'failed' })
     } finally {
       for (const transporter of transporters.values()) transporter.close()
     }
