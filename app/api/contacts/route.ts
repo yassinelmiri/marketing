@@ -36,6 +36,13 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.max(10, Math.min(100, Number(request.nextUrl.searchParams.get('pageSize')) || 50))
     const listId = Number(request.nextUrl.searchParams.get('listId') || 0)
     const rawSearch = (request.nextUrl.searchParams.get('q') || '').trim().slice(0, 100)
+    const dateFrom = request.nextUrl.searchParams.get('dateFrom') || ''
+    const dateTo = request.nextUrl.searchParams.get('dateTo') || ''
+    const validDate = (value: string) => !value || /^\\d{4}-\\d{2}-\\d{2}$/.test(value)
+    if (!validDate(dateFrom) || !validDate(dateTo) || (dateFrom && dateTo && dateFrom > dateTo)) {
+      return NextResponse.json({ error: 'Période de dates invalide.' }, { status: 400 })
+    }
+    const dateToExclusive = dateTo ? new Date(Date.parse(dateTo + 'T00:00:00.000Z') + 86400000).toISOString() : null
     const search = rawSearch.replace(/[,%()\\"]/g, ' ').replace(/\s+/g, ' ').trim()
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1
@@ -49,10 +56,14 @@ export async function GET(request: NextRequest) {
           .select(CONTACT_COLUMNS + ',liste_contacts!inner(liste_id)', { count: 'exact' })
           .eq('liste_contacts.liste_id', listId)
         if (searchFilter) filtered = filtered.or(searchFilter)
+        if (dateFrom) filtered = filtered.gte('date_creation', dateFrom + 'T00:00:00.000Z')
+        if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
         return filtered.order('date_creation', { ascending: false }).range(from, to)
       }
       let filtered = supabase.from('contacts').select(CONTACT_COLUMNS, { count: 'exact' })
       if (searchFilter) filtered = filtered.or(searchFilter)
+      if (dateFrom) filtered = filtered.gte('date_creation', dateFrom + 'T00:00:00.000Z')
+      if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
       return filtered.order('date_creation', { ascending: false }).range(from, to)
     })()
     const [result, totalResult] = await Promise.all([
