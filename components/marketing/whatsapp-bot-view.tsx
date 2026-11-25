@@ -26,6 +26,9 @@ export function WhatsAppBotView() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [campaignId, setCampaignId] = useState<number | null>(null)
   const [savedCampaigns, setSavedCampaigns] = useState<SavedWhatsAppCampaign[]>([])
+  const [savedCounts, setSavedCounts] = useState<{ total: number; sent: number; failed: number; skipped: number; pending: number } | null>(null)
+  const [savedPage, setSavedPage] = useState(1)
+  const [savedTotalPages, setSavedTotalPages] = useState(1)
   const [selectedSavedId, setSelectedSavedId] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingSaved, setLoadingSaved] = useState(false)
@@ -55,7 +58,7 @@ export function WhatsAppBotView() {
   }, [refreshSavedCampaigns])
 
   const current = contacts[activeIndex] ?? null
-  const stats = useMemo(() => contacts.reduce((counts, contact) => {
+  const localStats = useMemo(() => contacts.reduce((counts, contact) => {
     counts.total += 1
 
     switch (contact.status) {
@@ -76,6 +79,7 @@ export function WhatsAppBotView() {
 
     return counts
   }, { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }), [contacts])
+  const stats = campaignId && savedCounts ? savedCounts : localStats
   const progress = stats.total ? Math.round(((stats.sent + stats.failed + stats.skipped) / stats.total) * 100) : 0
   const completed = stats.total > 0 && stats.pending === 0
 
@@ -115,6 +119,9 @@ export function WhatsAppBotView() {
       if (!parsed.length) throw new Error('Aucun numéro valide trouvé dans la colonne « ' + phoneColumn + ' ».')
       setContacts(parsed)
       setCampaignId(null)
+      setSavedCounts(null)
+      setSavedPage(1)
+      setSavedTotalPages(1)
       setSelectedSavedId('')
       setActiveIndex(0)
       setFileName(file.name)
@@ -176,13 +183,15 @@ export function WhatsAppBotView() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
       setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
+      if (data.counts) setSavedCounts(data.counts)
       const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
       const nextIndex = next >= 0 ? next : activeIndex < contacts.length - 1 ? activeIndex + 1 : -1
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
-      if (nextIndex >= 0) {
+      if (nextIndex >= 0 || (savedPage < savedTotalPages && campaignId)) {
         setAdvanceCountdown(nextDelaySeconds > 0)
         advanceTimerRef.current = setTimeout(() => {
-          setActiveIndex(nextIndex)
+          if (nextIndex >= 0) setActiveIndex(nextIndex)
+          else if (campaignId) void loadSavedCampaign(campaignId, savedPage + 1)
           setAdvanceCountdown(false)
           advanceTimerRef.current = null
         }, nextDelaySeconds * 1000)
@@ -194,10 +203,10 @@ export function WhatsAppBotView() {
     }
   }
 
-  async function loadSavedCampaign(id: number) {
+  async function loadSavedCampaign(id: number, page = 1) {
     setError('')
     try {
-      const response = await fetch('/api/whatsapp/campaigns?id=' + id, { cache: 'no-store' })
+      const response = await fetch('/api/whatsapp/campaigns?id=' + id + '&page=' + page + '&pageSize=50', { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Chargement de la campagne impossible.')
       const restored = (data.recipients ?? []).map((row: { id: number; contact_name: string; phone: string; status: ContactStatus }) => ({
@@ -206,6 +215,9 @@ export function WhatsAppBotView() {
       setCampaignId(Number(data.campaign.id))
       setSelectedSavedId(String(data.campaign.id))
       setContacts(restored)
+      setSavedCounts(data.counts ?? null)
+      setSavedPage(Number(data.page ?? page))
+      setSavedTotalPages(Number(data.totalPages ?? 1))
       setMessage(data.campaign.message ?? '')
       setFileName(data.campaign.source_file || data.campaign.name)
       setConsentConfirmed(Boolean(data.campaign.consent_confirmed_at))
@@ -407,6 +419,7 @@ export function WhatsAppBotView() {
             <div><input id="wa-next-delay" type="number" min={0} max={120} value={nextDelaySeconds} onChange={(event) => setNextDelaySeconds(Math.min(120, Math.max(0, Number(event.target.value) || 0)))} /><span>secondes</span></div>
             <small>Après votre confirmation manuelle, le contact suivant sera sélectionné automatiquement. L’envoi dans WhatsApp reste manuel.</small>
           </div>
+          {campaignId && savedTotalPages > 1 && <div className="wa-batch-indicator">Lot {savedPage} / {savedTotalPages} · 50 destinataires maximum chargés à la fois</div>}
           <div className="wa-stat-row">
             <div><strong>{stats.total}</strong><span>Total</span></div>
             <div><strong>{stats.sent}</strong><span>Confirmés</span></div>
