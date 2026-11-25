@@ -50,8 +50,6 @@ interface ListesViewProps {
   contactListCounts: Record<number, number>
 }
 
-import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
-
 const emptyContactForm = {
   nom: '',
   prenom: '',
