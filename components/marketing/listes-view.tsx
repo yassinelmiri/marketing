@@ -178,7 +178,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
 
   useEffect(() => {
     let active = true
-    const controller = new AbortController()
     setSelectedContactIds([])
 
     async function loadContactPage() {
@@ -198,7 +197,9 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         if (contactDateFrom) params.set('dateFrom', contactDateFrom)
         if (contactDateTo) params.set('dateTo', contactDateTo)
 
-        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
+        // Let the request finish; the active flag below prevents stale responses
+        // from updating state after filters change or the component unmounts.
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
         if (!active) return
@@ -224,7 +225,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     void loadContactPage()
     return () => {
       active = false
-      controller.abort()
     }
   }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
