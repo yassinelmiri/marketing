@@ -82,6 +82,8 @@ export async function register() {
     clearInterval(interval);
   };
 
-  process.once("SIGINT", stop);
-  process.once("SIGTERM", stop);
+  // Timers are automatically cleaned up when the Node.js process exits.
+  // unref() prevents them from keeping a standalone process alive.
+  initialTimer.unref?.();
+  interval.unref?.();
 }
