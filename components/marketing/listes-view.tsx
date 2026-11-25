@@ -316,6 +316,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       }
       setShowContactForm(false)
       setEditingContact(null)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
@@ -326,6 +327,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     try {
       await deleteContactInDb(c.id)
       toast.success('Contact supprimé', 'Retiré.')
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
