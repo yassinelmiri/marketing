@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       smtp_account_id: smtp.id,
       liste_id: liste.id,
       created_by: auth.profile.id,
-      created_by_name: String(auth.profile.full_name || auth.profile.name || auth.profile.nom_complet || [auth.profile.prenom, auth.profile.nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
+      created_by_name: String((auth.profile as Record<string, unknown>).full_name || (auth.profile as Record<string, unknown>).name || (auth.profile as Record<string, unknown>).nom_complet || [(auth.profile as Record<string, unknown>).prenom, (auth.profile as Record<string, unknown>).nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
       sender_email: smtp.email,
       sender_name: smtp.from_name || smtp.name,
       liste_nom: liste.nom,
