@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import {
   CONTACT_IMPORT_COLUMNS,
-  parseCsv,
   type Contact,
   type ListeContact,
   type User,
@@ -35,7 +34,7 @@ import {
   importContactsToListe,
 } from '@/lib/supabase/marketing-data'
 import { useToast } from '@/components/ui/toast'
-import { formatDate } from './shared'
+import { formatDate } from './shared'import { parseContactImportFile } from '@/lib/contacts/file-parser'
 
 interface ListesViewProps {
   user: User
@@ -388,42 +387,16 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   // ── Import CSV ───────────────────────────────────────
   async function handleFile(file: File) {
     setImportFileName(file.name)
-    const lower = file.name.toLowerCase()
-    if (lower.endsWith('.csv')) {
-      const text = await file.text()
-      const { headers, rows } = parseCsv(text)
+    try {
+      const { headers, rows } = await parseContactImportFile(file)
       setImportHeaders(headers)
       setImportMapping(buildImportMapping(headers))
       setImportRows(rows)
-      toast.success('CSV analysé', `${rows.length} ligne(s) détectée(s).`)
-      return
+      toast.success('Fichier analysé', `${rows.length} ligne(s) détectée(s).`)
+    } catch (error) {
+      console.error('[contacts] import file parsing failed:', error)
+      toast.error('Import impossible', error instanceof Error ? error.message : 'Impossible de lire ce fichier.')
     }
-    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
-      try {
-        const XLSX = await import('xlsx')
-        const buffer = await file.arrayBuffer()
-        const wb = XLSX.read(buffer, { type: 'array' })
-        const sheet = wb.Sheets[wb.SheetNames[0]]
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
-        const rows = json.map((row) => {
-          const obj: Record<string, string> = {}
-          Object.entries(row).forEach(([k, v]) => {
-            obj[String(k).trim()] = v == null ? '' : String(v)
-          })
-          return obj
-        })
-        const headers = Object.keys(rows[0] ?? {})
-        setImportHeaders(headers)
-        setImportMapping(buildImportMapping(headers))
-        setImportRows(rows)
-        toast.success('XLSX analysé', `${rows.length} ligne(s) détectée(s).`)
-      } catch (e) {
-        console.error(e)
-        toast.error('Erreur XLSX', 'Installez « xlsx » (npm i xlsx) ou convertissez en CSV.')
-      }
-      return
-    }
-    toast.error('Format non supporté', 'Choisissez un fichier .csv ou .xlsx.')
   }
   async function confirmImport() {
     if (!selectedListe) return
