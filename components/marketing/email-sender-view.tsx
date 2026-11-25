@@ -26,7 +26,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const setListeIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedListIds(typeof value==='function'?value(listeIds):value))
  const [listQuery,setListQuery]=useState(''),[senderQuery,setSenderQuery]=useState('')
  const senderInitializationDone=useRef(false)
- const refreshAbortController=useRef<AbortController|null>(null)
+ const refreshRequestId=useRef(0)
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
  const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
@@ -37,17 +37,16 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
  const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
  async function refresh(showLoading=true){
-  refreshAbortController.current?.abort()
-  const controller=new AbortController()
-  refreshAbortController.current=controller
+  const requestId=++refreshRequestId.current
   if(showLoading)setLoading(true)
   try{
    const endpoints=['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes']
-   const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store',signal:controller.signal})))
+   const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store'})))
    const data=await Promise.all(responses.map(response=>response.json()))
    const failedIndex=responses.findIndex(response=>!response.ok)
    if(failedIndex>=0)throw new Error(data[failedIndex].error||'Erreur de chargement des données e-mail.')
-   if(controller.signal.aborted)return
+   // Ignore stale refreshes; a newer refresh or unmount supersedes this one.
+   if(requestId!==refreshRequestId.current)return
    setAccounts(data[0].accounts||[])
    setCampaigns(data[1].campaigns||[])
    setTemplates(data[2].templates||[])
@@ -60,14 +59,9 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
     }
    }
   }catch(error){
-   const isAbortError=typeof error==='object'&&error!==null&&'name' in error&&error.name==='AbortError'
-   // Refresh requests are intentionally cancelled when a newer refresh starts or the view unmounts.
-   if(!controller.signal.aborted&&!isAbortError)setError(error instanceof Error?error.message:'Erreur de chargement')
+   if(requestId===refreshRequestId.current)setError(error instanceof Error?error.message:'Erreur de chargement')
   }finally{
-   if(refreshAbortController.current===controller){
-    refreshAbortController.current=null
-    setLoading(false)
-   }
+   if(requestId===refreshRequestId.current)setLoading(false)
   }
  }
  useEffect(()=>{
@@ -75,10 +69,9 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   const timer=window.setInterval(()=>void refresh(false),15000)
   return()=>{
    window.clearInterval(timer)
-   const controller=refreshAbortController.current
-   refreshAbortController.current=null
-   // Clear the ref before aborting so an older request cannot affect a newer refresh.
-   controller?.abort()
+   // Invalidate in-flight work instead of aborting fetches, which can surface
+   // as unhandled AbortError rejections in the Next.js development runtime.
+   refreshRequestId.current++
   }
  },[])
  function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
