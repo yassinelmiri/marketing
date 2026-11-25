@@ -60,7 +60,9 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
     }
    }
   }catch(error){
-   if(!controller.signal.aborted)setError(error instanceof Error?error.message:'Erreur de chargement')
+   const isAbortError=typeof error==='object'&&error!==null&&'name' in error&&error.name==='AbortError'
+   // Refresh requests are intentionally cancelled when a newer refresh starts or the view unmounts.
+   if(!controller.signal.aborted&&!isAbortError)setError(error instanceof Error?error.message:'Erreur de chargement')
   }finally{
    if(refreshAbortController.current===controller){
     refreshAbortController.current=null
@@ -73,8 +75,10 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   const timer=window.setInterval(()=>void refresh(false),15000)
   return()=>{
    window.clearInterval(timer)
-   refreshAbortController.current?.abort()
+   const controller=refreshAbortController.current
    refreshAbortController.current=null
+   // Clear the ref before aborting so an older request cannot affect a newer refresh.
+   controller?.abort()
   }
  },[])
  function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
