@@ -40,10 +40,8 @@ import { formatDate } from './shared'
 interface ListesViewProps {
   user: User
   listes: ListeContact[]
-  contacts: Contact[]
   campagnes: Campagne[]
   campagneListes: CampagneListe[]
-  listeContacts: ListeContactContact[]
   teamUsers: User[]
   onRefresh: () => void
   contactCount: number
@@ -74,7 +72,7 @@ const emptyListeForm = {
   campagne_ids: [] as number[],
 }
 
-export function ListesView({ user, listes, contacts: initialContacts, campagnes, campagneListes, listeContacts: initialContactLinks, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
+export function ListesView({ user, listes, campagnes, campagneListes, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
   const toast = useToast()
 
   const [selectedListeId, setSelectedListeId] = useState<number | null>(listes[0]?.id ?? null)
