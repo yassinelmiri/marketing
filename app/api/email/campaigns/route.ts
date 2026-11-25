@@ -77,12 +77,20 @@ export async function POST(request: NextRequest) {
       liste_nom: lists!.map((x) => x.nom).join(', '), subject, message, reply_to: replyTo || null,
       template_id: templateId, tracking_opens: body.tracking_opens !== false,
       tracking_clicks: body.tracking_clicks !== false, batch_size: batchSize,
-      batch_delay_seconds: batchDelay, recipients, total_recipients: recipients.length,
+      batch_delay_seconds: batchDelay, recipients: [], total_recipients: recipients.length,
       sent_count: 0, failed_count: 0, failed_recipients: [], recipient_offset: 0,
       scheduled_at: scheduledAt.toISOString(), next_batch_at: scheduledAt.toISOString(), sent_at: null,
       status, started_at: null, worker_locked_at: null, updated_at: new Date().toISOString(),
     }).select('id,status,subject,total_recipients,scheduled_at').single()
     if (insertError) throw insertError
+    const recipientRows = recipients.map((email: string) => ({ campaign_id: campaign.id, email, status: 'pending' }))
+    for (let offset = 0; offset < recipientRows.length; offset += 500) {
+      const { error: queueError } = await admin.from('email_campaign_recipients').insert(recipientRows.slice(offset, offset + 500))
+      if (queueError) {
+        await admin.from('email_campaigns').delete().eq('id', campaign.id)
+        throw queueError
+      }
+    }
     return NextResponse.json({ success: true, campaign, message: status === 'scheduled' ? 'Campagne planifiée.' : 'Campagne ajoutée à la file d’envoi.' }, { status: 201 })
   } catch (error) {
     console.error('[email/campaigns] create failed:', error)

@@ -9,7 +9,6 @@ import {
   type ListeContact,
   type TypeCampagne,
   type CampagneListe,
-  type Contact,
 } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
@@ -18,10 +17,9 @@ interface CampagnesViewProps {
   user: User
   campagnes: Campagne[]
   listes: ListeContact[]
-  contacts: Contact[]
   typesCampagnes: TypeCampagne[]
   campagneListes: CampagneListe[]
-  listeContacts: { id: number; liste_id: number; contact_id: number; date_ajout: string }[]
+  contactListCounts: Record<number, number>
   onCreate: (
     data: Omit<Campagne, 'id' | 'user_id' | 'date_creation' | 'date_modification'>,
   ) => Promise<Campagne | null>
@@ -42,10 +40,9 @@ const emptyForm = {
 export function CampagnesView({
   campagnes,
   listes,
-  contacts,
   typesCampagnes,
   campagneListes,
-  listeContacts,
+  contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
@@ -300,7 +297,7 @@ export function CampagnesView({
                             <input type="checkbox" checked={checked} onChange={() => toggleFormListe(l.id)} />
                             <div>
                               <strong>{l.nom}</strong>
-                              <span>{l.cible || 'Sans cible'} · {listeContacts.filter((link) => link.liste_id === l.id).length} contacts</span>
+                              <span>{l.cible || 'Sans cible'} · {(contactListCounts[l.id] ?? 0)} contacts</span>
                             </div>
                           </label>
                         )

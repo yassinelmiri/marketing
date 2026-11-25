@@ -23,7 +23,7 @@ type Campaign = {
   id: number; smtp_account_id: number; smtp_account_ids?: number[]; sender_email: string; sender_name: string | null
   subject: string; message: string; reply_to: string | null; recipients: string[]
   recipient_offset: number; batch_size: number; batch_delay_seconds: number
-  sent_count: number; failed_count: number; failed_recipients: string[]
+  sent_count: number; failed_count: number; failed_recipients: string[]; total_recipients: number
   tracking_opens: boolean; tracking_clicks: boolean
 }
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       .eq('id', row.id)
       .in('status', ['pending', 'scheduled', 'sending'])
       .or('worker_locked_at.is.null,worker_locked_at.lt.' + staleLock)
-      .select('id,smtp_account_id,smtp_account_ids,sender_email,sender_name,subject,message,reply_to,recipients,recipient_offset,batch_size,batch_delay_seconds,sent_count,failed_count,failed_recipients,tracking_opens,tracking_clicks')
+      .select('id,smtp_account_id,smtp_account_ids,sender_email,sender_name,subject,message,reply_to,recipient_offset,batch_size,batch_delay_seconds,sent_count,failed_count,failed_recipients,total_recipients,tracking_opens,tracking_clicks')
       .maybeSingle()
     if (claimError || !claimed) return
 
@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
         senderAccounts.set(Number(smtp.id), { email: smtp.email, name: smtp.from_name || smtp.name })
       }
 
-      const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
+      let legacyRecipients: string[] = []
+      let legacyLoaded = false
+      const totalRecipients = Math.max(0, Number(campaign.total_recipients) || 0)
       const start = Math.max(0, Number(campaign.recipient_offset) || 0)
       const batchSize = Math.max(1, Number(campaign.batch_size) || 25)
       let offset = start
@@ -89,47 +91,90 @@ export async function GET(request: NextRequest) {
       const failedRecipients = Array.isArray(campaign.failed_recipients) ? [...campaign.failed_recipients] : []
       const deadline = Date.now() + 44000
 
-      while (offset < recipients.length && Date.now() < deadline) {
-        const batchEnd = Math.min(recipients.length, offset + batchSize)
-        for (; offset < batchEnd && Date.now() < deadline; offset++) {
-        const recipient = String(recipients[offset] ?? '').toLowerCase()
-        if (!recipient) continue
-        try {
-          const pixel = campaign.tracking_opens
-            ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />'
-            : ''
-          const { data: token, error: tokenError } = await admin.from('email_unsubscribe_tokens')
-            .upsert({ email: recipient, campaign_id: campaign.id }, { onConflict: 'email,campaign_id' }).select('token').single()
-          if (tokenError || !token) throw new Error('Unsubscribe token unavailable')
-          const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + token.token
-          let html = /<[a-z][\s\S]*?>/i.test(campaign.message)
-            ? campaign.message
-            : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
-          if (campaign.tracking_clicks) {
-            html = html.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (_match, url) =>
-              'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+      const sendConcurrency = Math.min(10, Math.max(1, Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5))
+      while (offset < totalRecipients && Date.now() < deadline) {
+        const batchEnd = Math.min(totalRecipients, offset + batchSize)
+        let shouldStop = false
+        while (offset < batchEnd && Date.now() < deadline) {
+          const chunkStart = offset
+          const chunkLimit = Math.min(sendConcurrency, batchEnd - chunkStart)
+          const { data: queuedRows, error: queueReadError } = await admin.from('email_campaign_recipients')
+            .select('id,email').eq('campaign_id', campaign.id)
+            .order('id', { ascending: true }).range(chunkStart, chunkStart + chunkLimit - 1)
+          if (queueReadError) throw queueReadError
+          const queueChunk = queuedRows ?? []
+          if (!queueChunk.length && !legacyLoaded) {
+            const { data: legacyCampaign, error: legacyError } = await admin.from('email_campaigns')
+              .select('recipients').eq('id', campaign.id).maybeSingle()
+            if (legacyError) throw legacyError
+            legacyRecipients = Array.isArray(legacyCampaign?.recipients) ? legacyCampaign.recipients.map(String) : []
+            legacyLoaded = true
           }
-          const senderId = smtpIds[offset % smtpIds.length]
-          const senderTransporter = transporters.get(senderId)
-          const sender = senderAccounts.get(senderId)
-          if (!senderTransporter || !sender) throw new Error('Selected SMTP sender is unavailable')
-          await senderTransporter.sendMail({
-            from: { name: sender.name || sender.email, address: sender.email },
-            to: recipient, ...(campaign.reply_to ? { replyTo: campaign.reply_to } : {}),
-            subject: campaign.subject,
-            headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
-            html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
-            text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
-          })
-          sent++
-        } catch (error) {
-          console.error('[email/worker] recipient failed:', campaign.id, recipient, error)
-          failed++
-          failedRecipients.push(recipient)
+          const chunk = queueChunk.length
+            ? queueChunk.map((row) => ({ id: Number(row.id), email: String(row.email ?? '') }))
+            : legacyRecipients.slice(chunkStart, chunkStart + chunkLimit).map((email) => ({ id: 0, email }))
+          if (!chunk.length) break
+          const results = await Promise.all(chunk.map(async (queuedRecipient, chunkIndex) => {
+            const recipient = String(queuedRecipient.email ?? '').trim().toLowerCase()
+            if (!recipient) return { id: queuedRecipient.id, sent: false, failed: false, recipient, error: 'Adresse e-mail vide.', smtp_account_id: null }
+            try {
+              const pixel = campaign.tracking_opens
+                ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />'
+                : ''
+              const { data: token, error: tokenError } = await admin.from('email_unsubscribe_tokens')
+                .upsert({ email: recipient, campaign_id: campaign.id }, { onConflict: 'email,campaign_id' }).select('token').single()
+              if (tokenError || !token) throw new Error('Unsubscribe token unavailable')
+              const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + token.token
+              let html = /<[a-z][\s\S]*?>/i.test(campaign.message)
+                ? campaign.message
+                : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
+              if (campaign.tracking_clicks) {
+                html = html.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (_match, url) =>
+                  'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+              }
+              const senderId = smtpIds[(chunkStart + chunkIndex) % smtpIds.length]
+              const senderTransporter = transporters.get(senderId)
+              const sender = senderAccounts.get(senderId)
+              if (!senderTransporter || !sender) throw new Error('Selected SMTP sender is unavailable')
+              await senderTransporter.sendMail({
+                from: { name: sender.name || sender.email, address: sender.email },
+                to: recipient, ...(campaign.reply_to ? { replyTo: campaign.reply_to } : {}),
+                subject: campaign.subject,
+                headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+                html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
+                text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
+              })
+              return { id: queuedRecipient.id, sent: true, failed: false, recipient, error: null, smtp_account_id: senderId }
+            } catch (error) {
+              console.error('[email/worker] recipient failed:', campaign.id, recipient, error)
+              return { id: queuedRecipient.id, sent: false, failed: true, recipient, error: error instanceof Error ? error.message.slice(0, 500) : 'Erreur SMTP inconnue.', smtp_account_id: null }
+            }
+          }))
+          for (const result of results) {
+            if (result.sent) sent++
+            if (result.failed) { failed++; failedRecipients.push(result.recipient) }
+          }
+          const { error: logError } = await admin.from('email_delivery_logs').insert(results.map((result) => ({
+            campaign_id: campaign.id,
+            recipient_email: result.recipient,
+            status: result.sent ? 'sent' : result.failed ? 'failed' : 'skipped',
+            error_message: result.error,
+            smtp_account_id: result.smtp_account_id,
+          })))
+          if (logError) console.error('[email/worker] delivery log insert failed:', campaign.id, logError.message)
+          await Promise.all(results.filter((result) => result.id > 0).map((result) =>
+            admin.from('email_campaign_recipients').update({
+              status: result.sent ? 'sent' : 'failed',
+              error_message: result.error,
+              processed_at: new Date().toISOString(),
+              smtp_account_id: result.smtp_account_id,
+            }).eq('id', result.id)
+          ))
+          offset += chunk.length
+          if (offset < batchEnd && Date.now() >= deadline) shouldStop = true
         }
-        }
-        if (offset < batchEnd) break
-        if (offset < recipients.length && campaign.batch_delay_seconds > 0) {
+        if (shouldStop || offset < batchEnd) break
+        if (offset < totalRecipients && campaign.batch_delay_seconds > 0) {
           const waitMs = campaign.batch_delay_seconds * 1000
           if (Date.now() + waitMs >= deadline) break
           await new Promise((resolve) => setTimeout(resolve, waitMs))
@@ -138,7 +183,7 @@ export async function GET(request: NextRequest) {
 
       const { data: liveState } = await admin.from('email_campaigns').select('status').eq('id', campaign.id).maybeSingle()
       const paused = liveState?.status === 'paused'
-      const finished = offset >= recipients.length
+      const finished = offset >= totalRecipients
       const nextAt = paused || finished ? null : new Date(Date.now() + (offset % batchSize === 0 ? campaign.batch_delay_seconds * 1000 : 0)).toISOString()
       const status = paused ? 'paused' : finished ? (failed === 0 ? 'sent' : sent > 0 ? 'partial' : 'failed') : 'sending'
       const { error: updateError } = await admin.from('email_campaigns').update({
@@ -153,14 +198,25 @@ export async function GET(request: NextRequest) {
       console.error('[email/worker] campaign failed:', campaign.id, error)
       // A campaign-level failure (SMTP verification, missing sender, etc.) must
       // count every unprocessed recipient as failed so the UI never stays at 0%.
-      const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
       const offset = Math.max(0, Number(campaign.recipient_offset) || 0)
-      const remaining = recipients.slice(offset).map((email) => String(email ?? '').trim().toLowerCase()).filter(Boolean)
+      const remaining = Math.max(0, Number(campaign.total_recipients) - offset)
+      const { data: pendingRows, error: pendingError } = await admin.from('email_campaign_recipients')
+        .select('id,email').eq('campaign_id', campaign.id).eq('status', 'pending')
+      if (pendingError) console.error('[email/worker] pending recipient lookup failed:', pendingError.message)
+      if (pendingRows?.length) {
+        const failedAt = new Date().toISOString()
+        await admin.from('email_campaign_recipients').update({ status: 'failed', error_message: 'Échec de traitement de la campagne.', processed_at: failedAt })
+          .eq('campaign_id', campaign.id).eq('status', 'pending')
+        await admin.from('email_delivery_logs').insert(pendingRows.map((row) => ({
+          campaign_id: campaign.id, recipient_email: row.email, status: 'failed',
+          error_message: 'Échec de traitement de la campagne.', smtp_account_id: null,
+        })))
+      }
       const sent = Number(campaign.sent_count) || 0
-      const failed = (Number(campaign.failed_count) || 0) + remaining.length
-      const failedRecipients = [...(Array.isArray(campaign.failed_recipients) ? campaign.failed_recipients : []), ...remaining]
+      const failed = (Number(campaign.failed_count) || 0) + remaining
+      const failedRecipients = Array.isArray(campaign.failed_recipients) ? campaign.failed_recipients : []
       await admin.from('email_campaigns').update({
-        recipient_offset: recipients.length,
+        recipient_offset: Number(campaign.total_recipients) || offset,
         sent_count: sent,
         failed_count: failed,
         failed_recipients: failedRecipients,
