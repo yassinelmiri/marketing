@@ -267,32 +267,47 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
 
   async function refresh() {
     if (!currentUser) return
+
+    const shouldLoadMarketingData = !(initialData && !initialDataHydrated.current)
+    if (shouldLoadMarketingData) {
+      // Avoid blocking the first refresh when the server already supplied initial data.
+    } else {
+      initialDataHydrated.current = true
+    }
+
+    const marketingPromise = shouldLoadMarketingData ? loadMarketingData() : Promise.resolve(null)
+    const contactsCountPromise = fetch('/api/contacts?counts=1', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error ?? 'Statistiques des contacts indisponibles.')
+        return data as { total?: number; listCounts?: Record<number, number> }
+      })
+      .catch((error) => {
+        console.error('[Workspace] Erreur pendant le chargement des statistiques des contacts:', error)
+        return null
+      })
+
     try {
-      if (initialData && !initialDataHydrated.current) {
-        initialDataHydrated.current = true
-      } else {
-        const result = await loadMarketingData()
-        setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
-        setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
-        setListes(Array.isArray(result.listes) ? result.listes : [])
-        setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
-        setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
-        setCampagneMembresState(Array.isArray(result.campagneMembres) ? result.campagneMembres : [])
+      const [marketingData, countData, teamData] = await Promise.all([
+        marketingPromise,
+        contactsCountPromise,
+        loadWorkspaceTeamData(supabase, currentUser),
+      ])
+
+      if (marketingData) {
+        setCampagnes(Array.isArray(marketingData.campagnes) ? marketingData.campagnes : [])
+        setCommentaires(Array.isArray(marketingData.commentaires) ? marketingData.commentaires : [])
+        setListes(Array.isArray(marketingData.listes) ? marketingData.listes : [])
+        setTypesCampagnes(Array.isArray(marketingData.typesCampagnes) ? marketingData.typesCampagnes : [])
+        setCampagneListesState(Array.isArray(marketingData.campagneListes) ? marketingData.campagneListes : [])
+        setCampagneMembresState(Array.isArray(marketingData.campagneMembres) ? marketingData.campagneMembres : [])
       }
-      try {
-        const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
-        const countData = await countResponse.json()
-        if (countResponse.ok) {
-          setContactsCount(Number(countData.total ?? 0))
-          setContactListCounts(countData.listCounts ?? {})
-        } else {
-          console.error('[Workspace] Impossible de charger les statistiques des contacts:', countData.error ?? countResponse.status)
-        }
-      } catch (error) {
-        // Ne pas remplacer les dernières statistiques valides par 0 en cas d'erreur réseau.
-        console.error('[Workspace] Erreur réseau pendant le chargement des statistiques des contacts:', error)
+
+      if (countData) {
+        setContactsCount(Number(countData.total ?? 0))
+        setContactListCounts(countData.listCounts ?? {})
       }
-      const teamData = await loadWorkspaceTeamData(supabase, currentUser)
+
       setTeamRoles(teamData.roles)
       setTeamUsers(teamData.users)
     } catch (error) {
