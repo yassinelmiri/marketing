@@ -64,7 +64,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   }finally{
    if(refreshAbortController.current===controller){
     refreshAbortController.current=null
-    if(showLoading)setLoading(false)
+    setLoading(false)
    }
   }
  }
