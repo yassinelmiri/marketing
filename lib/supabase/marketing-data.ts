@@ -146,15 +146,30 @@ export async function deleteCampagne(id: number): Promise<void> {
 
 export async function setCampagneListes(campagneId: number, listeIds: number[]): Promise<void> {
   const supabase = createClient()
+  const uniqueListeIds = [...new Set(listeIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
+
+  // Une liste ne peut appartenir qu'à une seule campagne.
+  if (uniqueListeIds.length > 0) {
+    const { data: conflicts, error: conflictError } = await supabase
+      .from('campagne_listes')
+      .select('liste_id,campagne_id')
+      .in('liste_id', uniqueListeIds)
+      .neq('campagne_id', campagneId)
+    throwIfError(conflictError)
+    if (conflicts?.length) {
+      throw new Error('Une ou plusieurs listes sélectionnées sont déjà associées à une autre campagne.')
+    }
+  }
+
   const { error: deleteError } = await supabase
     .from('campagne_listes')
     .delete()
     .eq('campagne_id', campagneId)
   throwIfError(deleteError)
 
-  if (listeIds.length === 0) return
+  if (uniqueListeIds.length === 0) return
   const { error } = await supabase.from('campagne_listes').insert(
-    [...new Set(listeIds)].map((liste_id) => ({ campagne_id: campagneId, liste_id })),
+    uniqueListeIds.map((liste_id) => ({ campagne_id: campagneId, liste_id })),
   )
   throwIfError(error)
 }
