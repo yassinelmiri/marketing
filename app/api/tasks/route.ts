@@ -221,10 +221,10 @@ export async function POST(request: NextRequest) {
   const priority = body.priority
   const status = body.status
   const dueDate =
-    typeof body.due_date === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.due_date) ? body.due_date : null
+    typeof body.due_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.due_date) ? body.due_date : null
   const recurrenceFrequency = body.recurrence_frequency ?? 'none'
   const recurrenceInterval = Math.max(1, Math.min(365, Number(body.recurrence_interval) || 1))
-  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : null
+  const recurrenceUntil = typeof body.recurrence_until === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.recurrence_until) ? body.recurrence_until : null
   const assigneeIds = Array.isArray(body.assignee_ids)
     ? [...new Set(body.assignee_ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
     : []
