@@ -21,10 +21,10 @@ export default function RootLayout({
     <html lang="fr" data-workspace-theme="light" suppressHydrationWarning>
       <body>
         <ReduxProvider>
-        <ToastProvider>
-          <SecurityGuard />
-          {children}
-        </ToastProvider>
+          <ToastProvider>
+            <SecurityGuard />
+            {children}
+          </ToastProvider>
         </ReduxProvider>
       </body>
     </html>
