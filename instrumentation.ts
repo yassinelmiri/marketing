@@ -29,9 +29,11 @@ export async function register() {
   const workerUrl = `http://127.0.0.1:${port}/api/cron/email-campaigns`;
   const intervalMs = 60_000;
   let stopped = false;
+  let isRunning = false;
 
   const runWorker = async () => {
-    if (stopped) return;
+    if (stopped || isRunning) return;
+    isRunning = true;
 
     try {
       const response = await fetch(workerUrl, {
@@ -56,6 +58,8 @@ export async function register() {
         "[email/scheduler] Worker is not reachable yet; it will retry.",
         error
       );
+    } finally {
+      isRunning = false;
     }
   };
 
