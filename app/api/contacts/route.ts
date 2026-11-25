@@ -11,8 +11,13 @@ async function authorize() {
   const supabase = await createClient()
   const { data: auth, error: authError } = await supabase.auth.getUser()
   if (authError || !auth.user) return { response: NextResponse.json({ error: 'Connexion requise.' }, { status: 401 }) }
-  const { data: allowed, error } = await supabase.rpc('has_permission', { permission_code: 'listes.read' })
-  if (error || !allowed) return { response: NextResponse.json({ error: 'Accès aux contacts refusé.' }, { status: 403 }) }
+  const [{ data: allowed, error: permissionError }, { data: assignedAccess, error: assignedError }] = await Promise.all([
+    supabase.rpc('has_permission', { permission_code: 'listes.read' }),
+    supabase.rpc('has_assigned_contact_list_access'),
+  ])
+  if ((permissionError && assignedError) || (!allowed && !assignedAccess)) {
+    return { response: NextResponse.json({ error: 'Accès aux contacts refusé.' }, { status: 403 }) }
+  }
   return { supabase } as const
 }
 
