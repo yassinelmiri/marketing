@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { BarChart3, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import {
   type Campagne,
   type CampagneStatus,
@@ -48,7 +48,6 @@ export function CampagnesView({
   campagneListes,
   campagneMembres,
   teamUsers,
-  contactListCounts,
   onCreate,
   onUpdate,
   onDelete,
@@ -75,7 +74,6 @@ export function CampagnesView({
   const localTypes = Array.isArray(typesCampagnes) ? typesCampagnes : []
 
   const types = localTypes.filter((type) => type.actif)
-  const allListes = localListes
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
   const assignedCampaignIds = new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id))
   const campaignsVisibleToUser = user.role_id === 1
@@ -120,12 +118,6 @@ export function CampagnesView({
     setMemberPickerOpen(false)
     setMemberSearch('')
     setShowForm(true)
-  }
-
-  function toggleFormListe(listeId: number) {
-    setFormListeIds((ids) =>
-      ids.includes(listeId) ? ids.filter((id) => id !== listeId) : [...ids, listeId],
-    )
   }
 
   async function submit() {
