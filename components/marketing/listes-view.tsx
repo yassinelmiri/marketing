@@ -413,7 +413,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     const lower = file.name.toLowerCase()
     if (lower.endsWith('.csv')) {
       const text = await file.text()
-      const { rows } = parseCsv(text)
+      const { headers, rows } = parseCsv(text)
       setImportHeaders(headers)
       setImportMapping(buildImportMapping(headers))
       setImportRows(rows)
