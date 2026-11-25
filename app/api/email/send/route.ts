@@ -48,14 +48,47 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, failed_recipients, recipients, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
     if (error) throw error
     const ids = (data ?? []).map((item) => Number(item.id))
-    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type').in('campaign_id', ids) : { data: [], error: null }
+    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type,target_url,created_at').in('campaign_id', ids).order('created_at', { ascending: false }).limit(5000) : { data: [], error: null }
     if (eventsError) throw eventsError
+
+    if (request.nextUrl.searchParams.get('details') === '1') {
+      const kind = request.nextUrl.searchParams.get('kind') || 'open'
+      const campaignById = new Map((data ?? []).map((item) => [Number(item.id), item]))
+      if (kind === 'open' || kind === 'click') {
+        const details = (events ?? []).filter((event) => event.event_type === kind && campaignById.has(Number(event.campaign_id))).map((event) => ({
+          campaign_id: Number(event.campaign_id), campaign_subject: campaignById.get(Number(event.campaign_id))?.subject ?? '',
+          recipient_email: String(event.recipient_email ?? ''), event_type: event.event_type,
+          target_url: event.target_url ?? null, created_at: event.created_at ?? null,
+        }))
+        return NextResponse.json({ details, kind })
+      }
+      if (kind === 'sent' || kind === 'failed' || kind === 'unread') {
+        const openedRecipients = new Set((events ?? []).filter((event) => event.event_type === 'open').map((event) => Number(event.campaign_id) + ':' + String(event.recipient_email ?? '').toLowerCase()))
+        const details = (data ?? []).flatMap((campaign) => {
+          const recipients = Array.isArray(campaign.recipients) ? campaign.recipients : []
+          const failed = new Set(Array.isArray(campaign.failed_recipients) ? campaign.failed_recipients.map((email: string) => String(email).toLowerCase()) : [])
+          return recipients.filter((email: string) => {
+            const address = String(email).toLowerCase()
+            if (kind === 'failed') return failed.has(address)
+            if (failed.has(address)) return false
+            if (kind === 'unread') return !openedRecipients.has(Number(campaign.id) + ':' + address)
+            return true
+          }).map((email: string) => ({
+            campaign_id: Number(campaign.id), campaign_subject: campaign.subject,
+            recipient_email: String(email), event_type: kind, target_url: null,
+            created_at: campaign.sent_at ?? campaign.created_at,
+          }))
+        })
+        return NextResponse.json({ details, kind })
+      }
+      return NextResponse.json({ details: [], kind })
+    }
     const counts = new Map<number, { opens: Set<string>; clicks: Set<string> }>()
     for (const event of events ?? []) {
       const id = Number(event.campaign_id)
