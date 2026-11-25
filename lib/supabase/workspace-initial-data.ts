@@ -32,9 +32,7 @@ export async function loadWorkspaceInitialData(): Promise<MarketingData | null> 
       ...row, id: Number(row.id), description: row.description ?? '', cible: row.cible ?? '',
       note: row.note ?? '', ajoute_par_nom: row.ajoute_par_nom ?? '', created_by: Number(row.created_by ?? 0),
     })),
-    contacts: [],
     campagneListes: (campaignLists.data ?? []).map((row) => ({ ...row, id: Number(row.id), campagne_id: Number(row.campagne_id), liste_id: Number(row.liste_id) })),
-    listeContacts: [],
     typesCampagnes: (types.data ?? []).map((row) => ({ ...row, id: Number(row.id), description: row.description ?? '', icone: row.icone ?? '', created_by: Number(row.created_by ?? 0) })),
   }
 }
