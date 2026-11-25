@@ -20,11 +20,9 @@ import { TasksView } from './tasks-view'
 import {
   type Campagne,
   type Commentaire,
-  type Contact,
   type ListeContact,
   type TypeCampagne,
   type Role,
-  type ListeContactContact,
   type User,
 } from '@/lib/storage'
 import {
@@ -74,12 +72,10 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
   const [campagnes, setCampagnes] = useState<Campagne[]>(initialData?.campagnes ?? [])
   const [commentaires, setCommentaires] = useState<Commentaire[]>(initialData?.commentaires ?? [])
   const [listes, setListes] = useState<ListeContact[]>(initialData?.listes ?? [])
-  const [contacts, setContacts] = useState<Contact[]>([])
   const [contactsCount, setContactsCount] = useState(0)
   const [contactListCounts, setContactListCounts] = useState<Record<number, number>>({})
   const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>(initialData?.typesCampagnes ?? [])
   const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>(initialData?.campagneListes ?? [])
-  const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
   const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
 
@@ -275,7 +271,6 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
         setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
       }
-      setContacts([])
       try {
         const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
         const countData = await countResponse.json()
@@ -290,7 +285,6 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         setContactsCount(0)
         setContactListCounts({})
       }
-      setListeContacts([])
       const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
       if (rolesError) throw rolesError
       setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
@@ -670,10 +664,8 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               user={currentUser}
               campagnes={campagnes}
               listes={listes}
-              contacts={contacts}
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
-              listeContacts={listeContacts}
               contactListCounts={contactListCounts}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
@@ -719,11 +711,11 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
           )}
 
           {visitedViews.includes('email') && (
-            <div hidden={activeView !== 'email'}><EmailSenderView listes={listes} listeContacts={listeContacts} contactListCounts={contactListCounts} isAdmin={currentUser.role_id === 1} /></div>
+            <div hidden={activeView !== 'email'}><EmailSenderView listes={listes} contactListCounts={contactListCounts} isAdmin={currentUser.role_id === 1} /></div>
           )}
 
           {visitedViews.includes('sms') && (
-            <div hidden={activeView !== 'sms'}><SmsSenderView listes={listes} listeContacts={listeContacts} contactListCounts={contactListCounts} /></div>
+            <div hidden={activeView !== 'sms'}><SmsSenderView listes={listes} contactListCounts={contactListCounts} /></div>
           )}
 
           {visitedViews.includes('admin-users') && (
