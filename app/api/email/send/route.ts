@@ -20,13 +20,13 @@ function originError(request: NextRequest) {
 
 function getPublicOrigin(request: NextRequest) {
   const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
-  const vercelHost = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ''
-  const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\\/+$/, '')
+  const vercelHost = process.env.VERCEL_URL ? \`https://\${process.env.VERCEL_URL}\` : ''
+  const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\/+$/, '')
   try {
     const parsed = new URL(candidate)
     if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.origin
   } catch {}
-  return publicOrigin
+  return request.nextUrl.origin
 }
 
 async function authorizedSession() {
