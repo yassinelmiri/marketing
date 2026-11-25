@@ -1,21 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import nodemailer from 'nodemailer'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
+import { authorizeEmailAccess } from '@/lib/api/email-auth'
 import { decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function originError(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origine manquante.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-  } catch { return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 }) }
-  return null
-}
 
 
 function getPublicOrigin(request: NextRequest) {
@@ -29,22 +22,10 @@ function getPublicOrigin(request: NextRequest) {
   return request.nextUrl.origin
 }
 
-async function authorizedSession() {
-  const session = await createClient()
-  const { data: auth, error: authError } = await session.auth.getUser()
-  if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
-  const { data: profile, error: profileError } = await session.from('user_profiles')
-    .select('*').eq('auth_user_id', auth.user.id).maybeSingle()
-  if (profileError || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
-  const isAdmin = Number(profile.role_id) === 1
-  const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
-  if (permissionError || (!isAdmin && !allowed)) return { error: NextResponse.json({ error: 'Vous ne disposez pas de l’autorisation d’accès au module e-mail.' }, { status: 403 }) }
-  return { session, profile, user: auth.user }
-}
 
 export async function GET(request: NextRequest) {
-  const auth = await authorizedSession()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
@@ -116,15 +97,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
 
   let campaignId: number | null = null
-  const admin = createAdminClient()
+  let admin: ReturnType<typeof createAdminClient> | null = null
   try {
-    const auth = await authorizedSession()
-    if ('error' in auth) return auth.error
+    const auth = await authorizeEmailAccess()
+    if ('response' in auth) return auth.response
 
+    admin = createAdminClient()
     const body = await request.json()
     const publicOrigin = getPublicOrigin(request)
     const smtpId = Number(body.smtp_account_id)
@@ -260,7 +242,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[email/send] failed:', error)
-    if (campaignId !== null) {
+    if (campaignId !== null && admin) {
       await admin.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId)
     }
     const message = error instanceof Error ? error.message : ''

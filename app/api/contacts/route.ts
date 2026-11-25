@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -133,6 +134,8 @@ export async function GET(request: NextRequest) {
 
  
 export async function DELETE(request: NextRequest) {
+  const origin = sameOriginError(request)
+  if (origin) return origin
   const auth = await authorize()
   if ('response' in auth) return auth.response
   if (!auth.canReadAll) {
