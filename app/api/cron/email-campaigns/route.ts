@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
         senderAccounts.set(Number(smtp.id), { email: smtp.email, name: smtp.from_name || smtp.name })
       }
 
-      const legacyRecipients: string[] = []
+      let legacyRecipients: string[] = []
+      let legacyLoaded = false
       const totalRecipients = Math.max(0, Number(campaign.total_recipients) || 0)
       const start = Math.max(0, Number(campaign.recipient_offset) || 0)
       const batchSize = Math.max(1, Number(campaign.batch_size) || 25)
@@ -98,13 +99,20 @@ export async function GET(request: NextRequest) {
           const chunkStart = offset
           const chunkLimit = Math.min(sendConcurrency, batchEnd - chunkStart)
           const { data: queuedRows, error: queueReadError } = await admin.from('email_campaign_recipients')
-            .select('id,email').eq('campaign_id', campaign.id).eq('status', 'pending')
-            .order('id', { ascending: true }).range(chunkStart, chunkStart + chunkLimit - 1)
+            .select('id,email').eq('campaign_id', campaign.id)
+            .order('id', { ascending: true }).range(0, chunkLimit - 1)
           if (queueReadError) throw queueReadError
           const queueChunk = queuedRows ?? []
+          if (!queueChunk.length && !legacyLoaded) {
+            const { data: legacyCampaign, error: legacyError } = await admin.from('email_campaigns')
+              .select('recipients').eq('id', campaign.id).maybeSingle()
+            if (legacyError) throw legacyError
+            legacyRecipients = Array.isArray(legacyCampaign?.recipients) ? legacyCampaign.recipients.map(String) : []
+            legacyLoaded = true
+          }
           const chunk = queueChunk.length
             ? queueChunk.map((row) => ({ id: Number(row.id), email: String(row.email ?? '') }))
-            : legacyRecipients.slice(chunkStart, chunkStart + chunkLimit).map((email, index) => ({ id: 0, email }))
+            : legacyRecipients.slice(chunkStart, chunkStart + chunkLimit).map((email) => ({ id: 0, email }))
           if (!chunk.length) break
           const results = await Promise.all(chunk.map(async (queuedRecipient, chunkIndex) => {
             const recipient = String(queuedRecipient.email ?? '').trim().toLowerCase()
@@ -192,6 +200,18 @@ export async function GET(request: NextRequest) {
       // count every unprocessed recipient as failed so the UI never stays at 0%.
       const offset = Math.max(0, Number(campaign.recipient_offset) || 0)
       const remaining = Math.max(0, Number(campaign.total_recipients) - offset)
+      const { data: pendingRows, error: pendingError } = await admin.from('email_campaign_recipients')
+        .select('id,email').eq('campaign_id', campaign.id).eq('status', 'pending')
+      if (pendingError) console.error('[email/worker] pending recipient lookup failed:', pendingError.message)
+      if (pendingRows?.length) {
+        const failedAt = new Date().toISOString()
+        await admin.from('email_campaign_recipients').update({ status: 'failed', error_message: 'Échec de traitement de la campagne.', processed_at: failedAt })
+          .eq('campaign_id', campaign.id).eq('status', 'pending')
+        await admin.from('email_delivery_logs').insert(pendingRows.map((row) => ({
+          campaign_id: campaign.id, recipient_email: row.email, status: 'failed',
+          error_message: 'Échec de traitement de la campagne.', smtp_account_id: null,
+        })))
+      }
       const sent = Number(campaign.sent_count) || 0
       const failed = (Number(campaign.failed_count) || 0) + remaining
       const failedRecipients = Array.isArray(campaign.failed_recipients) ? campaign.failed_recipients : []
