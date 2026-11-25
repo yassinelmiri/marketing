@@ -2,6 +2,8 @@
 import { useEffect,useMemo,useState,type FormEvent } from 'react'
 import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Copy,Download,Edit2,Eye,FileText,LayoutDashboard,List,Mail,MousePointerClick,Plus,Search,Send,Server,Trash2,Users,X } from 'lucide-react'
 import type { ListeContact,ListeContactContact } from '@/lib/storage'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
 type SMTP={id:number;name:string;email:string;host:string;port:number;secure:boolean;username:string;from_name:string|null;is_active:boolean}
 type Campaign={id:number;created_by_name?:string|null;subject:string;message?:string;reply_to?:string|null;batch_size?:number;batch_delay_seconds?:number;liste_nom:string;sender_email:string;sent_count:number;failed_count:number;status:string;created_at:string;total_recipients?:number;recipient_offset?:number;scheduled_at?:string|null;next_batch_at?:string|null;open_count?:number;click_count?:number}
 type Template={id:number;name:string;subject:string;html_content:string}
@@ -44,7 +46,12 @@ function campaignInputToIso(value: string) {
 
 export function EmailSenderView({listes,listeContacts,isAdmin}:{listes:ListeContact[];listeContacts:ListeContactContact[];isAdmin:boolean}){
  const [tab,setTab]=useState('dashboard'),[editingId,setEditingId]=useState<number|null>(null),[accounts,setAccounts]=useState<SMTP[]>([]),[campaigns,setCampaigns]=useState<Campaign[]>([]),[templates,setTemplates]=useState<Template[]>([]),[unsubs,setUnsubs]=useState<Unsub[]>([])
- const [smtpIds,setSmtpIds]=useState<number[]>([]),[listeIds,setListeIds]=useState<number[]>([]),[template,setTemplate]=useState<number|''>(''),[subject,setSubject]=useState(''),[message,setMessage]=useState(''),[replyTo,setReplyTo]=useState(''),[launchAt,setLaunchAt]=useState('')
+ const [template,setTemplate]=useState<number|''>(''),[subject,setSubject]=useState(''),[message,setMessage]=useState(''),[replyTo,setReplyTo]=useState(''),[launchAt,setLaunchAt]=useState('')
+ const dispatch=useAppDispatch()
+ const smtpIds=useAppSelector(state=>state.emailCampaignDraft.selectedSenderIds)
+ const listeIds=useAppSelector(state=>state.emailCampaignDraft.selectedListIds)
+ const setSmtpIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedSenderIds(typeof value==='function'?value(smtpIds):value))
+ const setListeIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedListIds(typeof value==='function'?value(listeIds):value))
  const [listQuery,setListQuery]=useState(''),[senderQuery,setSenderQuery]=useState('')
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
  const [smtpForm,setSmtpForm]=useState(emptySmtp),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false)
