@@ -2829,3 +2829,41 @@
 .email-activity-url{max-width:320px;overflow-wrap:anywhere}
 .email-activity-url a{color:#60a5fa;text-decoration:underline}
 @media(max-width:640px){.email-activity-backdrop{padding:8px;align-items:flex-end}.email-activity-dialog{max-height:92vh;padding:15px;border-radius:17px 17px 10px 10px}.email-activity-toolbar{align-items:stretch;flex-direction:column}.email-activity-toolbar>label,.email-activity-toolbar>button{width:100%}}
+
+
+/* Task dialog: keep the assignee picker visible, scrollable and responsive. */
+.taskz-modal{width:min(100%,760px);max-height:min(90vh,900px);display:flex;flex-direction:column;overflow:hidden}
+.taskz-modal .workspace-modal-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px}
+.taskz-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.taskz-modal .form-grid-full{grid-column:1/-1;min-width:0}
+.taskz-modal .taskz-member-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0;padding:14px;border:1px solid var(--workspace-border,rgba(148,163,184,.2));border-radius:14px;background:rgba(148,163,184,.035)}
+.taskz-modal .taskz-member-picker>span,.taskz-modal .taskz-member-picker>.form-hint,.taskz-modal .taskz-member-picker>p{grid-column:1/-1}
+.taskz-modal .taskz-member-picker>label{display:flex;align-items:center;gap:10px;min-width:0;padding:10px;border:1px solid var(--workspace-border,rgba(148,163,184,.16));border-radius:11px;background:rgba(148,163,184,.035);cursor:pointer}
+.taskz-modal .taskz-member-picker>label.selected{border-color:#3b82f6;background:rgba(59,130,246,.1)}
+.taskz-modal .taskz-member-picker>label input{width:16px;height:16px;flex:none;accent-color:#3b82f6}
+.taskz-modal .taskz-member-picker>label>span:last-child{display:grid;min-width:0;gap:2px}
+.taskz-modal .taskz-member-picker>label strong,.taskz-modal .taskz-member-picker>label small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.taskz-modal .taskz-member-picker>label strong{font-size:12px}
+.taskz-modal .taskz-member-picker>label small{color:var(--workspace-muted,#94a3b8);font-size:10px}
+.taskz-modal .taskz-recurrence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px;border:1px solid var(--workspace-border,rgba(148,163,184,.2));border-radius:14px;background:rgba(59,130,246,.045)}
+.taskz-modal .taskz-recurrence>strong,.taskz-modal .taskz-recurrence>p{grid-column:1/-1;margin:0}
+.taskz-modal .taskz-recurrence label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:650}
+.taskz-modal .taskz-recurrence input,.taskz-modal .taskz-recurrence select{width:100%;min-width:0}
+.taskz-modal>footer{flex:none}
+@media(max-width:640px){.taskz-modal .workspace-modal-body{padding:16px}.taskz-modal .form-grid{grid-template-columns:minmax(0,1fr)}.taskz-modal .form-grid-full{grid-column:1}.taskz-modal .taskz-member-picker,.taskz-modal .taskz-recurrence{grid-template-columns:minmax(0,1fr)}.taskz-modal .taskz-member-picker>span,.taskz-modal .taskz-member-picker>.form-hint,.taskz-modal .taskz-member-picker>p,.taskz-modal .taskz-recurrence>strong,.taskz-modal .taskz-recurrence>p{grid-column:1}}
+
+
+/* Contacts table filters and multi-selection */
+.contacts-filter-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0 14px}
+.contacts-filter-toolbar>.data-search-field{flex:1 1 240px;min-width:210px}
+.contacts-filter-toolbar>label:not(.data-search-field){display:grid;gap:5px;min-width:135px}
+.contacts-filter-toolbar>label>span{font-size:11px;font-weight:650;color:var(--muted)}
+.contacts-filter-toolbar input[type="date"]{min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:12px}
+.contacts-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 13px;margin:0 0 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.contacts-bulk-toolbar>span{font-size:12px;color:var(--text)}
+.contacts-bulk-toolbar>span strong{font-variant-numeric:tabular-nums}
+.contacts-bulk-toolbar .workspace-danger{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid rgba(239,68,68,.35);border-radius:9px;background:rgba(239,68,68,.1);color:#ef4444;font-weight:700;font-size:12px;cursor:pointer}
+.contacts-bulk-toolbar .workspace-danger:disabled{opacity:.55;cursor:not-allowed}
+.contacts-select-column{width:38px;text-align:center!important}
+.contacts-select-column input[type="checkbox"]{width:16px;height:16px;accent-color:#6366f1;cursor:pointer}
+@media(max-width:680px){.contacts-filter-toolbar{align-items:stretch}.contacts-filter-toolbar>.data-search-field{flex-basis:100%}.contacts-filter-toolbar>label:not(.data-search-field){flex:1 1 120px}.contacts-bulk-toolbar{align-items:stretch}.contacts-bulk-toolbar .workspace-danger{justify-content:center}}
