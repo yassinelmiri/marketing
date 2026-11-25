@@ -4,45 +4,17 @@ import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,
 import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
-type SMTP={id:number;name:string;email:string;host:string;port:number;secure:boolean;username:string;from_name:string|null;is_active:boolean}
-type Campaign={id:number;created_by_name?:string|null;subject:string;message?:string;reply_to?:string|null;batch_size?:number;batch_delay_seconds?:number;liste_nom:string;sender_email:string;sent_count:number;failed_count:number;status:string;created_at:string;total_recipients?:number;recipient_offset?:number;scheduled_at?:string|null;next_batch_at?:string|null;open_count?:number;click_count?:number}
-type Template={id:number;name:string;subject:string;html_content:string}
-type Unsub={id:number;email:string;reason:string|null;unsubscribed_at:string}
-type Activity={campaign_id:number;campaign_subject:string;recipient_email:string;event_type:string;target_url:string|null;created_at:string|null}
+import {
+ EMPTY_SMTP_FORM,
+ campaignDateToInput,
+ campaignInputToIso,
+ type SmtpAccount as SMTP,
+ type EmailCampaign as Campaign,
+ type EmailTemplate as Template,
+ type EmailUnsubscribe as Unsub,
+ type EmailActivity as Activity,
+} from '@/lib/email/types'
 const tabs=[['dashboard','Dashboard',LayoutDashboard],['campaigns','Campagnes',Send],['lists','Listes',Users],['templates','Templates',FileText],['senders','Expéditeurs',Server],['unsubscribes','Désabonnements',Ban]] as const
-const emptySmtp={name:'',email:'',host:'smtp.ionos.fr',port:'587',secure:false,username:'',password:'',from_name:''}
-const CAMPAIGN_TIME_ZONE = 'Africa/Casablanca'
-
-function campaignDateToInput(value?: string | null) {
- if (!value) return ''
- const parts = new Intl.DateTimeFormat('en-CA', {
-  timeZone: CAMPAIGN_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
-  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
- }).formatToParts(new Date(value))
- const get = (type: string) => parts.find(part => part.type === type)?.value || ''
- return get('year')+'-'+get('month')+'-'+get('day')+'T'+get('hour')+':'+get('minute')
-}
-
-function campaignInputToIso(value: string) {
- const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
- if (!match) throw new Error('Date de lancement invalide.')
- const [, y, mo, d, h, mi] = match
- const desired = Date.UTC(Number(y), Number(mo)-1, Number(d), Number(h), Number(mi))
- let timestamp = desired
- for (let i = 0; i < 4; i++) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-   timeZone: CAMPAIGN_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
-   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  }).formatToParts(new Date(timestamp))
-  const get = (type: string) => Number(parts.find(part => part.type === type)?.value || 0)
-  const represented = Date.UTC(get('year'), get('month')-1, get('day'), get('hour'), get('minute'), get('second'))
-  const difference = represented - timestamp
-  const next = desired - difference
-  if (next === timestamp) break
-  timestamp = next
- }
- return new Date(timestamp).toISOString()
-}
 
 export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:ListeContact[];contactListCounts:Record<number,number>;isAdmin:boolean}){
  const [tab,setTab]=useState('dashboard'),[editingId,setEditingId]=useState<number|null>(null),[accounts,setAccounts]=useState<SMTP[]>([]),[campaigns,setCampaigns]=useState<Campaign[]>([]),[templates,setTemplates]=useState<Template[]>([]),[unsubs,setUnsubs]=useState<Unsub[]>([])
@@ -54,8 +26,9 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const setListeIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedListIds(typeof value==='function'?value(listeIds):value))
  const [listQuery,setListQuery]=useState(''),[senderQuery,setSenderQuery]=useState('')
  const senderInitializationDone=useRef(false)
+ const refreshAbortController=useRef<AbortController|null>(null)
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
- const [smtpForm,setSmtpForm]=useState(emptySmtp),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
+ const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
  const [activityKind,setActivityKind]=useState<string|null>(null),[activity,setActivity]=useState<Activity[]>([]),[activityLoading,setActivityLoading]=useState(false),[activitySearch,setActivitySearch]=useState('')
  const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=listes.filter(x=>listeIds.includes(x.id))
@@ -63,8 +36,47 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const filteredSenders=useMemo(()=>active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(senderQuery.toLowerCase())),[active,senderQuery])
  const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
  const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
- async function refresh(showLoading=true){if(showLoading)setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!senderInitializationDone.current){senderInitializationDone.current=true;if(!smtpIds.length&&ds[0].accounts?.length){const first=ds[0].accounts.find((x:SMTP)=>x.is_active);if(first)setSmtpIds([first.id])}}}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{if(showLoading)setLoading(false)}}
- useEffect(()=>{void refresh();const timer=window.setInterval(()=>void refresh(false),15000);return()=>window.clearInterval(timer)},[])
+ async function refresh(showLoading=true){
+  refreshAbortController.current?.abort()
+  const controller=new AbortController()
+  refreshAbortController.current=controller
+  if(showLoading)setLoading(true)
+  try{
+   const endpoints=['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes']
+   const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store',signal:controller.signal})))
+   const data=await Promise.all(responses.map(response=>response.json()))
+   const failedIndex=responses.findIndex(response=>!response.ok)
+   if(failedIndex>=0)throw new Error(data[failedIndex].error||'Erreur de chargement des données e-mail.')
+   if(controller.signal.aborted)return
+   setAccounts(data[0].accounts||[])
+   setCampaigns(data[1].campaigns||[])
+   setTemplates(data[2].templates||[])
+   setUnsubs(data[3].unsubscribes||[])
+   if(!senderInitializationDone.current){
+    senderInitializationDone.current=true
+    if(!smtpIds.length&&data[0].accounts?.length){
+     const first=data[0].accounts.find((account:SMTP)=>account.is_active)
+     if(first)setSmtpIds([first.id])
+    }
+   }
+  }catch(error){
+   if(!controller.signal.aborted)setError(error instanceof Error?error.message:'Erreur de chargement')
+  }finally{
+   if(refreshAbortController.current===controller){
+    refreshAbortController.current=null
+    setLoading(false)
+   }
+  }
+ }
+ useEffect(()=>{
+  void refresh()
+  const timer=window.setInterval(()=>void refresh(false),15000)
+  return()=>{
+   window.clearInterval(timer)
+   refreshAbortController.current?.abort()
+   refreshAbortController.current=null
+  }
+ },[])
  function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
  async function openActivity(kind:string){
   setActivityKind(kind);setActivitySearch('');setActivityLoading(true);setActivity([]);
@@ -93,7 +105,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  async function deleteCampaign(id:number){if(!confirm('Supprimer définitivement cette campagne et son historique ?'))return;try{await post('/api/email/campaigns','DELETE',{id});await refresh(false);flash('Campagne supprimée.')}catch(e){setError(e instanceof Error?e.message:'Suppression impossible')}}
 
  async function send(){if(!smtpIds.length||!listeIds.length||!subject.trim()||!message.trim()){setError('Choisissez au moins un expéditeur, une liste, un objet et un contenu.');return}setBusy(true);setError('');try{const d=await post('/api/email/campaigns','POST',{smtp_account_ids:smtpIds,liste_ids:listeIds,subject,message,reply_to:replyTo,template_id:template||null,tracking_opens:opens,tracking_clicks:clicks,batch_size:Number(batch),batch_delay_seconds:Number(delay),scheduled_at:launchAt?campaignInputToIso(launchAt):new Date().toISOString()});setResult(d);setLaunchAt('');flash(d.message||'Campagne ajoutée à la file');await refresh()}catch(e){setError(e instanceof Error?e.message:'Préparation impossible')}finally{setBusy(false)}}
- async function saveSmtp(e:FormEvent){e.preventDefault();setBusy(true);try{await post('/api/email/smtp-accounts','POST',{...smtpForm,port:Number(smtpForm.port)});setSmtpForm(emptySmtp);setShowSmtp(false);await refresh();flash('Expéditeur ajouté')}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setBusy(false)}}
+ async function saveSmtp(e:FormEvent){e.preventDefault();setBusy(true);try{await post('/api/email/smtp-accounts','POST',{...smtpForm,port:Number(smtpForm.port)});setSmtpForm(EMPTY_SMTP_FORM);setShowSmtp(false);await refresh();flash('Expéditeur ajouté')}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setBusy(false)}}
  async function testSmtp(id:number){setBusy(true);setError('');try{const d=await post('/api/email/smtp-accounts','POST',{action:'test',id});flash(d.message||'Connexion SMTP vérifiée.')}catch(e){setError(e instanceof Error?e.message:'Test SMTP échoué')}finally{setBusy(false)}}
  async function saveTemplate(e:FormEvent){e.preventDefault();setBusy(true);try{await post('/api/email/templates',editingTemplateId!==null?'PUT':'POST',{...templateForm,...(editingTemplateId!==null?{id:editingTemplateId}:{})});setTemplateForm({name:'',subject:'',html_content:''});setEditingTemplateId(null);setTemplateMode('html');setShowTemplate(false);await refresh(false);flash(editingTemplateId!==null?'Template modifié':'Template enregistré')}catch(e){setError(e instanceof Error?e.message:'Erreur')}finally{setBusy(false)}}
  function editTemplate(t:Template){setEditingTemplateId(t.id);setTemplateForm({name:t.name,subject:t.subject,html_content:t.html_content||''});setTemplateMode('html');setPreviewTemplate(null);setShowTemplate(true)}

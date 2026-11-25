@@ -48,8 +48,19 @@ export function DashboardView({
   const [draft, setDraft] = useState('')
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
-  const associatedCampaigns = campagnes.filter((campaign) => campagneMembres.some((link) => link.campagne_id === campaign.id && link.user_id === user.id))
-  const selectedComments = commentaires.filter((c) => c.campagne_id === selectedCampagneId)
+  const assignedCampaignIds = useMemo(
+    () => new Set(campagneMembres.filter((link) => link.user_id === user.id).map((link) => link.campagne_id)),
+    [campagneMembres, user.id],
+  )
+  const typeNameById = useMemo(() => new Map(typesCampagnes.map((type) => [type.id, type.nom])), [typesCampagnes])
+  const associatedCampaigns = useMemo(
+    () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
+    [campagnes, assignedCampaignIds],
+  )
+  const selectedComments = useMemo(
+    () => commentaires.filter((comment) => comment.campagne_id === selectedCampagneId),
+    [commentaires, selectedCampagneId],
+  )
 
   const recent = useMemo(
     () =>
@@ -108,9 +119,9 @@ export function DashboardView({
         ) : (
           <div className="associated-campaigns-list">
             {associatedCampaigns.map((campaign) => {
-              const type = typesCampagnes.find((item) => item.id === campaign.type_campagne_id)
+              const typeName = typeNameById.get(campaign.type_campagne_id)
               return <article className="associated-campaign-item" key={campaign.id}>
-                <div><strong>{campaign.titre}</strong><span>{type?.nom ?? 'Campagne'} · {STATUS_LABELS[campaign.status]}</span>{campaign.note && <p>{campaign.note}</p>}</div>
+                <div><strong>{campaign.titre}</strong><span>{typeName ?? 'Campagne'} · {STATUS_LABELS[campaign.status]}</span>{campaign.note && <p>{campaign.note}</p>}</div>
                 <small>{formatDate(campaign.date_modification)}</small>
               </article>
             })}
@@ -133,7 +144,7 @@ export function DashboardView({
           ) : (
             <ul className="campagne-list">
               {recent.map((c) => {
-                const type = typesCampagnes.find((item) => item.id === c.type_campagne_id)
+                const typeName = typeNameById.get(c.type_campagne_id)
                 return (
                   <li key={c.id}>
                     <button
@@ -144,7 +155,7 @@ export function DashboardView({
                       <div>
                         <strong>{c.titre}</strong>
                         <span>
-                          {type?.nom ?? '—'}
+                          {typeName ?? '—'}
                           {c.note ? ` · ${c.note}` : ''}
                         </span>
                       </div>

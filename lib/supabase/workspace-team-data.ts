@@ -24,16 +24,15 @@ export async function loadWorkspaceTeamData(
     throw authResult.error ?? new Error('Session expirée.')
   }
 
-  let membersQuery = supabase
+  const membersQuery = supabase
     .from('user_profiles')
     .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-    .order('date_creation', { ascending: false })
 
-  if (authResult?.data.user) {
-    membersQuery = membersQuery.eq('auth_user_id', authResult.data.user.id)
-  }
-
-  const { data: members, error: membersError } = await membersQuery
+  const { data: members, error: membersError } = await (
+    authResult?.data.user
+      ? membersQuery.eq('auth_user_id', authResult.data.user.id).order('date_creation', { ascending: false })
+      : membersQuery.order('date_creation', { ascending: false })
+  )
   if (membersError) throw membersError
 
   return {

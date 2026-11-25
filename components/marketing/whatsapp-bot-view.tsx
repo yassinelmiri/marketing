@@ -1,15 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import * as XLSX from 'xlsx'
 import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
   MessageCircle, Pause, Play, RefreshCw, SkipForward, Upload, XCircle,
 } from 'lucide-react'
-import { findColumn, NAME_COLUMN_CANDIDATES, normalizePhone, PHONE_COLUMN_CANDIDATES } from '@/lib/whatsapp/contact-import'
+import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppImportContactStatus } from '@/lib/whatsapp/file-parser'
 
-type ContactStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
-type WhatsAppContact = { id: string; name: string; phone: string; status: ContactStatus }
+type ContactStatus = WhatsAppImportContactStatus
+type WhatsAppContact = WhatsAppImportContact
 type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
 export function WhatsAppBotView() {
@@ -89,34 +88,7 @@ export function WhatsAppBotView() {
     setError('')
     setNotice('')
     try {
-      const extension = file.name.split('.').pop()?.toLowerCase()
-      if (!['xlsx', 'xls', 'csv'].includes(extension ?? '')) throw new Error('Choisissez un fichier XLSX, XLS ou CSV.')
-      if (file.size > 15 * 1024 * 1024) throw new Error('Le fichier dépasse 15 Mo.')
-      const source = extension === 'csv' ? await file.text() : await file.arrayBuffer()
-      const workbook = XLSX.read(source, { type: extension === 'csv' ? 'string' : 'array', raw: false })
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-      if (!firstSheet) throw new Error('Le fichier ne contient aucune feuille lisible.')
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: '', raw: false })
-      if (!rows.length) throw new Error('Aucun contact trouvé dans le fichier.')
-      const headers = Object.keys(rows[0])
-      const phoneColumn = findColumn(headers, PHONE_COLUMN_CANDIDATES) ?? headers[0]
-      const nameColumn = findColumn(headers, NAME_COLUMN_CANDIDATES)
-      const seen = new Set<string>()
-      const parsed: WhatsAppContact[] = []
-      let duplicateCount = 0
-      let invalidCount = 0
-      rows.forEach((row, index) => {
-        const phone = normalizePhone(row[phoneColumn])
-        if (!phone) {
-          if (String(row[phoneColumn] ?? '').trim()) invalidCount += 1
-          return
-        }
-        if (seen.has(phone)) { duplicateCount += 1; return }
-        seen.add(phone)
-        const name = nameColumn ? String(row[nameColumn] ?? '').trim() : ''
-        parsed.push({ id: String(index) + '-' + phone, name, phone, status: 'pending' })
-      })
-      if (!parsed.length) throw new Error('Aucun numéro valide trouvé dans la colonne « ' + phoneColumn + ' ».')
+      const { contacts: parsed, duplicates: duplicateCount, invalid: invalidCount } = await parseWhatsAppImportFile(file)
       setContacts(parsed)
       setCampaignId(null)
       setSavedCounts(null)
