@@ -145,7 +145,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json()
     const rawIds = Array.isArray(body?.ids) ? body.ids : []
-    const ids = [...new Set(rawIds.map((value: unknown) => Number(value)))]
+    const ids: number[] = Array.from(new Set<number>((rawIds as unknown[]).map((value) => Number(value))))
     if (ids.length === 0 || ids.length > 100 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
       return NextResponse.json({ error: 'Sélection invalide. Choisissez entre 1 et 100 contacts.' }, { status: 400 })
     }

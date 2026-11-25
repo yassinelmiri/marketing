@@ -136,14 +136,15 @@ export async function GET(request: NextRequest) {
               const senderTransporter = transporters.get(senderId)
               const sender = senderAccounts.get(senderId)
               if (!senderTransporter || !sender) throw new Error('Selected SMTP sender is unavailable')
-              await senderTransporter.sendMail({
+              const mailOptions = {
                 from: { name: sender.name || sender.email, address: sender.email },
                 to: recipient, ...(campaign.reply_to ? { replyTo: campaign.reply_to } : {}),
                 subject: campaign.subject,
                 headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
                 html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
                 text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
-              })
+              }
+              await senderTransporter.sendMail(mailOptions)
               return { id: queuedRecipient.id, sent: true, failed: false, recipient, error: null, smtp_account_id: senderId }
             } catch (error) {
               console.error('[email/worker] recipient failed:', campaign.id, recipient, error)
