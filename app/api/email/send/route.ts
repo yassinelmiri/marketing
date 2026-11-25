@@ -61,12 +61,19 @@ export async function GET(request: NextRequest) {
       const kind = request.nextUrl.searchParams.get('kind') || 'open'
       const campaignById = new Map((data ?? []).map((item) => [Number(item.id), item]))
       if (kind === 'open' || kind === 'click') {
-        const details = (events ?? []).filter((event) => event.event_type === kind && campaignById.has(Number(event.campaign_id))).map((event) => ({
-          campaign_id: Number(event.campaign_id), campaign_subject: campaignById.get(Number(event.campaign_id))?.subject ?? '',
-          recipient_email: String(event.recipient_email ?? ''), event_type: event.event_type,
-          target_url: event.target_url ?? null, created_at: event.created_at ?? null,
-        }))
-        return NextResponse.json({ details, kind })
+        const unique = new Map<string, { campaign_id: number; campaign_subject: string; recipient_email: string; event_type: string; target_url: string | null; created_at: string | null }>()
+        for (const event of (events ?? []).filter((item) => item.event_type === kind && campaignById.has(Number(item.campaign_id)))) {
+          const campaignId = Number(event.campaign_id)
+          const email = String(event.recipient_email ?? '')
+          const targetUrl = event.target_url ?? null
+          const key = campaignId + ':' + email.toLowerCase() + (kind === 'click' ? ':' + String(targetUrl ?? '') : '')
+          if (!unique.has(key)) unique.set(key, {
+            campaign_id: campaignId, campaign_subject: campaignById.get(campaignId)?.subject ?? '',
+            recipient_email: email, event_type: event.event_type,
+            target_url: targetUrl, created_at: event.created_at ?? null,
+          })
+        }
+        return NextResponse.json({ details: Array.from(unique.values()), kind })
       }
       if (kind === 'sent' || kind === 'failed' || kind === 'unread') {
         const openedRecipients = new Set((events ?? []).filter((event) => event.event_type === 'open').map((event) => Number(event.campaign_id) + ':' + String(event.recipient_email ?? '').toLowerCase()))
