@@ -1,18 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function originError(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origine manquante.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-  } catch { return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 }) }
-  return null
-}
 
 async function authorized() {
   const session = await createClient()
@@ -26,7 +19,7 @@ async function authorized() {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
   const auth = await authorized()
   if ('error' in auth) return auth.error
@@ -99,7 +92,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
   const auth = await authorized()
   if ('error' in auth) return auth.error
@@ -172,7 +165,7 @@ export async function PATCH(request: NextRequest) {
 
 
 export async function DELETE(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
   const auth = await authorized()
   if ('error' in auth) return auth.error
