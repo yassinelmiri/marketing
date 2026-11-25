@@ -2881,3 +2881,14 @@
 .import-preview-table th{position:sticky;top:0;background:var(--surface-2);z-index:1}
 .import-preview-table th small{display:block;margin-top:4px;font-size:10px;color:var(--muted);font-weight:500}
 @media(max-width:650px){.import-mapping-grid{grid-template-columns:1fr}.import-mapping-row{grid-template-columns:minmax(0,1fr) minmax(120px,1fr)}}
+
+/* Member dashboard assigned campaigns */
+.associated-campaigns-panel{margin:16px 0}
+.associated-campaigns-list{display:grid;gap:8px;padding:14px}
+.associated-campaign-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.associated-campaign-item>div{min-width:0;display:grid;gap:4px}
+.associated-campaign-item strong{font-size:13px}
+.associated-campaign-item span,.associated-campaign-item p,.associated-campaign-item small{font-size:11px;color:var(--muted)}
+.associated-campaign-item p{margin:4px 0 0;white-space:pre-wrap}
+.associated-campaign-item small{white-space:nowrap}
+.associated-campaigns-empty{padding:18px}
