@@ -1,5 +1,5 @@
 'use client'
-import { useEffect,useMemo,useState,type FormEvent } from 'react'
+import { useEffect,useMemo,useRef,useState,type FormEvent } from 'react'
 import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Copy,Download,Edit2,Eye,FileText,LayoutDashboard,List,Mail,MousePointerClick,Plus,Search,Send,Server,Trash2,Users,X } from 'lucide-react'
 import type { ListeContact,ListeContactContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -53,6 +53,7 @@ export function EmailSenderView({listes,listeContacts,isAdmin}:{listes:ListeCont
  const setSmtpIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedSenderIds(typeof value==='function'?value(smtpIds):value))
  const setListeIds=(value:number[]|((current:number[])=>number[]))=>dispatch(setSelectedListIds(typeof value==='function'?value(listeIds):value))
  const [listQuery,setListQuery]=useState(''),[senderQuery,setSenderQuery]=useState('')
+ const senderInitializationDone=useRef(false)
  const [opens,setOpens]=useState(true),[clicks,setClicks]=useState(true),[batch,setBatch]=useState('50'),[delay,setDelay]=useState('5')
  const [smtpForm,setSmtpForm]=useState(emptySmtp),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false)
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
@@ -62,7 +63,7 @@ export function EmailSenderView({listes,listeContacts,isAdmin}:{listes:ListeCont
  const filteredSenders=useMemo(()=>active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(senderQuery.toLowerCase())),[active,senderQuery])
  const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
  const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
- async function refresh(showLoading=true){if(showLoading)setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!smtpIds.length&&ds[0].accounts?.length){const first=ds[0].accounts.find((x:SMTP)=>x.is_active);if(first)setSmtpIds([first.id])}}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{if(showLoading)setLoading(false)}}
+ async function refresh(showLoading=true){if(showLoading)setLoading(true);try{const rs=await Promise.all(['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes'].map(u=>fetch(u,{cache:'no-store'})));const ds=await Promise.all(rs.map(r=>r.json()));if(!rs[0].ok||!rs[1].ok)throw Error(ds[0].error||ds[1].error);setAccounts(ds[0].accounts||[]);setCampaigns(ds[1].campaigns||[]);setTemplates(ds[2].templates||[]);setUnsubs(ds[3].unsubscribes||[]);if(!senderInitializationDone.current){senderInitializationDone.current=true;if(!smtpIds.length&&ds[0].accounts?.length){const first=ds[0].accounts.find((x:SMTP)=>x.is_active);if(first)setSmtpIds([first.id])}}}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{if(showLoading)setLoading(false)}}
  useEffect(()=>{void refresh();const timer=window.setInterval(()=>void refresh(false),15000);return()=>window.clearInterval(timer)},[])
  function flash(s:string){setNotice(s);window.setTimeout(()=>setNotice(''),3000)}
  async function openActivity(kind:string){
