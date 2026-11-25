@@ -31,6 +31,7 @@ import {
   updateCampagne,
   deleteCampagne,
   setCampagneListes,
+  setCampagneMembres,
   addCampagneComment,
 } from '@/lib/supabase/marketing-data'
 
@@ -76,6 +77,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
   const [contactListCounts, setContactListCounts] = useState<Record<number, number>>({})
   const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>(initialData?.typesCampagnes ?? [])
   const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>(initialData?.campagneListes ?? [])
+  const [campagneMembres, setCampagneMembresState] = useState<{ id: number; campagne_id: number; user_id: number }[]>(initialData?.campagneMembres ?? [])
   const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
 
@@ -270,6 +272,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         setListes(Array.isArray(result.listes) ? result.listes : [])
         setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
         setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
+        setCampagneMembresState(Array.isArray(result.campagneMembres) ? result.campagneMembres : [])
       }
       try {
         const countResponse = await fetch('/api/contacts?counts=1', { cache: 'no-store' })
@@ -416,6 +419,15 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
       await refresh()
     } catch (error) {
       toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
+  async function handleSetCampagneMembres(campagneId: number, userIds: number[]) {
+    try {
+      await setCampagneMembres(campagneId, userIds)
+      await refresh()
+    } catch (error) {
+      toast.error('Affectation des membres impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
     }
   }
 
@@ -652,6 +664,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               teamUsers={teamUsers}
               stats={stats}
               campagnes={campagnes}
+              campagneMembres={campagneMembres}
               commentaires={commentaires}
               onAddComment={handleAddComment}
             />
@@ -667,6 +680,9 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
               contactListCounts={contactListCounts}
+              teamUsers={teamUsers}
+              campagneMembres={campagneMembres}
+              onSetMembres={handleSetCampagneMembres}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
