@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const rawSearch = (request.nextUrl.searchParams.get('q') || '').trim().slice(0, 100)
     const dateFrom = request.nextUrl.searchParams.get('dateFrom') || ''
     const dateTo = request.nextUrl.searchParams.get('dateTo') || ''
-    const validDate = (value: string) => !value || /^\\d{4}-\\d{2}-\\d{2}$/.test(value)
+    const validDate = (value: string) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value)
     if (!validDate(dateFrom) || !validDate(dateTo) || (dateFrom && dateTo && dateFrom > dateTo)) {
       return NextResponse.json({ error: 'Période de dates invalide.' }, { status: 400 })
     }
