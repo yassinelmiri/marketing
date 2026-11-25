@@ -135,6 +135,9 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await authorize()
   if ('response' in auth) return auth.response
+  if (!auth.canReadAll) {
+    return NextResponse.json({ error: 'Vous ne disposez pas des droits nécessaires pour supprimer des contacts.' }, { status: 403 })
+  }
 
   try {
     const body = await request.json()
