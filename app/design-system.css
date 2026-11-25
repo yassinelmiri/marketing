@@ -243,3 +243,52 @@ html, body {
     transition-duration: .01ms !important;
   }
 }
+/* Legacy email and WhatsApp components: enforce the same light blue palette. */
+.workspace-root .email-suite {
+  --workspace-bg: #f5f8ff;
+  --workspace-surface: #ffffff;
+  --workspace-input: #ffffff;
+  --workspace-border: #dce6f5;
+  --workspace-muted: #64748b;
+  color: #475569 !important;
+}
+.workspace-root .email-suite :is(.email-suite-heading h1, .email-panel-header h2,
+  .email-suite-heading p, .email-panel-header > span, label, th, td, strong) {
+  color: #334155;
+}
+.workspace-root .email-suite :is(input:not([type="checkbox"]), select, textarea,
+  .email-list-grid label.workspace-note, .email-options) {
+  background: #ffffff !important;
+  color: #14213d !important;
+  border-color: #dce6f5 !important;
+}
+.workspace-root .email-suite :is(input, select, textarea):focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12) !important;
+}
+.workspace-root .email-suite :is(.email-table th, .email-options) {
+  background: #eff5ff !important;
+}
+.workspace-root .email-suite :is(.email-suite-eyebrow, .email-panel-header h2 svg) {
+  color: #2563eb !important;
+}
+.workspace-root .email-suite input[type="checkbox"] { accent-color: #2563eb !important; }
+.workspace-root .wa-campaign {
+  --workspace-bg: #f5f8ff;
+  --workspace-surface: #ffffff;
+  --workspace-input: #ffffff;
+  --workspace-border: #dce6f5;
+  --workspace-muted: #64748b;
+}
+.workspace-root .wa-campaign :is(.wa-field textarea, input, select) {
+  background: #ffffff !important;
+  color: #14213d !important;
+  border-color: #dce6f5 !important;
+}
+.workspace-root .wa-campaign :is(.wa-token-hint code, .wa-step) {
+  background: #eaf2ff !important;
+  color: #1d4ed8 !important;
+}
+.workspace-root .wa-campaign :is(.wa-eyebrow, .wa-panel-heading > svg) {
+  color: #2563eb !important;
+}
