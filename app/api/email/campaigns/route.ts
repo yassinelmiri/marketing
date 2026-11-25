@@ -98,17 +98,40 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const id = Number(body.id)
     const action = String(body.action ?? '')
-    if (!Number.isSafeInteger(id) || id < 1 || !['pause', 'resume'].includes(action)) {
+    if (!Number.isSafeInteger(id) || id < 1 || !['pause', 'resume', 'edit'].includes(action)) {
       return NextResponse.json({ error: 'Action ou identifiant invalide.' }, { status: 400 })
     }
     const admin = createAdminClient()
     const { data: campaign, error: lookupError } = await admin.from('email_campaigns')
-      .select('id,created_by,status')
+      .select('id,created_by,status,sent_count,worker_locked_at')
       .eq('id', id)
       .maybeSingle()
     if (lookupError || !campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
     if (Number(auth.profile.role_id) !== 1 && Number(campaign.created_by) !== Number(auth.profile.id)) {
       return NextResponse.json({ error: 'Vous ne pouvez pas modifier cette campagne.' }, { status: 403 })
+    }
+
+    if (action === 'edit') {
+      if (!['pending', 'scheduled', 'paused'].includes(campaign.status) || Number(campaign.sent_count) > 0 || campaign.worker_locked_at) {
+        return NextResponse.json({ error: 'Modification impossible : la campagne a déjà commencé. Vous pouvez modifier uniquement une campagne non envoyée.' }, { status: 409 })
+      }
+      const subject = String(body.subject ?? '').trim().slice(0, 250)
+      const message = String(body.message ?? '').trim().slice(0, 50000)
+      const replyTo = String(body.reply_to ?? '').trim().slice(0, 254)
+      const batchSize = Math.min(100, Math.max(1, Number(body.batch_size) || 25))
+      const batchDelay = Math.min(3600, Math.max(0, Number(body.batch_delay_seconds) || 0))
+      const scheduledAt = body.scheduled_at ? new Date(body.scheduled_at) : new Date()
+      if (!subject || !message || Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() < Date.now() - 60000) {
+        return NextResponse.json({ error: 'Vérifiez l’objet, le contenu et la date de lancement.' }, { status: 400 })
+      }
+      const status = scheduledAt.getTime() > Date.now() ? 'scheduled' : 'pending'
+      const { error } = await admin.from('email_campaigns').update({
+        subject, message, reply_to: replyTo || null, batch_size: batchSize,
+        batch_delay_seconds: batchDelay, scheduled_at: scheduledAt.toISOString(),
+        next_batch_at: scheduledAt.toISOString(), status, updated_at: new Date().toISOString(),
+      }).eq('id', id)
+      if (error) throw error
+      return NextResponse.json({ success: true, message: 'Campagne modifiée.' })
     }
 
     if (action === 'pause') {
@@ -134,5 +157,35 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('[email/campaigns] update failed:', error)
     return NextResponse.json({ error: 'Impossible de modifier cette campagne.' }, { status: 500 })
+  }
+}
+
+
+export async function DELETE(request: NextRequest) {
+  const origin = originError(request)
+  if (origin) return origin
+  const auth = await authorized()
+  if ('error' in auth) return auth.error
+  try {
+    const body = await request.json()
+    const id = Number(body.id)
+    if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ error: 'Identifiant invalide.' }, { status: 400 })
+    const admin = createAdminClient()
+    const { data: campaign, error: lookupError } = await admin.from('email_campaigns')
+      .select('id,created_by,status,worker_locked_at')
+      .eq('id', id).maybeSingle()
+    if (lookupError || !campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    if (Number(auth.profile.role_id) !== 1 && Number(campaign.created_by) !== Number(auth.profile.id)) {
+      return NextResponse.json({ error: 'Vous ne pouvez pas supprimer cette campagne.' }, { status: 403 })
+    }
+    if (campaign.status === 'sending' || campaign.worker_locked_at) {
+      return NextResponse.json({ error: 'Mettez la campagne en pause et attendez la fin du traitement avant de la supprimer.' }, { status: 409 })
+    }
+    const { error } = await admin.from('email_campaigns').delete().eq('id', id)
+    if (error) throw error
+    return NextResponse.json({ success: true, message: 'Campagne supprimée.' })
+  } catch (error) {
+    console.error('[email/campaigns] delete failed:', error)
+    return NextResponse.json({ error: 'Impossible de supprimer cette campagne.' }, { status: 500 })
   }
 }
