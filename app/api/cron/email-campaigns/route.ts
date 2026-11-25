@@ -107,11 +107,11 @@ export async function GET(request: NextRequest) {
                 .upsert({ email: recipient, campaign_id: campaign.id }, { onConflict: 'email,campaign_id' }).select('token').single()
               if (tokenError || !token) throw new Error('Unsubscribe token unavailable')
               const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + token.token
-              let html = /<[a-z][\\s\\S]*?>/i.test(campaign.message)
+              let html = /<[a-z][\s\S]*?>/i.test(campaign.message)
                 ? campaign.message
-                : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\\n/g, '<br>')
+                : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
               if (campaign.tracking_clicks) {
-                html = html.replace(/href=["'](https?:\\/\\/[^"']+)["']/gi, (_match, url) =>
+                html = html.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (_match, url) =>
                   'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
               }
               const senderId = smtpIds[(chunkStart + chunkIndex) % smtpIds.length]
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
                 subject: campaign.subject,
                 headers: { 'List-Unsubscribe': '<' + unsubscribeLink + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
                 html: '<div>' + html + '</div><p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
-                text: campaign.message.replace(/<[^>]*>/g, ' ') + '\\n\\nSe désabonner : ' + unsubscribeLink,
+                text: campaign.message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
               })
               return { sent: true, failed: false, recipient }
             } catch (error) {
