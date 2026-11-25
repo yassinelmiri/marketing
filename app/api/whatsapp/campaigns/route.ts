@@ -82,14 +82,26 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ error: 'Chargement de la campagne impossible.' }, { status: 500 })
     if (!campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
 
-    const { data: recipients, error: recipientsError } = await auth.admin
-      .from('whatsapp_campaign_recipients')
-      .select('id,contact_name,phone,status')
-      .eq('campaign_id', campaignId)
-      .order('id', { ascending: true })
-
-    if (recipientsError) return NextResponse.json({ error: 'Chargement des destinataires impossible.' }, { status: 500 })
-    return NextResponse.json({ campaign, recipients: recipients ?? [] }, { headers: { 'Cache-Control': 'no-store' } })
+    const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
+    const pageSize = Math.max(10, Math.min(100, Number(request.nextUrl.searchParams.get('pageSize')) || 50))
+    const [{ data: recipients, count, error: recipientsError }, ...statusResults] = await Promise.all([
+      auth.admin.from('whatsapp_campaign_recipients')
+        .select('id,contact_name,phone,status', { count: 'exact' })
+        .eq('campaign_id', campaignId).order('id', { ascending: true })
+        .range((page - 1) * pageSize, page * pageSize - 1),
+      ...(['sent','failed','skipped','pending','opened'] as const).map((status) =>
+        auth.admin.from('whatsapp_campaign_recipients').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId).eq('status', status)
+      ),
+    ])
+    if (recipientsError || statusResults.some((result) => result.error)) return NextResponse.json({ error: 'Chargement des destinataires impossible.' }, { status: 500 })
+    const counts = {
+      total: Number(count ?? 0),
+      sent: Number(statusResults[0].count ?? 0),
+      failed: Number(statusResults[1].count ?? 0),
+      skipped: Number(statusResults[2].count ?? 0),
+      pending: Number(statusResults[3].count ?? 0) + Number(statusResults[4].count ?? 0),
+    }
+    return NextResponse.json({ campaign, recipients: recipients ?? [], counts, page, pageSize, totalPages: Math.max(1, Math.ceil(Number(count ?? 0) / pageSize)) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   }
 
   const { data: campaigns, error } = await auth.admin
@@ -222,24 +234,39 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Destinataire ou statut invalide.' }, { status: 400 })
     }
 
-    const { error } = await auth.admin
+    const { data: updatedRecipient, error } = await auth.admin
       .from('whatsapp_campaign_recipients')
       .update({ status, updated_at: now })
       .eq('id', recipientId)
       .eq('campaign_id', campaignId)
+      .select('id,status').maybeSingle()
 
-    if (error) return NextResponse.json({ error: 'Mise à jour du destinataire impossible.' }, { status: 500 })
+    if (error || !updatedRecipient) return NextResponse.json({ error: 'Mise à jour du destinataire impossible.' }, { status: 500 })
 
-    const { data: statuses, error: statusesError } = await auth.admin
-      .from('whatsapp_campaign_recipients')
-      .select('status')
-      .eq('campaign_id', campaignId)
+    const { error: logError } = await auth.admin.from('whatsapp_campaign_activity_logs').insert({
+      campaign_id: campaignId, recipient_id: recipientId, user_id: auth.userId,
+      event_type: 'recipient_status', new_status: status,
+    })
+    if (logError) console.error('[whatsapp/campaigns] activity log failed:', logError.message)
 
-    if (statusesError) return NextResponse.json({ error: 'Actualisation du suivi impossible.' }, { status: 500 })
-    const allDone = (statuses ?? []).length > 0 && (statuses ?? []).every((row) => ['sent', 'failed', 'skipped'].includes(row.status))
+    const [{ count: pendingCount, error: pendingError }, ...statusCounts] = await Promise.all([
+      auth.admin.from('whatsapp_campaign_recipients').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId).in('status', ['pending','opened']),
+      ...(['sent','failed','skipped','pending','opened'] as const).map((item) =>
+        auth.admin.from('whatsapp_campaign_recipients').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId).eq('status', item)
+      ),
+    ])
+    if (pendingError || statusCounts.some((item) => item.error)) return NextResponse.json({ error: 'Actualisation du suivi impossible.' }, { status: 500 })
+    const allDone = Number(pendingCount ?? 0) === 0
+    const counts = {
+      total: Number(statusCounts.reduce((sum, item) => sum + Number(item.count ?? 0), 0)),
+      sent: Number(statusCounts[0].count ?? 0),
+      failed: Number(statusCounts[1].count ?? 0),
+      skipped: Number(statusCounts[2].count ?? 0),
+      pending: Number(statusCounts[3].count ?? 0) + Number(statusCounts[4].count ?? 0),
+    }
     const nextStatus: CampaignStatus = allDone ? 'completed' : 'in_progress'
     await auth.admin.from('whatsapp_campaigns').update({ status: nextStatus, updated_at: now }).eq('id', campaignId).eq('user_id', auth.userId)
-    return NextResponse.json({ success: true, campaign_status: nextStatus })
+    return NextResponse.json({ success: true, campaign_status: nextStatus, counts })
   }
 
   const status = body.status
