@@ -361,6 +361,20 @@ export function CampagnesView({
                     </div>
                   )}
                 </div>}
+                <div className="form-grid-full campaign-member-field">
+                  <span className="form-label">Listes associées à cette campagne</span>
+                  <p className="form-hint">Sélectionnez plusieurs listes. Chaque liste ne peut appartenir qu'à une seule campagne.</p>
+                  <div className="checkbox-grid">
+                    {localListes.map((list) => {
+                      const assignedElsewhere = campaignListLinks.some((link) => link.liste_id === list.id && link.campagne_id !== editingId)
+                      const checked = formListeIds.includes(list.id)
+                      return <label key={list.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
+                        <input type="checkbox" checked={checked} disabled={assignedElsewhere} onChange={() => setFormListeIds((current) => checked ? current.filter((id) => id !== list.id) : [...current, list.id])} />
+                        <div><strong>{list.nom}</strong><span>{assignedElsewhere ? 'Déjà affectée à une autre campagne' : `${contactListCounts[list.id] ?? 0} contact(s)`}</span></div>
+                      </label>
+                    })}
+                  </div>
+                </div>
                 <label className="form-grid-full">
                   <span>Note</span>
                   <textarea rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Détails internes…" />
