@@ -34,7 +34,9 @@ import {
   importContactsToListe,
 } from '@/lib/supabase/marketing-data'
 import { useToast } from '@/components/ui/toast'
-import { formatDate } from './shared'import { parseContactImportFile } from '@/lib/contacts/file-parser'
+import { formatDate } from './shared'
+import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
+import { parseContactImportFile } from '@/lib/contacts/file-parser'
 
 interface ListesViewProps {
   user: User
