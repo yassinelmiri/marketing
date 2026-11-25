@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           const chunkLimit = Math.min(sendConcurrency, batchEnd - chunkStart)
           const { data: queuedRows, error: queueReadError } = await admin.from('email_campaign_recipients')
             .select('id,email').eq('campaign_id', campaign.id)
-            .order('id', { ascending: true }).range(0, chunkLimit - 1)
+            .order('id', { ascending: true }).range(chunkStart, chunkStart + chunkLimit - 1)
           if (queueReadError) throw queueReadError
           const queueChunk = queuedRows ?? []
           if (!queueChunk.length && !legacyLoaded) {
