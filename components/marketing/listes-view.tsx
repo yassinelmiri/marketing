@@ -82,6 +82,10 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
   const [contactTotal, setContactTotal] = useState(0)
   const [selectedListCount, setSelectedListCount] = useState(0)
   const [contactSearch, setContactSearch] = useState('')
+  const [contactDateFrom, setContactDateFrom] = useState('')
+  const [contactDateTo, setContactDateTo] = useState('')
+  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [debouncedContactSearch, setDebouncedContactSearch] = useState('')
   const [contactsLoading, setContactsLoading] = useState(false)
   const [contactsReloadKey, setContactsReloadKey] = useState(0)
@@ -150,6 +154,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       try {
         const params = new URLSearchParams({ listId: String(selectedListeId), page: String(contactPage), pageSize: '50' })
         if (debouncedContactSearch) params.set('q', debouncedContactSearch)
+        if (contactDateFrom) params.set('dateFrom', contactDateFrom)
+        if (contactDateTo) params.set('dateTo', contactDateTo)
         const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
@@ -163,7 +169,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
     }
     void loadContactPage()
     return () => controller.abort()
-  }, [selectedListeId, contactPage, debouncedContactSearch, contactsReloadKey, toast.error])
+    setSelectedContactIds([])
+  }, [selectedListeId, contactPage, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
@@ -322,16 +329,44 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
     }
   }
-  async function deleteContact(c: Contact) {
-    if (!confirm(`Supprimer ${c.prenom} ${c.nom} ?`)) return
+  async function deleteContacts(ids: number[]) {
+    const uniqueIds = [...new Set(ids)].filter((id) => Number.isSafeInteger(id) && id > 0)
+    if (!uniqueIds.length || bulkDeleting) return
+    const message = uniqueIds.length === 1
+      ? 'Supprimer définitivement ce contact ?'
+      : `Supprimer définitivement les ${uniqueIds.length} contacts sélectionnés ?`
+    if (!confirm(message)) return
+    setBulkDeleting(true)
     try {
-      await deleteContactInDb(c.id)
-      toast.success('Contact supprimé', 'Retiré.')
+      const response = await fetch('/api/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: uniqueIds }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Suppression impossible.')
+      setSelectedContactIds([])
+      toast.success('Suppression terminée', `${Number(data.deleted ?? uniqueIds.length)} contact(s) supprimé(s).`)
       setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
-      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur serveur.')
+    } finally {
+      setBulkDeleting(false)
     }
+  }
+  async function deleteContact(c: Contact) {
+    await deleteContacts([c.id])
+  }
+  const pageContactIds = listeContacts.map((contact) => contact.id)
+  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIds.includes(id))
+  function togglePageContacts() {
+    setSelectedContactIds((current) => allPageContactsSelected
+      ? current.filter((id) => !pageContactIds.includes(id))
+      : [...new Set([...current, ...pageContactIds])])
+  }
+  function toggleContactSelection(id: number) {
+    setSelectedContactIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
   }
 
   // ── Import CSV ───────────────────────────────────────
@@ -508,7 +543,16 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
               )}
             </div>
           </div>
-          {selectedListe && <label className="data-search-field" style={{ margin: '12px 0' }}><Search aria-hidden="true" /><input aria-label="Rechercher un contact" value={contactSearch} onChange={(e) => { setContactSearch(e.target.value); setContactPage(1) }} placeholder="Rechercher par nom, e-mail, téléphone ou ville…" /></label>}
+          {selectedListe && <div className="contacts-filter-toolbar">
+            <label className="data-search-field"><Search aria-hidden="true" /><input aria-label="Rechercher un contact" value={contactSearch} onChange={(e) => { setContactSearch(e.target.value); setContactPage(1) }} placeholder="Rechercher par nom, e-mail, téléphone ou ville…" /></label>
+            <label><span>Ajouté à partir du</span><input type="date" aria-label="Date d'ajout début" value={contactDateFrom} max={contactDateTo || undefined} onChange={(e) => { setContactDateFrom(e.target.value); setContactPage(1) }}/></label>
+            <label><span>Jusqu'au</span><input type="date" aria-label="Date d'ajout fin" value={contactDateTo} min={contactDateFrom || undefined} onChange={(e) => { setContactDateTo(e.target.value); setContactPage(1) }}/></label>
+            {(contactDateFrom || contactDateTo) && <button type="button" className="workspace-secondary" onClick={() => { setContactDateFrom(''); setContactDateTo(''); setContactPage(1) }}>Réinitialiser</button>}
+          </div>}
+          {selectedListe && selectedContactIds.length > 0 && <div className="contacts-bulk-toolbar">
+            <span><strong>{selectedContactIds.length}</strong> contact(s) sélectionné(s) sur cette sélection</span>
+            <button type="button" className="workspace-danger" disabled={bulkDeleting} onClick={() => void deleteContacts(selectedContactIds)}><Trash2 aria-hidden="true" />{bulkDeleting ? 'Suppression…' : `Supprimer (${selectedContactIds.length})`}</button>
+          </div>}
           {!selectedListe ? (
             <div className="workspace-empty">
               <Users aria-hidden="true" />
@@ -527,6 +571,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
               <table className="campagne-table">
                 <thead>
                   <tr>
+                    <th className="contacts-select-column"><input type="checkbox" aria-label="Sélectionner tous les contacts de cette page" checked={allPageContactsSelected} onChange={togglePageContacts}/></th>
                     <th>Nom</th>
                     <th>Contact</th>
                     <th>Ville</th>
@@ -541,6 +586,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                     const contactListes = contactLinks.filter((link) => link.contact_id === c.id).map((link) => listes.find((liste) => liste.id === link.liste_id)).filter((liste): liste is ListeContact => Boolean(liste))
                     return (
                       <tr key={c.id}>
+                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
                         <td>
                           <strong>{c.prenom} {c.nom}</strong>
                           {c.profile && (
@@ -568,7 +614,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, contactCou
                           <button type="button" onClick={() => openEditContact(c)} aria-label="Modifier">
                             <Pencil aria-hidden="true" />
                           </button>
-                          <button type="button" className="danger" onClick={() => void deleteContact(c)} aria-label="Supprimer">
+                          <button type="button" className="danger" onClick={() => void deleteContact(c)} aria-label="Supprimer" disabled={bulkDeleting}>
                             <Trash2 aria-hidden="true" />
                           </button>
                         </td>
