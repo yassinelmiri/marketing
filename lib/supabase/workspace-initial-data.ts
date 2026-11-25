@@ -8,14 +8,15 @@ export async function loadWorkspaceInitialData(): Promise<MarketingData | null> 
   const { data: auth, error: authError } = await supabase.auth.getUser()
   if (authError || !auth.user) return null
 
-  const [campaigns, comments, lists, campaignLists, types] = await Promise.all([
+  const [campaigns, comments, lists, campaignLists, types, campaignMembers] = await Promise.all([
     supabase.from('campagnes').select('id,type_campagne_id,user_id,titre,cible,note,status,date_creation,date_modification').order('date_modification', { ascending: false }).limit(500),
     supabase.from('commentaires').select('id,campagne_id,user_id,contenu,date_creation').order('date_creation', { ascending: true }).limit(1000),
     supabase.from('listes').select('id,nom,description,cible,note,ajoute_par_nom,date_creation,date_modification,created_by').order('date_creation', { ascending: false }).limit(500),
     supabase.from('campagne_listes').select('id,campagne_id,liste_id,date_ajout').limit(2000),
     supabase.from('type_campagnes').select('id,nom,code,description,icone,actif,date_creation,created_by').eq('actif', true).order('nom'),
+    supabase.from('campagne_membres').select('id,campagne_id,user_id').limit(3000),
   ])
-  const error = campaigns.error || comments.error || lists.error || campaignLists.error || types.error
+  const error = campaigns.error || comments.error || lists.error || campaignLists.error || types.error || campaignMembers.error
   if (error) {
     console.error('[workspace] server bootstrap failed:', error.message)
     return null
@@ -33,6 +34,7 @@ export async function loadWorkspaceInitialData(): Promise<MarketingData | null> 
       note: row.note ?? '', ajoute_par_nom: row.ajoute_par_nom ?? '', created_by: Number(row.created_by ?? 0),
     })),
     campagneListes: (campaignLists.data ?? []).map((row) => ({ ...row, id: Number(row.id), campagne_id: Number(row.campagne_id), liste_id: Number(row.liste_id) })),
+    campagneMembres: (campaignMembers.data ?? []).map((row) => ({ id: Number(row.id), campagne_id: Number(row.campagne_id), user_id: Number(row.user_id) })),
     typesCampagnes: (types.data ?? []).map((row) => ({ ...row, id: Number(row.id), description: row.description ?? '', icone: row.icone ?? '', created_by: Number(row.created_by ?? 0) })),
   }
 }
