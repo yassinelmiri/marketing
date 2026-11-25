@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
             ? campaign.message
             : campaign.message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\\n/g, '<br>')
           if (campaign.tracking_clicks) {
-            html = html.replace(/href=["'](https?:\\/\\/[^"']+)["']/gi, (_match, url) =>
+            html = html.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (_match, url) =>
               'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaign.id + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
           }
           const senderId = smtpIds[offset % smtpIds.length]
