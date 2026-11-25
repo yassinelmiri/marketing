@@ -86,12 +86,6 @@ export function MarketingWorkspace() {
 
   useEffect(() => {
     setMounted(true)
-    document.documentElement.dataset.workspaceTheme = 'light'
-    try {
-      window.localStorage.setItem('anntel-workspace-theme', 'light')
-    } catch {
-      // Le thème clair reste actif pour la session courante.
-    }
   }, [])
 
   // ============================================================
