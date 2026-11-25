@@ -44,7 +44,7 @@ function campaignInputToIso(value: string) {
  return new Date(timestamp).toISOString()
 }
 
-export function EmailSenderView({listes,listeContacts,contactListCounts,isAdmin}:{listes:ListeContact[];listeContacts:ListeContactContact[];contactListCounts:Record<number,number>;isAdmin:boolean}){
+export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:ListeContact[];contactListCounts:Record<number,number>;isAdmin:boolean}){
  const [tab,setTab]=useState('dashboard'),[editingId,setEditingId]=useState<number|null>(null),[accounts,setAccounts]=useState<SMTP[]>([]),[campaigns,setCampaigns]=useState<Campaign[]>([]),[templates,setTemplates]=useState<Template[]>([]),[unsubs,setUnsubs]=useState<Unsub[]>([])
  const [template,setTemplate]=useState<number|''>(''),[subject,setSubject]=useState(''),[message,setMessage]=useState(''),[replyTo,setReplyTo]=useState(''),[launchAt,setLaunchAt]=useState('')
  const dispatch=useAppDispatch()
