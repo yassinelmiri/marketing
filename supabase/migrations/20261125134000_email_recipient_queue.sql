@@ -8,9 +8,10 @@ create table if not exists public.email_campaign_recipients (
   error_message text,
   smtp_account_id bigint references public.smtp_accounts(id) on delete set null,
   processed_at timestamptz,
-  created_at timestamptz not null default now(),
-  unique(campaign_id, lower(email))
+  created_at timestamptz not null default now()
 );
+create unique index if not exists email_campaign_recipients_campaign_email_unique
+  on public.email_campaign_recipients(campaign_id, lower(email));
 create index if not exists email_campaign_recipients_queue_idx
   on public.email_campaign_recipients(campaign_id, status, id);
 alter table public.email_campaign_recipients enable row level security;
