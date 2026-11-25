@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, LayoutDashboard, LogOut } from 'lucide-react'
+import { ChevronDown, Clock3, LayoutDashboard, LogOut } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
 import { CampagnesView } from './campagnes-view'
@@ -59,6 +59,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
   const supabase = useMemo(() => createClient(), [])
 
   const [mounted, setMounted] = useState(false)
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -87,6 +88,9 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
 
   useEffect(() => {
     setMounted(true)
+    setCurrentTime(new Date())
+    const clockInterval = window.setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => window.clearInterval(clockInterval)
   }, [])
 
   // ============================================================
@@ -620,6 +624,20 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         </nav>
 
         <div className="workspace-sidebar-footer">
+          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(139, 92, 246, 0.09)', border: '1px solid rgba(139, 92, 246, 0.16)' }}>
+            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.15)' }}>
+              <Clock3 size={18} aria-hidden="true" />
+            </span>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-foreground, #94a3b8)' }}>Heure actuelle</span>
+              <strong style={{ fontSize: '20px', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', color: 'var(--foreground, #f8fafc)' }}>
+                {currentTime ? currentTime.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Casablanca', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </strong>
+              <span style={{ fontSize: '11px', textTransform: 'capitalize', color: 'var(--muted-foreground, #94a3b8)' }}>
+                {currentTime ? currentTime.toLocaleDateString('fr-FR', { timeZone: 'Africa/Casablanca', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : 'Chargement…'}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             className="workspace-logout"
