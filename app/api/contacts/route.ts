@@ -23,9 +23,12 @@ export async function GET(request: NextRequest) {
 
   try {
     if (request.nextUrl.searchParams.get('counts') === '1') {
+      // Les statistiques doivent refléter les données réelles même si les politiques RLS
+      // limitent la lecture directe côté navigateur. L'accès reste protégé par authorize().
+      const admin = createAdminClient()
       const [{ count: total, error: totalError }, { data: counts, error: countsError }] = await Promise.all([
-        supabase.from('contacts').select('id', { count: 'exact', head: true }),
-        supabase.rpc('get_contact_list_counts'),
+        admin.from('contacts').select('id', { count: 'exact', head: true }),
+        admin.rpc('get_contact_list_counts'),
       ])
       if (totalError || countsError) throw totalError || countsError
       const listCounts = Object.fromEntries((counts ?? []).map((row: { list_id: number; contact_count: number }) => [Number(row.list_id), Number(row.contact_count)]))
