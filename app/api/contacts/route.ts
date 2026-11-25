@@ -28,15 +28,15 @@ export async function GET(request: NextRequest) {
 
   try {
     if (request.nextUrl.searchParams.get('counts') === '1') {
-      // authorize() a déjà vérifié la permission listes.read.
-      // Utiliser la session de l'utilisateur permet à has_permission() de fonctionner
-      // correctement dans la fonction get_contact_list_counts (SECURITY INVOKER).
-      const [{ count: total, error: totalError }, { data: counts, error: countsError }] = await Promise.all([
-        supabase.from('contacts').select('id', { count: 'exact', head: true }),
+      const [{ data: total, error: totalError }, { data: counts, error: countsError }] = await Promise.all([
+        supabase.rpc('get_visible_contact_total'),
         supabase.rpc('get_contact_list_counts'),
       ])
       if (totalError || countsError) {
-        console.error('[contacts] counts query failed:', { totalError, countsError })
+        console.error('[contacts] counts query failed:', {
+          totalError: totalError ? { code: totalError.code, message: totalError.message, details: totalError.details, hint: totalError.hint } : null,
+          countsError: countsError ? { code: countsError.code, message: countsError.message, details: countsError.details, hint: countsError.hint } : null,
+        })
         throw totalError || countsError
       }
       const listCounts = Object.fromEntries((counts ?? []).map((row: { list_id: number; contact_count: number }) => [Number(row.list_id), Number(row.contact_count)]))
@@ -79,18 +79,23 @@ export async function GET(request: NextRequest) {
     })()
     const [result, totalResult] = await Promise.all([
       resultPromise,
-      supabase.from('contacts').select('id', { count: 'exact', head: true }),
+      supabase.rpc('get_visible_contact_total'),
     ])
     const { data: rows, count, error } = result
-    const { count: totalCount, error: totalError } = totalResult
-    if (error || totalError) throw error || totalError
+    const { data: totalCount, error: totalError } = totalResult
+    if (error || totalError) {
+      console.error('[contacts] read query details:', {
+        queryError: error ? { code: error.code, message: error.message, details: error.details, hint: error.hint } : null,
+        totalError: totalError ? { code: totalError.code, message: totalError.message, details: totalError.details, hint: totalError.hint } : null,
+      })
+      throw error || totalError
+    }
 
     const contactIds = (rows ?? []).map((row) => Number(row.id)).filter(Number.isSafeInteger)
-    const [{ data: links, error: linksError }, selectedCountResult] = await Promise.all([
-      contactIds.length ? supabase.from('liste_contacts').select('id,liste_id,contact_id,date_ajout').in('contact_id', contactIds) : Promise.resolve({ data: [], error: null }),
-      listId > 0 ? supabase.from('liste_contacts').select('contact_id', { count: 'exact', head: true }).eq('liste_id', listId) : Promise.resolve({ count: null, error: null }),
-    ])
-    if (linksError || selectedCountResult.error) throw linksError || selectedCountResult.error
+    const { data: links, error: linksError } = contactIds.length
+      ? await supabase.from('liste_contacts').select('id,liste_id,contact_id,date_ajout').in('contact_id', contactIds)
+      : { data: [], error: null }
+    if (linksError) throw linksError
 
     const contacts = (rows ?? []).map((row: any) => ({
       ...row,
@@ -103,7 +108,7 @@ export async function GET(request: NextRequest) {
       links: (links ?? []).map((link) => ({ ...link, id: Number(link.id), liste_id: Number(link.liste_id), contact_id: Number(link.contact_id) })),
       total: Number(count ?? 0),
       totalContacts: Number(totalCount ?? 0),
-      listCount: Number(selectedCountResult.count ?? 0),
+      listCount: listId > 0 ? Number(count ?? 0) : 0,
       page,
       pageSize,
       totalPages: Math.max(1, Math.ceil(Number(count ?? 0) / pageSize)),
