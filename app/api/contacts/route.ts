@@ -22,18 +22,13 @@ export async function GET(request: NextRequest) {
 
   try {
     if (request.nextUrl.searchParams.get('counts') === '1') {
-      const [{ count: total, error: totalError }, { data: lists, error: listsError }] = await Promise.all([
+      const [{ count: total, error: totalError }, { data: counts, error: countsError }] = await Promise.all([
         supabase.from('contacts').select('id', { count: 'exact', head: true }),
-        supabase.from('listes').select('id').order('id'),
+        supabase.rpc('get_contact_list_counts'),
       ])
-      if (totalError || listsError) throw totalError || listsError
-      const counts = await Promise.all((lists ?? []).map(async (list) => {
-        const { count, error } = await supabase.from('liste_contacts')
-          .select('contact_id', { count: 'exact', head: true }).eq('liste_id', list.id)
-        if (error) throw error
-        return [Number(list.id), Number(count ?? 0)] as const
-      }))
-      return NextResponse.json({ total: Number(total ?? 0), listCounts: Object.fromEntries(counts) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+      if (totalError || countsError) throw totalError || countsError
+      const listCounts = Object.fromEntries((counts ?? []).map((row: { list_id: number; contact_count: number }) => [Number(row.list_id), Number(row.contact_count)]))
+      return NextResponse.json({ total: Number(total ?? 0), listCounts }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
     }
 
     const page = Math.max(1, Math.min(100000, Number(request.nextUrl.searchParams.get('page')) || 1))
