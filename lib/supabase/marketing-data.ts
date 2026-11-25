@@ -144,6 +144,30 @@ export async function deleteCampagne(id: number): Promise<void> {
   throwIfError(error)
 }
 
+export async function setListeCampagne(listeId: number, campagneId: number | null): Promise<void> {
+  const supabase = createClient()
+  const { data: existing, error: readError } = await supabase
+    .from('campagne_listes')
+    .select('id,campagne_id,liste_id')
+    .eq('liste_id', listeId)
+    .maybeSingle()
+  throwIfError(readError)
+
+  if (existing?.campagne_id === campagneId) return
+
+  if (existing) {
+    const { error } = await supabase.from('campagne_listes').delete().eq('id', existing.id)
+    throwIfError(error)
+  }
+
+  if (campagneId !== null) {
+    const { error } = await supabase.from('campagne_listes').insert({ campagne_id: campagneId, liste_id: listeId })
+    if (error) {
+      if (existing) await supabase.from('campagne_listes').insert({ campagne_id: existing.campagne_id, liste_id: listeId })
+      throwIfError(error)
+    }
+  }
+}
 export async function setCampagneListes(campagneId: number, listeIds: number[]): Promise<void> {
   const supabase = createClient()
   const uniqueListeIds = [...new Set(listeIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]

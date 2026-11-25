@@ -18,7 +18,7 @@ async function authorize() {
   if ((permissionError && assignedError) || (!allowed && !assignedAccess)) {
     return { response: NextResponse.json({ error: 'Accès aux contacts refusé.' }, { status: 403 }) }
   }
-  return { supabase } as const
+  return { supabase, canReadAll: Boolean(allowed) } as const
 }
 
 export async function GET(request: NextRequest) {
@@ -62,7 +62,19 @@ export async function GET(request: NextRequest) {
       ? 'nom.ilike.%' + search + '%,prenom.ilike.%' + search + '%,email.ilike.%' + search + '%,telephone.ilike.%' + search + '%,ville.ilike.%' + search + '%'
       : null
     const hasListFilter = Number.isSafeInteger(listId) && listId > 0
-    let filtered = supabase.from('contacts').select(
+
+    // For a list-scoped read, verify access with the trusted RPC first, then use
+    // the service client to avoid evaluating the per-contact RLS policy on every
+    // joined row. The service client is never used before this authorization.
+    let readClient = supabase
+    if (hasListFilter) {
+      const { data: canReadList, error: accessError } = await supabase.rpc('can_read_contact_list', { target_list_id: listId })
+      if (accessError) throw accessError
+      if (!canReadList) return NextResponse.json({ error: 'Accès à cette liste refusé.' }, { status: 403 })
+      readClient = createAdminClient() as typeof supabase
+    }
+
+    let filtered = readClient.from('contacts').select(
       hasListFilter
         ? CONTACT_COLUMNS + ',liste_contacts!inner(id,liste_id,contact_id,date_ajout)'
         : CONTACT_COLUMNS,
@@ -74,7 +86,7 @@ export async function GET(request: NextRequest) {
     if (dateToExclusive) filtered = filtered.lt('date_creation', dateToExclusive)
 
     // Charger les contacts et leurs associations à la liste dans la même requête.
-    const { data: rows, count, error } = await filtered.order('date_creation', { ascending: false }).range(from, to)
+    const { data: rows, count, error } = await filtered.order('date_creation', { ascending: false }).order('id', { ascending: false }).range(from, to)
     if (error) {
       console.error('[contacts] read query failed:', {
         code: error.code,
