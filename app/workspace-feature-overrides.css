@@ -287,7 +287,7 @@
 .dashboard-live-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid rgba(34,197,94,.2);border-radius:999px;background:rgba(34,197,94,.07);color:#4ade80;font-size:10px;font-weight:700;white-space:nowrap}
 .dashboard-health-row{display:flex;align-items:center;gap:20px;padding:18px;border:1px solid rgba(59,130,246,.16);border-radius:16px;background:linear-gradient(120deg,rgba(37,99,235,.09),rgba(139,92,246,.045))}
 .dashboard-health-score{display:grid;justify-items:center;gap:8px;flex:none;color:var(--workspace-muted,#94a3b8);font-size:10px;font-weight:700}
-.dashboard-health-ring{width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#3b82f6 var(--health-score),rgba(148,163,184,.14) 0);position:relative}
+.dashboard-health-ring{width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#3b82f6 calc(var(--health-score)*1%),rgba(148,163,184,.14) 0);position:relative}
 .dashboard-health-ring:before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--workspace-panel,#0f172a)}
 .dashboard-health-ring>div{position:relative;display:flex;align-items:baseline;gap:2px}.dashboard-health-ring strong{font-size:26px;font-weight:850;color:var(--workspace-text,#f1f5f9)}.dashboard-health-ring span{font-size:10px;color:var(--workspace-muted,#94a3b8)}
 .dashboard-health-summary{min-width:0;flex:1}.dashboard-health-summary>strong{font-size:15px;font-weight:800}.dashboard-health-summary p{margin:6px 0 12px;color:var(--workspace-muted,#94a3b8);font-size:11px;line-height:1.55}
@@ -326,7 +326,7 @@
 .kpi-alert-panel{display:flex;flex-direction:column}.kpi-alert-row{display:grid;grid-template-columns:8px 1fr auto;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid rgba(148,163,184,.1)}.kpi-alert-row>span:first-child{width:7px;height:7px;border-radius:50%;background:#34d399}.kpi-alert-row>span:first-child.warning{background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.1)}.kpi-alert-row>span:nth-child(2){font-size:10px;color:#c4cbe0}.kpi-alert-row strong{font-size:12px}.kpi-alert-foot{margin-top:auto;padding-top:11px;color:#9da8c8;font-size:10px;line-height:1.5}
 .kpi-recent-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid rgba(148,163,184,.1)}.kpi-recent-row:last-child{border-bottom:0}.kpi-recent-row>div{display:grid;gap:4px;min-width:0}.kpi-recent-row strong{overflow:hidden;color:#edf0ff;font-size:10px;text-overflow:ellipsis;white-space:nowrap}.kpi-recent-row>div span{color:#98a4c4;font-size:9px}.kpi-recent-row .status-pill{flex:none;font-size:9px}
 .kpi-no-data{color:#9da8c8;font-size:11px}
-.kpi-module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:9px}
+.kpi-module-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-top:9px}
 .kpi-module-card{min-width:0;padding:14px;border:1px solid rgba(148,163,184,.11);border-radius:12px;background:rgba(39,43,87,.88)}
 .kpi-module-heading{display:flex;align-items:center;gap:7px;min-width:0}.kpi-module-heading>span:nth-child(2){font-size:11px;font-weight:800;color:#f2f4ff}.kpi-module-heading small{margin-left:auto;color:#8e9abd;font-size:8px;white-space:nowrap}
 .kpi-module-icon{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:rgba(59,130,246,.14);color:#7dd3fc;flex:none}.kpi-module-icon svg{width:14px;height:14px}.kpi-module-icon.whatsapp{background:rgba(34,197,94,.13);color:#4ade80}.kpi-module-icon.tasks{background:rgba(167,139,250,.15);color:#c4b5fd}.kpi-module-icon.database{background:rgba(245,158,11,.13);color:#fcd34d}
@@ -336,3 +336,5 @@
 .kpi-command-center .settings-eyebrow{color:#67e8f9}
 @media(max-width:1080px){.kpi-main-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-recent-panel{grid-column:1/-1}.kpi-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.kpi-command-center{padding:12px;border-radius:14px}.kpi-command-header{flex-direction:column}.kpi-command-header h2{font-size:17px}.kpi-main-grid,.kpi-module-grid{grid-template-columns:1fr}.kpi-recent-panel{grid-column:auto}.kpi-main-panel,.kpi-module-card{padding:12px}.kpi-refresh-label{font-size:9px}.kpi-module-value{font-size:26px}}
+
+.kpi-module-icon.sms{background:rgba(34,211,238,.12);color:#67e8f9}
