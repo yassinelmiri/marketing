@@ -6,6 +6,7 @@ import {
   MessageCircle, Pause, Play, RefreshCw, SkipForward, Upload, XCircle,
 } from 'lucide-react'
 import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppContactStatus } from '@/lib/whatsapp/file-parser'
+import { getWhatsAppContactStats } from '@/lib/whatsapp/view-utils'
 
 type ContactStatus = WhatsAppContactStatus
 type WhatsAppContact = WhatsAppImportContact
@@ -57,27 +58,7 @@ export function WhatsAppBotView() {
   }, [refreshSavedCampaigns])
 
   const current = contacts[activeIndex] ?? null
-  const localStats = useMemo(() => contacts.reduce((counts, contact) => {
-    counts.total += 1
-
-    switch (contact.status) {
-      case 'sent':
-        counts.sent += 1
-        break
-      case 'failed':
-        counts.failed += 1
-        break
-      case 'skipped':
-        counts.skipped += 1
-        break
-      case 'pending':
-      case 'opened':
-        counts.pending += 1
-        break
-    }
-
-    return counts
-  }, { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }), [contacts])
+  const localStats = useMemo(() => getWhatsAppContactStats(contacts), [contacts])
   const stats = campaignId && savedCounts ? savedCounts : localStats
   const progress = stats.total ? Math.round(((stats.sent + stats.failed + stats.skipped) / stats.total) * 100) : 0
   const completed = stats.total > 0 && stats.pending === 0
