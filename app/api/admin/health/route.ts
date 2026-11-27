@@ -116,6 +116,15 @@ export async function GET(request: Request) {
   ])
 
   const totalRows = tables.reduce((sum, table) => sum + (table.rows ?? 0), 0)
+  const [{ data: sizeResult, error: sizeError }] = await Promise.all([
+    admin.rpc('get_database_size_bytes'),
+  ])
+  const sizeBytes = sizeError || sizeResult == null ? null : Number(sizeResult)
+  const configuredLimitMb = Number(process.env.SUPABASE_DB_SIZE_LIMIT_MB || 0)
+  const limitBytes = configuredLimitMb > 0 ? configuredLimitMb * 1024 * 1024 : null
+  const usagePercent = sizeBytes != null && limitBytes != null
+    ? Math.min(100, Math.max(0, Math.round((sizeBytes / limitBytes) * 100)))
+    : null
   const criticalTables = new Set(['contacts', 'campagnes', 'user_profiles', 'notifications'])
   const unavailableCritical = tables.filter((table) => criticalTables.has(table.name) && !table.available)
   const alerts: Alert[] = []
@@ -137,7 +146,7 @@ export async function GET(request: Request) {
   await saveAlerts(admin, Number(profile.id), alerts)
 
   return NextResponse.json({
-    database: { totalRows, tables, checkedAt },
+    database: { totalRows, sizeBytes, limitBytes, usagePercent, tables, checkedAt },
     website,
     alerts,
   }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
