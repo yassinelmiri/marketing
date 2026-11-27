@@ -89,7 +89,19 @@ export async function GET(request: NextRequest) {
       if (recipient && event.event_type === 'click') value.clicks.add(recipient)
       counts.set(id, value)
     }
-    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+    const now = new Date()
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
+    const tomorrowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString()
+    const yesterdayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)).toISOString()
+    const [todaySentResult, yesterdaySentResult] = ids.length ? await Promise.all([
+      admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', todayStart).lt('processed_at', tomorrowStart),
+      admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', yesterdayStart).lt('processed_at', todayStart),
+    ]) : [{ count: 0, error: null }, { count: 0, error: null }]
+    if (todaySentResult.error || yesterdaySentResult.error) throw todaySentResult.error || yesterdaySentResult.error
+    return NextResponse.json({
+      campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })),
+      daily_stats: { today_sent: Number(todaySentResult.count ?? 0), yesterday_sent: Number(yesterdaySentResult.count ?? 0) },
+    }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {
     console.error('[email/history] failed:', error)
     return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
