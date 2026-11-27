@@ -5,9 +5,9 @@ import {
   MessageCircle,
   Settings,
   ShieldCheck,
-  BellRing,
   Smartphone,
   Users,
+  Globe,
   ListTodo,
   Search,
 } from 'lucide-react'
@@ -26,11 +26,11 @@ export const NAV_ITEMS: NavigationItem[] = [
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'prospection', label: 'Prospection', icon: Search },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
+  { key: 'scraping', label: 'Scrapping', icon: Globe },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
   { key: 'whatsapp', label: 'Campagnes WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
-  { key: 'alerts', label: 'Alertes & incidents', icon: BellRing, adminOnly: true },
   { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
   { key: 'settings', label: 'Paramètres', icon: Settings },
 ]
@@ -52,6 +52,10 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
     title: 'Listes & contacts',
     subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
   },
+  scraping: {
+    title: 'Scrapping',
+    subtitle: 'Collecte et organisation de données web — bientôt disponible.',
+  },
   tasks: {
     title: 'Gestion des tâches',
     subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
@@ -67,10 +71,6 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
   sms: {
     title: 'Envoi SMS',
     subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
-  },
-  alerts: {
-    title: 'Alertes & incidents',
-    subtitle: 'Surveillez les services, les erreurs techniques et les points à traiter.',
   },
   'admin-users': {
     title: 'Administration',
