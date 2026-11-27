@@ -156,6 +156,10 @@ export function DashboardView({
   }, [isAdmin])
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
+  const averageResponseMs = useMemo(
+    () => speedHistory.length ? Math.round(speedHistory.reduce((sum, point) => sum + point.ms, 0) / speedHistory.length) : null,
+    [speedHistory],
+  )
   const assignedCampaignIds = useMemo(() => {
     const ids = new Set<number>()
     for (const link of campagneMembres) {
@@ -421,7 +425,7 @@ export function DashboardView({
             <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Évolution du temps de réponse — mesures réelles chaque minute</span></div><Activity /></div>
             <div className="kpi-speed-chart-summary">
               <div><strong>{systemHealth.website?.responseMs != null ? systemHealth.website.responseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Dernière mesure</span></div>
-              <div><strong>{speedHistory.length ? Math.round(speedHistory.reduce((sum, point) => sum + point.ms, 0) / speedHistory.length).toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Moyenne de la session</span></div>
+              <div><strong>{averageResponseMs != null ? averageResponseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Moyenne de la session</span></div>
               <div className="kpi-system-status"><span className={systemHealth.website?.status === 'online' ? 'good' : systemHealth.website?.status === 'slow' ? 'warn' : 'bad'} />{systemHealth.website?.status === 'online' ? 'Site opérationnel' : systemHealth.website?.status === 'slow' ? 'Réponse lente' : systemHealth.website?.status === 'offline' ? 'Site inaccessible' : 'En attente'}</div>
             </div>
             <div className="kpi-speed-chart-wrap">
