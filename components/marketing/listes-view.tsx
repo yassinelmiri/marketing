@@ -95,6 +95,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const [contactsReloadKey, setContactsReloadKey] = useState(0)
 
   const [showListeForm, setShowListeForm] = useState(false)
+  const [savingListe, setSavingListe] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
   const [listeForm, setListeForm] = useState(emptyListeForm)
   const [listeCampagneIds, setListeCampagneIds] = useState<number[]>([])
@@ -103,6 +104,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
 
   const [showContactForm, setShowContactForm] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [contactForm, setContactForm] = useState(emptyContactForm)
   const [contactListeIds, setContactListeIds] = useState<number[]>([])
@@ -257,11 +259,13 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     setShowListeForm(true)
   }
   async function submitListe() {
+    if (savingListe) return
     if (!listeForm.nom.trim()) {
       toast.error('Nom requis', 'Donnez un nom à la liste.')
       return
     }
 
+    setSavingListe(true)
     try {
       if (editingListe) {
         await updateListe(editingListe.id, {
@@ -298,6 +302,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    } finally {
+      setSavingListe(false)
     }
   }
   async function deleteListe(l: ListeContact) {
@@ -345,6 +351,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     )
   }
   async function submitContact() {
+    if (savingContact) return
     if (!contactForm.nom.trim() && !contactForm.email.trim()) {
       toast.error('Champs requis', 'Nom ou e-mail obligatoire.')
       return
@@ -353,6 +360,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       toast.error('Liste requise', 'Sélectionnez au moins une liste pour ce contact.')
       return
     }
+    setSavingContact(true)
     try {
       if (editingContact) {
         await updateContact(editingContact.id, contactForm)
@@ -369,6 +377,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    } finally {
+      setSavingContact(false)
     }
   }
   async function deleteContacts(ids: number[]) {
@@ -608,16 +618,15 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
               <Users aria-hidden="true" />
               <p>Sélectionnez une liste.</p>
             </div>
-          ) : contactsLoading ? (
-            <div className="workspace-empty"><Users aria-hidden="true" /><p>Chargement des contacts…</p></div>
-          ) : listeContacts.length === 0 ? (
+          ) : listeContacts.length === 0 && !contactsLoading ? (
             <div className="workspace-empty">
               <Users aria-hidden="true" />
               <p>Aucun contact dans cette liste.</p>
               <span>Ajoutez un contact ou importez un CSV/XLSX.</span>
             </div>
           ) : (
-            <div className="campagne-table-wrap">
+            <div className={`campagne-table-wrap contacts-table-loading${contactsLoading ? ' is-loading' : ''}`} aria-busy={contactsLoading}>
+              {contactsLoading && <div className="contacts-table-progress"><span className="contacts-table-spinner" />Mise à jour des contacts…</div>}
               <table className="campagne-table">
                 <thead>
                   <tr>
@@ -631,7 +640,11 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   </tr>
                 </thead>
                 <tbody>
-                  {listeContacts.map((c) => {
+                  {listeContacts.length === 0 && contactsLoading ? Array.from({ length: 5 }, (_, index) => (
+                    <tr className="contacts-skeleton-row" key={`loading-${index}`} aria-hidden="true">
+                      <td /><td><span /><span /></td><td><span /><span /></td><td><span /></td><td><span /></td><td><span /></td><td />
+                    </tr>
+                  )) : listeContacts.map((c) => {
                     const author = teamUsersById.get(c.created_by)
                     const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
@@ -683,7 +696,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       {/* Modal liste */}
       {showListeForm && (
         <div className="workspace-modal-backdrop" onClick={() => setShowListeForm(false)}>
-          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="workspace-modal data-entry-modal data-list-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <header>
               <h3>{editingListe ? 'Modifier la liste' : 'Nouvelle liste'}</h3>
               <button type="button" className="workspace-icon-button" onClick={() => setShowListeForm(false)} aria-label="Fermer">
@@ -731,8 +744,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
               <button type="button" className="workspace-secondary" onClick={() => setShowListeForm(false)}>
                 Annuler
               </button>
-              <button type="button" className="workspace-primary" onClick={() => void submitListe()}>
-                {editingListe ? 'Enregistrer' : 'Créer la liste'}
+              <button type="button" className="workspace-primary" onClick={() => void submitListe()} disabled={savingListe}>
+                {savingListe ? 'Enregistrement…' : editingListe ? 'Enregistrer les modifications' : 'Créer la liste'}
               </button>
             </footer>
           </div>
@@ -742,7 +755,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
       {/* Modal contact */}
       {showContactForm && (
         <div className="workspace-modal-backdrop" onClick={() => setShowContactForm(false)}>
-          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="workspace-modal data-entry-modal data-contact-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <header>
               <h3>{editingContact ? 'Modifier le contact' : 'Nouveau contact'}</h3>
               <button type="button" className="workspace-icon-button" onClick={() => setShowContactForm(false)} aria-label="Fermer">
@@ -825,8 +838,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
               <button type="button" className="workspace-secondary" onClick={() => setShowContactForm(false)}>
                 Annuler
               </button>
-              <button type="button" className="workspace-primary" onClick={() => void submitContact()}>
-                {editingContact ? 'Enregistrer' : 'Ajouter le contact'}
+              <button type="button" className="workspace-primary" onClick={() => void submitContact()} disabled={savingContact}>
+                {savingContact ? 'Ajout en cours…' : editingContact ? 'Enregistrer les modifications' : 'Ajouter le contact'}
               </button>
             </footer>
           </div>
