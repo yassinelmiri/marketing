@@ -16,6 +16,7 @@ import { SettingsView } from './settings-view'
 import { NotificationBell } from './notification-bell'
 import { TasksView } from './tasks-view'
 import { ProspectionView } from './prospection-view'
+import { AlertsView } from './alerts-view'
 
 import {
   type Campagne,
@@ -728,6 +729,10 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
 
           {visitedViews.includes('sms') && (
             <div hidden={activeView !== 'sms'}><SmsSenderView listes={listes} contactListCounts={contactListCounts} /></div>
+          )}
+
+          {visitedViews.includes('alerts') && (
+            <div hidden={activeView !== 'alerts'}><AlertsView /></div>
           )}
 
           {visitedViews.includes('admin-users') && (
