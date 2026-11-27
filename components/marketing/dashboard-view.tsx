@@ -440,7 +440,7 @@ export function DashboardView({
           )}
         </div>
       </div>
-        <section className="kpi-system-grid">
+        {isAdmin && <section className="kpi-system-grid">
           <article className="kpi-system-card kpi-system-speed">
             <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Évolution du temps de réponse — mesures réelles chaque minute</span></div><Activity /></div>
             <div className="kpi-speed-chart-summary">
@@ -490,7 +490,7 @@ export function DashboardView({
             <div className="kpi-db-capacity-labels"><span>0%</span><span>100% — base pleine</span></div>
             <p className="kpi-system-note">{systemHealth.database?.usagePercent == null ? 'Configurez SUPABASE_DB_SIZE_LIMIT_MB et appliquez la migration SQL pour afficher le taux réel.' : `${systemHealth.database.totalRows.toLocaleString('fr-FR')} lignes au total dans les tables surveillées.`}</p>
           </article>
-        </section>
+        </section>}
     </section>
   )
 }
