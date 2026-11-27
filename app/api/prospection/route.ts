@@ -74,20 +74,24 @@ function flatten(value: unknown, prefix = '', output: Record<string, string> = {
   return output
 }
 
-function compare(actual: string, operator: string, expected: string) {
-  const a = actual.trim().toLocaleLowerCase()
-  const b = expected.trim().toLocaleLowerCase()
-  if (operator === 'contains') return a.includes(b)
-  if (operator === 'starts_with') return a.startsWith(b)
+function compare(
+  actual: string,
+  operator: string,
+  normalizedExpected: string,
+  expectedNumber: number,
+) {
+  const normalizedActual = actual.trim().toLocaleLowerCase()
+  if (operator === 'contains') return normalizedActual.includes(normalizedExpected)
+  if (operator === 'starts_with') return normalizedActual.startsWith(normalizedExpected)
   if (operator === 'gt' || operator === 'gte' || operator === 'lt' || operator === 'lte') {
-    const left = Number(actual); const right = Number(expected)
-    if (!Number.isFinite(left) || !Number.isFinite(right)) return false
-    if (operator === 'gt') return left > right
-    if (operator === 'gte') return left >= right
-    if (operator === 'lt') return left < right
-    return left <= right
+    const actualNumber = Number(actual)
+    if (!Number.isFinite(actualNumber) || !Number.isFinite(expectedNumber)) return false
+    if (operator === 'gt') return actualNumber > expectedNumber
+    if (operator === 'gte') return actualNumber >= expectedNumber
+    if (operator === 'lt') return actualNumber < expectedNumber
+    return actualNumber <= expectedNumber
   }
-  return a === b
+  return normalizedActual === normalizedExpected
 }
 
 export async function GET(request: NextRequest) {
@@ -145,11 +149,23 @@ export async function GET(request: NextRequest) {
     const rawRecords = extractRecords(payload)
     const rawCount = rawRecords.length
     const rawFirstId = rawRecords[0] ? String(rawRecords[0].id ?? rawRecords[0].email ?? JSON.stringify(rawRecords[0])) : ''
+    // Normalize filter values once instead of repeating string/number parsing per record.
+    const localFilters = filters.map((filter) => ({
+      ...filter,
+      normalizedValue: filter.value.trim().toLocaleLowerCase(),
+      numericValue: Number(filter.value),
+      operator: filter.operator || 'contains',
+    }))
     // Flatten each record once; reuse the normalized fields for local filtering and discovery.
     const filteredRecords = rawRecords
       .map(record => ({ record, fields: flatten(record) }))
-      .filter(({ fields: recordFields }) => filters.every(filter =>
-        !filter.value.trim() || compare(String(recordFields[filter.field] ?? ''), filter.operator || 'contains', filter.value),
+      .filter(({ fields: recordFields }) => localFilters.every(filter =>
+        !filter.normalizedValue || compare(
+          String(recordFields[filter.field] ?? ''),
+          filter.operator,
+          filter.normalizedValue,
+          filter.numericValue,
+        ),
       ))
     const records = filteredRecords.map(({ record }) => record)
     const first = filteredRecords[0]?.fields ?? {}
@@ -197,6 +213,28 @@ export async function POST(request: NextRequest) {
     const mapping = body.mapping && typeof body.mapping === 'object' && !Array.isArray(body.mapping)
       ? body.mapping as Record<string, string>
       : {}
+    // Resolve field aliases once for the whole import instead of rebuilding them per contact.
+    const fieldCandidates: Record<string, string[]> = {
+      name: [mapping.name, 'name', 'nom', 'full_name', 'fullname', 'contact_name'],
+      firstName: [mapping.firstName, 'first_name', 'firstname', 'prenom', 'given_name'],
+      lastName: [mapping.lastName, 'last_name', 'lastname', 'surname', 'family_name'],
+      email: [mapping.email, 'email', 'e-mail', 'mail'],
+      phone: [mapping.phone, 'phone', 'telephone', 'tel', 'mobile', 'phone_number'],
+      city: [mapping.city, 'city', 'ville', 'locality'],
+      postalCode: [mapping.postalCode, 'postal_code', 'postcode', 'zip', 'zipcode', 'code_postal'],
+      address: [mapping.address, 'address', 'street', 'adresse'],
+      country: [mapping.country, 'country', 'pays'],
+      age: [mapping.age, 'age'],
+    }
+    for (const key of Object.keys(fieldCandidates)) {
+      fieldCandidates[key] = fieldCandidates[key].filter((name): name is string => Boolean(name)).map(name => name.toLowerCase())
+    }
+    const standardFieldNames = new Set([
+      'id','name','nom','full_name','fullname','first_name','firstname','prenom','last_name','lastname',
+      'surname','family_name','email','e-mail','mail','phone','telephone','tel','mobile','phone_number',
+      'city','ville','locality','postal_code','postcode','zip','zipcode','code_postal','address','street',
+      'adresse','country','pays','age',
+    ])
     const rows = body.records.map((record: any) => {
       const values = flatten(record)
       const valueByNormalizedKey = new Map<string, string>()
@@ -204,25 +242,24 @@ export async function POST(request: NextRequest) {
         const normalizedKey = key.toLowerCase()
         if (!valueByNormalizedKey.has(normalizedKey)) valueByNormalizedKey.set(normalizedKey, value)
       }
-      const get = (mappedField: string | undefined, ...names: string[]) => {
-        const candidates = [mappedField, ...names].filter((name): name is string => Boolean(name))
-        for (const name of candidates) {
-          const value = valueByNormalizedKey.get(name.toLowerCase())
+      const get = (field: string) => {
+        for (const name of fieldCandidates[field]) {
+          const value = valueByNormalizedKey.get(name)
           if (value) return value.slice(0, 500)
         }
         return ''
       }
-      const fullName = get(mapping.name, 'name', 'nom', 'full_name', 'fullname', 'contact_name')
-      const firstName = get(mapping.firstName, 'first_name', 'firstname', 'prenom', 'given_name')
-      const lastName = get(mapping.lastName, 'last_name', 'lastname', 'surname', 'family_name')
-      const email = get(mapping.email, 'email', 'e-mail', 'mail')
-      const phone = get(mapping.phone, 'phone', 'telephone', 'tel', 'mobile', 'phone_number')
-      const city = get(mapping.city, 'city', 'ville', 'locality')
-      const postal = get(mapping.postalCode, 'postal_code', 'postcode', 'zip', 'zipcode', 'code_postal')
-      const address = get(mapping.address, 'address', 'street', 'adresse')
-      const country = get(mapping.country, 'country', 'pays')
-      const age = get(mapping.age, 'age')
-      const extra = Object.entries(values).filter(([key]) => !/^(id|name|nom|full_name|fullname|first_name|firstname|prenom|last_name|lastname|surname|family_name|email|e-mail|mail|phone|telephone|tel|mobile|phone_number|city|ville|locality|postal_code|postcode|zip|zipcode|code_postal|address|street|adresse|country|pays|age)$/i.test(key)).map(([k,v]) => `${k}: ${v}`).join(' | ')
+      const fullName = get('name')
+      const firstName = get('firstName')
+      const lastName = get('lastName')
+      const email = get('email')
+      const phone = get('phone')
+      const city = get('city')
+      const postal = get('postalCode')
+      const address = get('address')
+      const country = get('country')
+      const age = get('age')
+      const extra = Object.entries(values).filter(([key]) => !standardFieldNames.has(key.toLowerCase())).map(([k,v]) => `${k}: ${v}`).join(' | ')
       return {
         nom: fullName || [firstName, lastName].filter(Boolean).join(' ') || email || phone || 'Contact',
         prenom: firstName || null,

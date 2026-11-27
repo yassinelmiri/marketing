@@ -31,6 +31,10 @@ const MODULE_PERMISSIONS: ModulePermission[] = [
   { code: 'sms.access', label: 'Envoi SMS', description: 'Accéder au module d’envoi SMS.' },
 ]
 
+const MODULE_PERMISSION_LABEL_BY_CODE = new Map(
+  MODULE_PERMISSIONS.map(({ code, label }) => [code, label] as const),
+)
+
 const emptyForm = {
   prenom: '',
   nom: '',
@@ -63,7 +67,8 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   )
   const adminCount = useMemo(() => countAdminUsers(users), [users])
   const memberCount = users.length - adminCount
-  const permissionLabel = (code: string) => MODULE_PERMISSIONS.find((permission) => permission.code === code)?.label ?? code
+  const nonAdminRoles = useMemo(() => roles.filter((role) => role.id !== ADMIN_ROLE_ID), [roles])
+  const permissionLabel = (code: string) => MODULE_PERMISSION_LABEL_BY_CODE.get(code) ?? code
 
   async function loadUsers() {
     setLoading(true)
@@ -442,7 +447,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
                 </label>
                 <label><span>Rôle</span>
                   <select value={form.role_id} disabled={!!editing && editing.email === SUPER_ADMIN_EMAIL} onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}>
-                    {roles.filter((role) => role.id !== ADMIN_ROLE_ID).map((role) => <option key={role.id} value={role.id}>{role.nom}</option>)}
+                    {nonAdminRoles.map((role) => <option key={role.id} value={role.id}>{role.nom}</option>)}
                   </select>
                 </label>
                 <label><span>Téléphone</span><input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></label>

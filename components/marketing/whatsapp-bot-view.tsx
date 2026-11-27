@@ -1,16 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import {
   AlertCircle, CheckCircle2, CircleHelp, ExternalLink, FileSpreadsheet,
   MessageCircle, Pause, Play, RefreshCw, SkipForward, Upload, XCircle,
 } from 'lucide-react'
 import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppContactStatus } from '@/lib/whatsapp/file-parser'
 import { getWhatsAppContactStats } from '@/lib/whatsapp/view-utils'
+import { useWhatsAppCampaigns } from '@/hooks/use-whatsapp-campaigns'
 
 type ContactStatus = WhatsAppContactStatus
 type WhatsAppContact = WhatsAppImportContact
-type SavedWhatsAppCampaign = { id: number; name: string; source_file: string; message: string; status: 'draft' | 'in_progress' | 'paused' | 'completed'; total_recipients: number; updated_at: string }
 
 export function WhatsAppBotView() {
   const fileInput = useRef<HTMLInputElement>(null)
@@ -25,30 +25,16 @@ export function WhatsAppBotView() {
   const [paused, setPaused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [campaignId, setCampaignId] = useState<number | null>(null)
-  const [savedCampaigns, setSavedCampaigns] = useState<SavedWhatsAppCampaign[]>([])
   const [savedCounts, setSavedCounts] = useState<{ total: number; sent: number; failed: number; skipped: number; pending: number } | null>(null)
   const [savedPage, setSavedPage] = useState(1)
   const [savedTotalPages, setSavedTotalPages] = useState(1)
   const [selectedSavedId, setSelectedSavedId] = useState('')
   const [saving, setSaving] = useState(false)
-  const [loadingSaved, setLoadingSaved] = useState(false)
   const [nextDelaySeconds, setNextDelaySeconds] = useState(5)
   const [advanceCountdown, setAdvanceCountdown] = useState(false)
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const refreshSavedCampaigns = useCallback(async () => {
-    setLoadingSaved(true)
-    try {
-      const response = await fetch('/api/whatsapp/campaigns', { cache: 'no-store' })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Chargement des campagnes impossible.')
-      setSavedCampaigns(data.campaigns ?? [])
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Chargement des campagnes impossible.')
-    } finally {
-      setLoadingSaved(false)
-    }
-  }, [])
+  const { savedCampaigns, loadingSaved, refreshSavedCampaigns } = useWhatsAppCampaigns(setError)
 
   useEffect(() => {
     void refreshSavedCampaigns()
@@ -137,8 +123,15 @@ export function WhatsAppBotView() {
       if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
       setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
       if (data.counts) setSavedCounts(data.counts)
-      const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
-      const nextIndex = next >= 0 ? next : activeIndex < contacts.length - 1 ? activeIndex + 1 : -1
+      let nextIndex = -1
+      for (let index = activeIndex + 1; index < contacts.length; index += 1) {
+        const statusAtIndex = contacts[index].status
+        if (statusAtIndex === 'pending' || statusAtIndex === 'opened') {
+          nextIndex = index
+          break
+        }
+      }
+      if (nextIndex < 0 && activeIndex < contacts.length - 1) nextIndex = activeIndex + 1
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
       if (nextIndex >= 0 || (savedPage < savedTotalPages && campaignId)) {
         setAdvanceCountdown(nextDelaySeconds > 0)

@@ -23,15 +23,21 @@ export function getVisibleListes({
   now = new Date(),
 }: VisibleListesOptions): ListeContact[] {
   const query = search.trim().toLocaleLowerCase('fr')
-  const assignedCampaignIds = new Set(campagneMembres
-    .filter((assignment) => assignment.user_id === user.id)
-    .map((assignment) => assignment.campagne_id))
-  const assignedListeIds = new Set(campagneListes
-    .filter((link) => assignedCampaignIds.has(link.campagne_id))
-    .map((link) => link.liste_id))
+  const assignedCampaignIds = new Set<number>()
+  for (const assignment of campagneMembres) {
+    if (assignment.user_id === user.id) assignedCampaignIds.add(assignment.campagne_id)
+  }
+  const assignedListeIds = new Set<number>()
+  for (const link of campagneListes) {
+    if (assignedCampaignIds.has(link.campagne_id)) assignedListeIds.add(link.liste_id)
+  }
   const availableLists = Number(user.role_id) === 1
     ? listes
     : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.has(liste.id))
+  const dateStart = new Date(now)
+  if (dateFilter === 'today') dateStart.setHours(0, 0, 0, 0)
+  if (dateFilter === '7d') dateStart.setDate(dateStart.getDate() - 7)
+  if (dateFilter === '30d') dateStart.setDate(dateStart.getDate() - 30)
 
   return availableLists.filter((liste) => {
     const matchesText = !query || [liste.nom, liste.description, liste.cible]
@@ -39,12 +45,7 @@ export function getVisibleListes({
     if (!matchesText) return false
     if (dateFilter === 'all') return true
     const createdAt = new Date(liste.date_creation)
-    if (Number.isNaN(createdAt.getTime())) return false
-    const start = new Date(now)
-    if (dateFilter === 'today') start.setHours(0, 0, 0, 0)
-    if (dateFilter === '7d') start.setDate(start.getDate() - 7)
-    if (dateFilter === '30d') start.setDate(start.getDate() - 30)
-    return createdAt >= start
+    return !Number.isNaN(createdAt.getTime()) && createdAt >= dateStart
   }).sort((a, b) => {
     if (sort === 'name-asc') return a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })
     if (sort === 'name-desc') return b.nom.localeCompare(a.nom, 'fr', { sensitivity: 'base' })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
@@ -29,7 +29,9 @@ import {
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
-import { buildDashboardModuleStats, createEmptyDashboardModuleStats, buildCampaignDiagnostic, type DashboardModuleStats } from '@/lib/dashboard/view-utils'
+import { buildCampaignDiagnostic } from '@/lib/dashboard/view-utils'
+import { useDashboardHealth } from '@/hooks/use-dashboard-health'
+import { useDashboardModuleStats } from '@/hooks/use-dashboard-module-stats'
 
 interface DashboardViewProps {
   user: User
@@ -58,109 +60,48 @@ export function DashboardView({
   const isAdmin = Number(user.role_id) === 1
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
-  const [moduleStats, setModuleStats] = useState<DashboardModuleStats>(createEmptyDashboardModuleStats())
-  const [moduleError, setModuleError] = useState('')
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [systemHealth, setSystemHealth] = useState<{
-    database: { totalRows: number; sizeBytes: number | null; limitBytes: number | null; usagePercent: number | null; tables: { name: string; rows: number | null; available: boolean }[]; checkedAt: string } | null
-    website: { responseMs: number | null; status: 'online' | 'slow' | 'offline'; checkedAt: string } | null
-    alerts: { level: 'warning' | 'error'; title: string; detail: string }[]
-  }>({ database: null, website: null, alerts: [] })
-  const [healthLoading, setHealthLoading] = useState(false)
-  const [speedHistory, setSpeedHistory] = useState<{ time: string; ms: number }[]>([])
+  const { moduleStats, moduleError, lastUpdated } = useDashboardModuleStats(isAdmin)
+  const { systemHealth, healthLoading, speedHistory } = useDashboardHealth(isAdmin)
 
-  useEffect(() => {
-    if (!isAdmin) return
-    let active = true
-    const loadModules = async () => {
-      const [emailResult, whatsappResult, tasksResult] = await Promise.allSettled([
-        fetch('/api/email/send', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Email indisponible')
-          return data
-        }),
-        fetch('/api/whatsapp/campaigns', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'WhatsApp indisponible')
-          return data
-        }),
-        fetch('/api/tasks', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Tâches indisponibles')
-          return data
-        }),
-      ])
-      if (!active) return
-      setModuleStats(buildDashboardModuleStats({
-        email: emailResult.status === 'fulfilled' ? emailResult.value : null,
-        whatsapp: whatsappResult.status === 'fulfilled' ? whatsappResult.value : null,
-        tasks: tasksResult.status === 'fulfilled' ? tasksResult.value : null,
-      }))
-      const failures = [emailResult, whatsappResult, tasksResult].filter((result) => result.status === 'rejected').length
-      setModuleError(failures ? `${failures} module(s) n'ont pas pu charger leurs statistiques selon vos accès.` : '')
-      setLastUpdated(new Date())
-    }
-    void loadModules()
-    const interval = window.setInterval(() => void loadModules(), 60000)
-    return () => { active = false; window.clearInterval(interval) }
-  }, [isAdmin])
-
-  useEffect(() => {
-    if (!isAdmin) return
-    let active = true
-    const loadHealth = async () => {
-      setHealthLoading(true)
-      const loadDatabase = async () => {
-        try {
-          const response = await fetch('/api/admin/health', { cache: 'no-store' })
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Diagnostic système indisponible')
-          if (active) setSystemHealth((current) => ({ ...data, website: current.website }))
-        } catch (error) {
-          if (active) setSystemHealth((current) => ({
-            ...current,
-            alerts: [{ level: 'error', title: 'Diagnostic indisponible', detail: error instanceof Error ? error.message : 'Impossible de vérifier le système.' }],
-          }))
-        }
-      }
-      const loadWebsiteSpeed = async () => {
-        const started = performance.now()
-        try {
-          const response = await fetch('/api/health/ping', { cache: 'no-store' })
-          const responseMs = Math.round(performance.now() - started)
-          const website = {
-            responseMs,
-            status: !response.ok ? 'offline' as const : responseMs > 1500 ? 'slow' as const : 'online' as const,
-            checkedAt: new Date().toISOString(),
-          }
-          if (active) {
-            setSystemHealth((current) => ({ ...current, website }))
-            setSpeedHistory((history) => [
-              ...history,
-              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: responseMs },
-            ].slice(-30))
-          }
-        } catch {
-          if (active) setSystemHealth((current) => ({
-            ...current,
-            website: { responseMs: null, status: 'offline', checkedAt: new Date().toISOString() },
-          }))
-        }
-      }
-      await Promise.all([loadDatabase(), loadWebsiteSpeed()])
-      if (active) setHealthLoading(false)
-    }
-    void loadHealth()
-    const interval = window.setInterval(() => void loadHealth(), 60000)
-    return () => { active = false; window.clearInterval(interval) }
-  }, [isAdmin])
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
-  const assignedCampaignIds = useMemo(
-    () => new Set(campagneMembres.filter((link) => link.user_id === user.id).map((link) => link.campagne_id)),
-    [campagneMembres, user.id],
+  const averageResponseMs = useMemo(
+    () => speedHistory.length ? Math.round(speedHistory.reduce((sum, point) => sum + point.ms, 0) / speedHistory.length) : null,
+    [speedHistory],
   )
+  const assignedCampaignIds = useMemo(() => {
+    const ids = new Set<number>()
+    for (const link of campagneMembres) {
+      if (link.user_id === user.id) ids.add(link.campagne_id)
+    }
+    return ids
+  }, [campagneMembres, user.id])
   const typeNameById = useMemo(() => new Map(typesCampagnes.map((type) => [type.id, type.nom])), [typesCampagnes])
+  const teamRoleNameById = useMemo(() => new Map(teamRoles.map((role) => [role.id, role.nom])), [teamRoles])
+  const teamUserById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
+  const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'terminee') counts.completed++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    else if (campaign.status === 'archivee') counts.archived++
+    return counts
+  }, { inProgress: 0, completed: 0, drafts: 0, archived: 0 }), [campagnes])
+  const teamPerformance = useMemo(() => {
+    const performance = new Map<number, { owned: number; assigned: number; inProgress: number; completed: number }>()
+    for (const member of teamUsers) performance.set(member.id, { owned: 0, assigned: 0, inProgress: 0, completed: 0 })
+    for (const campaign of campagnes) {
+      const stats = performance.get(campaign.user_id)
+      if (!stats) continue
+      stats.owned++
+      if (campaign.status === 'en_cours') stats.inProgress++
+      else if (campaign.status === 'terminee') stats.completed++
+    }
+    for (const assignment of campagneMembres) {
+      const stats = performance.get(assignment.user_id)
+      if (stats) stats.assigned++
+    }
+    return performance
+  }, [teamUsers, campagnes, campagneMembres])
   const associatedCampaigns = useMemo(
     () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
     [campagnes, assignedCampaignIds],
@@ -174,6 +115,12 @@ export function DashboardView({
     () => isAdmin ? campagnes : campagnes.filter((campaign) => campaign.user_id === user.id || assignedCampaignIds.has(campaign.id)),
     [campagnes, isAdmin, user.id, assignedCampaignIds],
   )
+  const dashboardStatusCounts = useMemo(() => dashboardCampaigns.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'terminee') counts.completed++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    return counts
+  }, { inProgress: 0, completed: 0, drafts: 0 }), [dashboardCampaigns])
 
   const selectedComments = useMemo(
     () => commentaires.filter((comment) => comment.campagne_id === selectedCampagneId),
@@ -211,10 +158,10 @@ export function DashboardView({
             <div className="kpi-chart-total"><strong>{campagnes.length}</strong><span>campagnes CRM</span></div>
             <div className="kpi-bars">
               {[
-                { label: 'En cours', value: campagnes.filter((item) => item.status === 'en_cours').length, color: 'cyan' },
-                { label: 'Terminées', value: campagnes.filter((item) => item.status === 'terminee').length, color: 'green' },
-                { label: 'Brouillons', value: campagnes.filter((item) => item.status === 'brouillon').length, color: 'violet' },
-                { label: 'Archivées', value: campagnes.filter((item) => item.status === 'archivee').length, color: 'slate' },
+                { label: 'En cours', value: campaignStatusCounts.inProgress, color: 'cyan' },
+                { label: 'Terminées', value: campaignStatusCounts.completed, color: 'green' },
+                { label: 'Brouillons', value: campaignStatusCounts.drafts, color: 'violet' },
+                { label: 'Archivées', value: campaignStatusCounts.archived, color: 'slate' },
               ].map((item) => <div className="kpi-bar-row" key={item.label}><span>{item.label}</span><div><i className={item.color} style={{width: `${campagnes.length ? Math.max(3, item.value / campagnes.length * 100) : 0}%`}}/></div><strong>{item.value}</strong></div>)}
             </div>
           </article>
@@ -243,13 +190,13 @@ export function DashboardView({
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
         <section className="workspace-panel dashboard-team-overview">
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
-          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong></td><td>{teamRoles.find((role) => role.id === member.role_id)?.nom ?? '—'}</td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
+          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const performance = teamPerformance.get(member.id); return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong></td><td>{teamRoleNameById.get(member.role_id) ?? '—'}</td><td>{performance?.owned ?? 0}</td><td>{performance?.assigned ?? 0}</td><td>{performance?.inProgress ?? 0}</td><td>{performance?.completed ?? 0}</td></tr> })}</tbody></table></div>}
         </section>
       </section> : <section className="dashboard-member-overview">
         <div className="dashboard-member-card"><span>Mes campagnes</span><strong>{dashboardCampaigns.length}</strong><small>Créées ou affectées à votre compte</small></div>
-        <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'en_cours').length}</strong><small>Campagnes actives</small></div>
-        <div className="dashboard-member-card"><span>Terminées</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'terminee').length}</strong><small>Campagnes finalisées</small></div>
-        <div className="dashboard-member-card"><span>À préparer</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'brouillon').length}</strong><small>Brouillons à lancer</small></div>
+        <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardStatusCounts.inProgress}</strong><small>Campagnes actives</small></div>
+        <div className="dashboard-member-card"><span>Terminées</span><strong>{dashboardStatusCounts.completed}</strong><small>Campagnes finalisées</small></div>
+        <div className="dashboard-member-card"><span>À préparer</span><strong>{dashboardStatusCounts.drafts}</strong><small>Brouillons à lancer</small></div>
       </section>}
 
       <div className="workspace-panels">
@@ -327,7 +274,7 @@ export function DashboardView({
               <dl className="campagne-detail-grid">
                 <div>
                   <dt>Type</dt>
-                  <dd>{typesCampagnes.find((item) => item.id === selectedCampagne.type_campagne_id)?.nom ?? '—'}</dd>
+                  <dd>{typeNameById.get(selectedCampagne.type_campagne_id) ?? '—'}</dd>
                 </div>
                 <div><dt>Créée le</dt><dd>{formatDate(selectedCampagne.date_creation)}</dd></div>
                 <div><dt>Cible</dt><dd>{selectedCampagne.cible || '—'}</dd></div>
@@ -341,7 +288,7 @@ export function DashboardView({
                 ) : (
                   <ul>
                     {selectedComments.map((cm) => {
-                      const author = teamUsers.find((item) => item.id === cm.user_id)
+                      const author = teamUserById.get(cm.user_id)
                       return (
                         <li key={cm.id}>
                           <div className="comment-meta">
@@ -387,7 +334,7 @@ export function DashboardView({
             <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Évolution du temps de réponse — mesures réelles chaque minute</span></div><Activity /></div>
             <div className="kpi-speed-chart-summary">
               <div><strong>{systemHealth.website?.responseMs != null ? systemHealth.website.responseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Dernière mesure</span></div>
-              <div><strong>{speedHistory.length ? Math.round(speedHistory.reduce((sum, point) => sum + point.ms, 0) / speedHistory.length).toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Moyenne de la session</span></div>
+              <div><strong>{averageResponseMs != null ? averageResponseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Moyenne de la session</span></div>
               <div className="kpi-system-status"><span className={systemHealth.website?.status === 'online' ? 'good' : systemHealth.website?.status === 'slow' ? 'warn' : 'bad'} />{systemHealth.website?.status === 'online' ? 'Site opérationnel' : systemHealth.website?.status === 'slow' ? 'Réponse lente' : systemHealth.website?.status === 'offline' ? 'Site inaccessible' : 'En attente'}</div>
             </div>
             <div className="kpi-speed-chart-wrap">

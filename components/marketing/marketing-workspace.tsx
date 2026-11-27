@@ -312,18 +312,23 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
   // ============================================================
 
   const stats = useMemo(() => {
-    const total = campagnes.length
-    const enCours = campagnes.filter(
-      (campagne) => campagne.status === 'en_cours',
-    ).length
-    const terminees = campagnes.filter(
-      (campagne) => campagne.status === 'terminee',
-    ).length
-    const brouillons = campagnes.filter(
-      (campagne) => campagne.status === 'brouillon',
-    ).length
+    const campaignCounts = campagnes.reduce(
+      (counts, campagne) => {
+        if (campagne.status === 'en_cours') counts.enCours += 1
+        else if (campagne.status === 'terminee') counts.terminees += 1
+        else if (campagne.status === 'brouillon') counts.brouillons += 1
+        return counts
+      },
+      { enCours: 0, terminees: 0, brouillons: 0 },
+    )
 
-    return { total, enCours, terminees, brouillons, listes: listes.length, contacts: contactsCount, membres: teamUsers.length }
+    return {
+      total: campagnes.length,
+      ...campaignCounts,
+      listes: listes.length,
+      contacts: contactsCount,
+      membres: teamUsers.length,
+    }
   }, [campagnes, listes.length, contactsCount, teamUsers.length])
 
   // ============================================================

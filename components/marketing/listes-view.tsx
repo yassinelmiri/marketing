@@ -134,9 +134,19 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     dateFilter: listeDateFilter,
     sort: listeSort,
   }), [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
-  const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
+  const paginatedListes = useMemo(
+    () => visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize),
+    [visibleListes, listePage, listePageSize],
+  )
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
+  const selectedListeCampaignCount = useMemo(
+    () => selectedListe ? campagneListes.reduce((count, link) => count + (link.liste_id === selectedListe.id ? 1 : 0), 0) : 0,
+    [campagneListes, selectedListe],
+  )
   const listeContacts = contacts
+  const selectedContactIdSet = useMemo(() => new Set(selectedContactIds), [selectedContactIds])
+  const listeCampagneIdSet = useMemo(() => new Set(listeCampagneIds), [listeCampagneIds])
+  const contactListeIdSet = useMemo(() => new Set(contactListeIds), [contactListeIds])
   const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
   const contactListNamesByContactId = useMemo(
     () => buildContactListNamesByContactId(contactLinks, listes),
@@ -150,7 +160,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
 
   useEffect(() => {
     let active = true
-    const controller = new AbortController()
     setSelectedContactIds([])
 
     async function loadContactPage() {
@@ -173,7 +182,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
 
         // Let the request finish; the active flag below prevents stale responses
         // from updating state after filters change or the component unmounts.
-        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store', signal: controller.signal })
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
         if (!active) return
@@ -206,7 +215,6 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     void loadContactPage()
     return () => {
       active = false
-      controller.abort()
     }
   }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
@@ -390,11 +398,12 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   async function deleteContact(c: Contact) {
     await deleteContacts([c.id])
   }
-  const pageContactIds = listeContacts.map((contact) => contact.id)
-  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIds.includes(id))
+  const pageContactIds = useMemo(() => listeContacts.map((contact) => contact.id), [listeContacts])
+  const pageContactIdSet = useMemo(() => new Set(pageContactIds), [pageContactIds])
+  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIdSet.has(id))
   function togglePageContacts() {
     setSelectedContactIds((current) => allPageContactsSelected
-      ? current.filter((id) => !pageContactIds.includes(id))
+      ? current.filter((id) => !pageContactIdSet.has(id))
       : [...new Set([...current, ...pageContactIds])])
   }
   function toggleContactSelection(id: number) {
@@ -475,7 +484,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           <article className="data-overview-card"><span>Listes enregistrées</span><strong>{listes.length}</strong><small>Audiences disponibles</small></article>
           <article className="data-overview-card"><span>Contacts au total</span><strong>{contactCount}</strong><small>Contacts centralisés</small></article>
           <article className="data-overview-card"><span>Contacts dans la liste</span><strong>{selectedListCount}</strong><small>{selectedListe?.nom || 'Aucune liste sélectionnée'}</small></article>
-          <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListe ? campagneListes.filter((link) => link.liste_id === selectedListe.id).length : 0}</strong><small>Campagnes liées à la sélection</small></article>
+          <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListeCampaignCount}</strong><small>Campagnes liées à la sélection</small></article>
         </div>
       <div className="bases-layout data-split-layout">
         {/* Colonne 1 : listes */}
@@ -629,7 +638,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                     const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
                       <tr key={c.id}>
-                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
+                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIdSet.has(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
                         <td>
                           <strong>{c.prenom} {c.nom}</strong>
                           {c.profile && (
@@ -695,7 +704,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   {allCampagnes.length === 0 ? <p className="form-hint">Aucune campagne disponible.</p> : (
                     <div className="liste-campaign-options">
                       {allCampagnes.map((campagne) => {
-                        const checked = listeCampagneIds.includes(campagne.id)
+                        const checked = listeCampagneIdSet.has(campagne.id)
                         return (
                           <label key={campagne.id} className={`liste-campaign-option${checked ? ' is-selected' : ''}`}>
                             <input type="checkbox" checked={checked} onChange={() => setListeCampagneIds((current) => checked ? current.filter((id) => id !== campagne.id) : [...current, campagne.id])} />
@@ -791,7 +800,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   ) : (
                     <div className="checkbox-grid">
                       {listes.map((l) => {
-                        const checked = contactListeIds.includes(l.id)
+                        const checked = contactListeIdSet.has(l.id)
                         return (
                           <label key={l.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
                             <input type="checkbox" checked={checked} onChange={() => toggleContactListe(l.id)} />

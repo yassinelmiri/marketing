@@ -111,7 +111,9 @@ export async function GET(request: NextRequest) {
       .select('campaign_id,status,updated_at').in('campaign_id', campaignIds)
     : { data: [], error: null }
   if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
-  const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
+  const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>(
+    campaignIds.map((id) => [id, { sent: 0, failed: 0, pending: 0, skipped: 0 }]),
+  )
   const now = new Date()
   const todayStart = getCasablancaDayStart(now).getTime()
   const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).getTime()
@@ -119,8 +121,8 @@ export async function GET(request: NextRequest) {
   const dailyStats = { today_sent: 0, yesterday_sent: 0 }
 
   for (const row of recipientRows ?? []) {
-    const id = Number(row.campaign_id)
-    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
+    const counts = countsByCampaign.get(Number(row.campaign_id))
+    if (!counts) continue
     if (row.status === 'sent') {
       counts.sent += 1
       if (row.updated_at) {
@@ -131,7 +133,6 @@ export async function GET(request: NextRequest) {
     } else if (row.status === 'failed') counts.failed += 1
     else if (row.status === 'skipped') counts.skipped += 1
     else counts.pending += 1
-    countsByCampaign.set(id, counts)
   }
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((campaign) => ({
@@ -296,12 +297,14 @@ export async function PATCH(request: NextRequest) {
     ])
     if (pendingError || statusCounts.some((item) => item.error)) return NextResponse.json({ error: 'Actualisation du suivi impossible.' }, { status: 500 })
     const allDone = Number(pendingCount ?? 0) === 0
-    const counts = {
-      total: Number(statusCounts.reduce((sum, item) => sum + Number(item.count ?? 0), 0)),
-      sent: Number(statusCounts[0].count ?? 0),
-      failed: Number(statusCounts[1].count ?? 0),
-      skipped: Number(statusCounts[2].count ?? 0),
-      pending: Number(statusCounts[3].count ?? 0) + Number(statusCounts[4].count ?? 0),
+    const counts = { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }
+    for (let index = 0; index < statusCounts.length; index++) {
+      const count = Number(statusCounts[index].count ?? 0)
+      counts.total += count
+      if (index === 0) counts.sent = count
+      else if (index === 1) counts.failed = count
+      else if (index === 2) counts.skipped = count
+      else counts.pending += count
     }
     const nextStatus: CampaignStatus = allDone ? 'completed' : 'in_progress'
     await auth.admin.from('whatsapp_campaigns').update({ status: nextStatus, updated_at: now }).eq('id', campaignId).eq('user_id', auth.userId)

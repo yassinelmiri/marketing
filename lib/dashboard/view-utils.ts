@@ -27,9 +27,6 @@ export function createEmptyDashboardModuleStats(): DashboardModuleStats {
   }
 }
 
-const sum = (items: ApiRecord[], select: (item: ApiRecord) => unknown) =>
-  items.reduce((total, item) => total + Number(select(item) || 0), 0)
-
 export function buildDashboardModuleStats(data: {
   email: { campaigns?: ApiRecord[]; daily_stats?: { today_sent?: number; yesterday_sent?: number } } | null
   whatsapp: { campaigns?: ApiRecord[]; daily_stats?: { today_sent?: number; yesterday_sent?: number } } | null
@@ -39,37 +36,55 @@ export function buildDashboardModuleStats(data: {
   const whatsappCampaigns = data.whatsapp?.campaigns ?? []
   const tasks = data.tasks?.tasks ?? []
 
+  const emailStats = {
+    sent: 0, failed: 0, opened: 0, clicked: 0, running: 0,
+  }
+  for (const campaign of emailCampaigns) {
+    emailStats.sent += Number(campaign.sent_count || 0)
+    emailStats.failed += Number(campaign.failed_count || 0)
+    emailStats.opened += Number(campaign.open_count || 0)
+    emailStats.clicked += Number(campaign.click_count || 0)
+    if (['sending', 'processing', 'running'].includes(String(campaign.status))) emailStats.running += 1
+  }
+
+  const whatsappStats = { recipients: 0, sent: 0, failed: 0, running: 0 }
+  for (const campaign of whatsappCampaigns) {
+    whatsappStats.recipients += Number(campaign.total_recipients || 0)
+    whatsappStats.sent += Number(campaign.counts?.sent || 0)
+    whatsappStats.failed += Number(campaign.counts?.failed || 0)
+    if (campaign.status === 'in_progress') whatsappStats.running += 1
+  }
+
+  const taskStats = { open: 0, done: 0, late: 0 }
+  for (const task of tasks) {
+    if (task.status === 'done') {
+      taskStats.done += 1
+      continue
+    }
+    taskStats.open += 1
+    if (!task.due_date) continue
+    const dueAt = new Date(String(task.due_date) + 'T23:59:59').getTime()
+    if (Number.isFinite(dueAt) && dueAt < now) taskStats.late += 1
+  }
+
   return {
     email: {
       campaigns: emailCampaigns.length,
-      sent: sum(emailCampaigns, (item) => item.sent_count),
-      failed: sum(emailCampaigns, (item) => item.failed_count),
-      opened: sum(emailCampaigns, (item) => item.open_count),
-      clicked: sum(emailCampaigns, (item) => item.click_count),
-      running: emailCampaigns.filter((item) => ['sending', 'processing', 'running'].includes(String(item.status))).length,
+      ...emailStats,
       todaySent: Number(data.email?.daily_stats?.today_sent ?? 0),
       yesterdaySent: Number(data.email?.daily_stats?.yesterday_sent ?? 0),
       loaded: Boolean(data.email),
     },
     whatsapp: {
       campaigns: whatsappCampaigns.length,
-      recipients: sum(whatsappCampaigns, (item) => item.total_recipients),
-      sent: sum(whatsappCampaigns, (item) => item.counts?.sent),
-      failed: sum(whatsappCampaigns, (item) => item.counts?.failed),
-      running: whatsappCampaigns.filter((item) => item.status === 'in_progress').length,
+      ...whatsappStats,
       todaySent: Number(data.whatsapp?.daily_stats?.today_sent ?? 0),
       yesterdaySent: Number(data.whatsapp?.daily_stats?.yesterday_sent ?? 0),
       loaded: Boolean(data.whatsapp),
     },
     tasks: {
       total: tasks.length,
-      open: tasks.filter((item) => item.status !== 'done').length,
-      done: tasks.filter((item) => item.status === 'done').length,
-      late: tasks.filter((item) => {
-        if (item.status === 'done' || !item.due_date) return false
-        const dueAt = new Date(String(item.due_date) + 'T23:59:59').getTime()
-        return Number.isFinite(dueAt) && dueAt < now
-      }).length,
+      ...taskStats,
       loaded: Boolean(data.tasks),
     },
   }

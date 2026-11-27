@@ -27,9 +27,9 @@ export function getCampaignsVisibleToUser(
   isAdmin: boolean,
 ): Campagne[] {
   if (isAdmin) return campaigns
-  const assignedIds = new Set(
-    assignments.filter((assignment) => assignment.user_id === userId)
-      .map((assignment) => assignment.campagne_id),
-  )
+  const assignedIds = new Set<number>()
+  for (const assignment of assignments) {
+    if (assignment.user_id === userId) assignedIds.add(assignment.campagne_id)
+  }
   return campaigns.filter((campaign) => assignedIds.has(campaign.id))
 }
