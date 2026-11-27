@@ -87,7 +87,7 @@ export function ProspectionView() {
         total = data.total ?? total; totalPages = data.totalPages ?? totalPages
         const rawCount = Number(data.rawCount ?? rows.length)
         if (rawCount === 0) break
-        const firstId = String(rows[0]?.id ?? rows[0]?.email ?? JSON.stringify(rows[0]))
+        const firstId = String(data.rawFirstId ?? rows[0]?.id ?? rows[0]?.email ?? JSON.stringify(rows[0]))
         if (page > 1 && firstId === previousFirst) break
         previousFirst = firstId
         all.push(...rows)
