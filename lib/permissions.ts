@@ -7,6 +7,7 @@
 export type ViewKey =
   | 'dashboard'
   | 'campagnes'
+  | 'prospection'
   | 'listes'
   | 'equipe'
   | 'tasks'
@@ -23,6 +24,7 @@ export type ViewKey =
 export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
   { key: 'dashboard', label: 'Tableau de bord' },
   { key: 'campagnes', label: 'Campagnes' },
+  { key: 'prospection', label: 'Prospection' },
   { key: 'listes', label: 'Listes & contacts' },
   { key: 'equipe', label: 'Équipe' },
   { key: 'whatsapp', label: 'Campagnes WhatsApp' },
