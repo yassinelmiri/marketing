@@ -234,6 +234,35 @@ export function DashboardView({
             {recent.length === 0 && <p className="kpi-no-data">Aucune campagne enregistrée.</p>}
           </article>
         </div>
+        <div className="kpi-analytics-grid">
+          <article className="kpi-chart-card">
+            <div className="kpi-panel-title"><div><strong>Volume des envois</strong><span>Comparaison des canaux · aujourd’hui / hier</span></div><TrendingUp /></div>
+            {[
+              { label: 'E-mail', today: moduleStats.email.todaySent, yesterday: moduleStats.email.yesterdaySent, tone: 'email' },
+              { label: 'WhatsApp', today: moduleStats.whatsapp.todaySent, yesterday: moduleStats.whatsapp.yesterdaySent, tone: 'whatsapp' },
+            ].map((item) => {
+              const max = Math.max(item.today, item.yesterday, 1)
+              return <div className="kpi-channel-chart" key={item.label}>
+                <div className="kpi-channel-chart-heading"><strong>{item.label}</strong><span>Aujourd’hui <b>{item.today.toLocaleString('fr-FR')}</b> · Hier <b>{item.yesterday.toLocaleString('fr-FR')}</b></span></div>
+                <div className="kpi-chart-track"><i className={item.tone} style={{ width: `${item.today / max * 100}%` }} /></div>
+                <div className="kpi-chart-track yesterday"><i style={{ width: `${item.yesterday / max * 100}%` }} /></div>
+              </div>
+            })}
+            <div className="kpi-chart-legend"><span><i className="today"/> Aujourd’hui</span><span><i className="yesterday"/> Hier</span></div>
+          </article>
+          <article className="kpi-chart-card">
+            <div className="kpi-panel-title"><div><strong>Répartition des campagnes</strong><span>Vue synthétique par statut</span></div><Target /></div>
+            <div className="kpi-status-chart">
+              <div className="kpi-status-ring" style={{ background: `conic-gradient(#18b6a4 0 ${diagnostic.total ? diagnostic.active / diagnostic.total * 100 : 0}%, #5c7cfa 0 ${diagnostic.total ? (diagnostic.active + diagnostic.completed) / diagnostic.total * 100 : 0}%, #a78bfa 0 ${diagnostic.total ? (diagnostic.active + diagnostic.completed + diagnostic.drafts) / diagnostic.total * 100 : 0}%, #e2e8f0 0 100%)` }}><div><strong>{diagnostic.total}</strong><span>Campagnes</span></div></div>
+              <div className="kpi-status-legend">
+                <span><i className="active"/> En cours <b>{diagnostic.active}</b></span>
+                <span><i className="completed"/> Terminées <b>{diagnostic.completed}</b></span>
+                <span><i className="draft"/> Brouillons <b>{diagnostic.drafts}</b></span>
+                <span><i className="archived"/> Archivées <b>{diagnostic.archived}</b></span>
+              </div>
+            </div>
+          </article>
+        </div>
         <div className="kpi-module-grid">
           <article className="kpi-module-card kpi-glass-card"><div className="kpi-module-heading"><span className="kpi-module-icon email"><Mail/></span><span>Email</span><small>{moduleStats.email.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.email.sent.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Emails envoyés au total</span><div className="kpi-daily-comparison"><div><span>Aujourd’hui</span><strong>{moduleStats.email.todaySent.toLocaleString('fr-FR')}</strong></div><div><span>Hier</span><strong>{moduleStats.email.yesterdaySent.toLocaleString('fr-FR')}</strong></div><span className={moduleStats.email.todaySent > moduleStats.email.yesterdaySent ? 'kpi-trend positive' : moduleStats.email.todaySent < moduleStats.email.yesterdaySent ? 'kpi-trend negative' : 'kpi-trend neutral'}><TrendingUp size={14}/>{moduleStats.email.yesterdaySent > 0 ? ((moduleStats.email.todaySent >= moduleStats.email.yesterdaySent ? '+' : '') + Math.round(((moduleStats.email.todaySent - moduleStats.email.yesterdaySent) / moduleStats.email.yesterdaySent) * 100) + '%') : (moduleStats.email.todaySent > 0 ? 'Nouveau' : '—')}</span></div><div className="kpi-module-pairs"><div><b>{moduleStats.email.campaigns}</b><span>Campagnes</span></div><div><b>{moduleStats.email.opened}</b><span>Ouvertures</span></div><div><b>{moduleStats.email.clicked}</b><span>Clics</span></div><div><b>{moduleStats.email.failed}</b><span>Échecs</span></div></div></article>
           <article className="kpi-module-card kpi-glass-card"><div className="kpi-module-heading"><span className="kpi-module-icon whatsapp"><MessageCircle/></span><span>WhatsApp</span><small>{moduleStats.whatsapp.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.whatsapp.recipients.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Destinataires préparés</span><div className="kpi-daily-comparison"><div><span>Aujourd’hui</span><strong>{moduleStats.whatsapp.todaySent.toLocaleString('fr-FR')}</strong></div><div><span>Hier</span><strong>{moduleStats.whatsapp.yesterdaySent.toLocaleString('fr-FR')}</strong></div><span className={moduleStats.whatsapp.todaySent > moduleStats.whatsapp.yesterdaySent ? 'kpi-trend positive' : moduleStats.whatsapp.todaySent < moduleStats.whatsapp.yesterdaySent ? 'kpi-trend negative' : 'kpi-trend neutral'}><TrendingUp size={14}/>{moduleStats.whatsapp.yesterdaySent > 0 ? ((moduleStats.whatsapp.todaySent >= moduleStats.whatsapp.yesterdaySent ? '+' : '') + Math.round(((moduleStats.whatsapp.todaySent - moduleStats.whatsapp.yesterdaySent) / moduleStats.whatsapp.yesterdaySent) * 100) + '%') : (moduleStats.whatsapp.todaySent > 0 ? 'Nouveau' : '—')}</span></div><div className="kpi-module-pairs"><div><b>{moduleStats.whatsapp.campaigns}</b><span>Campagnes</span></div><div><b>{moduleStats.whatsapp.running}</b><span>En cours</span></div><div><b>{moduleStats.whatsapp.sent}</b><span>Envoyés au total</span></div><div><b>{moduleStats.whatsapp.failed}</b><span>Échecs</span></div></div></article>
