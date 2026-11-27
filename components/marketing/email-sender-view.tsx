@@ -34,11 +34,12 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
  const [activityKind,setActivityKind]=useState<string|null>(null),[activity,setActivity]=useState<Activity[]>([]),[activityLoading,setActivityLoading]=useState(false),[activitySearch,setActivitySearch]=useState('')
- const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=listes.filter(x=>listeIds.includes(x.id)),selectedTemplate=templates.find(x=>x.id===template)
- const filteredLists=useMemo(()=>listes.filter(x=>x.nom.toLowerCase().includes(listQuery.toLowerCase())),[listes,listQuery])
- const filteredSenders=useMemo(()=>active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(senderQuery.toLowerCase())),[active,senderQuery])
- const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
- const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
+ const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=useMemo(()=>listes.filter(x=>listeIds.includes(x.id)),[listes,listeIds]),selectedTemplate=templates.find(x=>x.id===template)
+ const filteredLists=useMemo(()=>{const query=listQuery.toLowerCase();return listes.filter(x=>x.nom.toLowerCase().includes(query))},[listes,listQuery])
+ const filteredSenders=useMemo(()=>{const query=senderQuery.toLowerCase();return active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(query))},[active,senderQuery])
+ const selectedSenders=useMemo(()=>active.filter(x=>smtpIds.includes(x.id)),[active,smtpIds])
+ const campaignStats=useMemo(()=>campaigns.reduce((total,campaign)=>({sent:total.sent+Number(campaign.sent_count||0),failed:total.failed+Number(campaign.failed_count||0),opened:total.opened+Number(campaign.open_count||0),clicked:total.clicked+Number(campaign.click_count||0)}),{sent:0,failed:0,opened:0,clicked:0}),[campaigns])
+ const {sent,failed,opened,clicked}=campaignStats
  async function refresh(showLoading=true){
   const requestId=++refreshRequestId.current
   if(showLoading)setLoading(true)
@@ -87,7 +88,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
    setActivity(data.details||[]);
   }catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setActivityLoading(false)}
  }
- const filteredActivity=activity.filter(item=>[item.recipient_email,item.campaign_subject,item.target_url||''].join(' ').toLowerCase().includes(activitySearch.toLowerCase()));
+ const filteredActivity=useMemo(()=>{const query=activitySearch.toLowerCase();return activity.filter(item=>[item.recipient_email,item.campaign_subject,item.target_url||''].join(' ').toLowerCase().includes(query))},[activity,activitySearch]);
  function exportActivity(){
   const rows=[['Email','Campagne','Type','Lien / motif','Date'],...filteredActivity.map(item=>[item.recipient_email,item.campaign_subject,item.event_type,item.target_url||'',item.created_at||''])];
   const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(';')).join('\r\n');
