@@ -23,9 +23,6 @@ import {
   Smartphone,
   ListTodo,
   AlertCircle,
-  Send,
-  ChevronRight,
-  RefreshCw,
 } from 'lucide-react'
 import {
   type Campagne,
@@ -288,8 +285,7 @@ export function DashboardView({
               { label: 'Campagnes en brouillon', value: diagnostic.drafts, warning: diagnostic.drafts > 0 },
               { label: 'Tâches en retard', value: moduleStats.tasks.late, warning: moduleStats.tasks.late > 0 },
               { label: 'Échecs e-mail', value: moduleStats.email.failed, warning: moduleStats.email.failed > 0 },
-              { label: 'Listes sans contact', value: listes.filter((list) => !(stats.contacts && list.id in {}).length).length, warning: false },
-            ].slice(0,3).map((item) => <div className="kpi-alert-row" key={item.label}><span className={item.warning ? 'warning' : 'ok'}/><span>{item.label}</span><strong>{item.value}</strong></div>)}
+            ].map((item) => <div className="kpi-alert-row" key={item.label}><span className={item.warning ? 'warning' : 'ok'}/><span>{item.label}</span><strong>{item.value}</strong></div>)}
             <div className="kpi-alert-foot">{diagnostic.health >= 70 ? 'Votre organisation est globalement bien suivie.' : 'Consultez les alertes et recommandations pour améliorer le suivi.'}</div>
           </article>
           <article className="kpi-main-panel kpi-recent-panel">
