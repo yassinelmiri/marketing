@@ -39,6 +39,8 @@ export function ProspectionView() {
   const [notice, setNotice] = useState('')
   const [listName, setListName] = useState('')
   const [listDescription, setListDescription] = useState('')
+  const [paginationMode, setPaginationMode] = useState('page')
+  const [filterMode, setFilterMode] = useState('query')
 
   const loadFields = useCallback(async () => {
     setLoadingFields(true); setError('')
@@ -76,7 +78,7 @@ export function ProspectionView() {
       let detectedFields: string[] = fields
       let previousFirst = ''
       while (page <= 50 && all.length < 5000) {
-        const params = new URLSearchParams({ page: String(page), pageSize: '100', filters: JSON.stringify(activeFilters) })
+        const params = new URLSearchParams({ page: String(page), pageSize: '100', filters: JSON.stringify(activeFilters), pagination: paginationMode, filterMode })
         const response = await fetch('/api/prospection?' + params.toString(), { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'La recherche a échoué.')
@@ -129,6 +131,10 @@ export function ProspectionView() {
 
       <div style={stepHeading}><span style={stepNumber}>1</span><div><h3 style={stepTitle}>Définir les caractéristiques</h3><p style={sub}>Les champs sont détectés automatiquement à partir des données renvoyées par votre API.</p></div></div>
       <div style={infoBar}><Database size={16}/> {loadingFields ? 'Analyse de la structure API…' : fields.length ? `${fields.length} champs détectés dans la réponse API` : 'En attente de la connexion API'}</div>
+      <div style={apiModes}>
+        <label style={modeLabel}>Format des filtres API<select style={control} value={filterMode} onChange={event=>setFilterMode(event.target.value)}><option value="query">field=value</option><option value="filter">filter[field]=value</option><option value="filters">filters[field]=value</option><option value="none">Filtrage local uniquement</option></select></label>
+        <label style={modeLabel}>Pagination API<select style={control} value={paginationMode} onChange={event=>setPaginationMode(event.target.value)}><option value="page">page + per_page</option><option value="pageSize">page + pageSize</option><option value="offset">limit + offset</option><option value="none">Sans pagination API</option></select></label>
+      </div>
       {suggested.length > 0 && <div style={chips}>{suggested.map(field=><span key={field} style={chip}>{fieldLabel(field)}</span>)}</div>}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin:'18px 0 10px', gap:10 }}><strong style={{fontSize:14,color:'#344054'}}>Filtres de recherche</strong><button type="button" style={secondary} disabled={!fields.length || filters.length>=15} onClick={addFilter}><Plus size={15}/> Ajouter un critère</button></div>
       {filters.length === 0 ? <div style={emptyFilter}>Aucun critère ajouté. Vous pouvez lancer une recherche sans filtre ou ajouter des caractéristiques.</div> : <div style={{display:'grid',gap:10}}>
@@ -176,6 +182,8 @@ const stepHeading:CSSProperties={display:'flex',alignItems:'center',gap:12,margi
 const stepNumber:CSSProperties={width:32,height:32,borderRadius:10,background:'#f1edff',color:'#7655d9',display:'grid',placeItems:'center',fontWeight:800}
 const stepTitle:CSSProperties={margin:0,fontSize:16,color:'#202a3d'}
 const infoBar:CSSProperties={display:'flex',alignItems:'center',gap:9,padding:'11px 13px',borderRadius:10,background:'#f7f8fc',color:'#586579',fontSize:12}
+const apiModes:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:12}
+const modeLabel:CSSProperties={display:'flex',flexDirection:'column',gap:6,color:'#536075',fontSize:12,fontWeight:650}
 const chips:CSSProperties={display:'flex',gap:7,flexWrap:'wrap',marginTop:12}
 const chip:CSSProperties={fontSize:11,padding:'5px 9px',borderRadius:20,background:'#f2efff',color:'#674ac5'}
 const emptyFilter:CSSProperties={padding:18,border:'1px dashed #d8dce6',borderRadius:10,color:'#8791a2',fontSize:13,textAlign:'center'}
