@@ -14,13 +14,10 @@ import {
   ContactRound,
   ListChecks,
   Activity,
-  AlertTriangle,
   TrendingUp,
-  MailCheck,
   Target,
   Sparkles,
   Mail,
-  Smartphone,
   ListTodo,
   AlertCircle,
 } from 'lucide-react'
@@ -105,8 +102,8 @@ export function DashboardView({
         whatsapp: {
           campaigns: whatsappCampaigns.length,
           recipients: whatsappCampaigns.reduce((sum: number, item: { total_recipients?: number }) => sum + Number(item.total_recipients || 0), 0),
-          sent: 0,
-          failed: 0,
+          sent: whatsappCampaigns.reduce((sum: number, item: { counts?: { sent?: number } }) => sum + Number(item.counts?.sent || 0), 0),
+          failed: whatsappCampaigns.reduce((sum: number, item: { counts?: { failed?: number } }) => sum + Number(item.counts?.failed || 0), 0),
           running: whatsappCampaigns.filter((item: { status?: string }) => item.status === 'in_progress').length,
           loaded: whatsappResult.status === 'fulfilled',
         },
@@ -188,77 +185,6 @@ export function DashboardView({
         </div>
         <div className="dashboard-date-chip"><CalendarDays aria-hidden="true" /> Espace de travail</div>
       </div>
-      <div className="workspace-metrics">
-        <article className="metric-card">
-          <span className="metric-icon"><BarChart3 aria-hidden="true" /></span>
-          <div><span>Campagnes totales</span><strong>{stats.total}</strong></div>
-        </article>
-        <article className="metric-card">
-          <span className="metric-icon metric-icon-progress"><Clock aria-hidden="true" /></span>
-          <div><span>En cours</span><strong>{stats.enCours}</strong></div>
-        </article>
-        <article className="metric-card">
-          <span className="metric-icon metric-icon-done"><CheckCircle2 aria-hidden="true" /></span>
-          <div><span>Terminées</span><strong>{stats.terminees}</strong></div>
-        </article>
-        <article className="metric-card">
-          <span className="metric-icon metric-icon-draft"><Pencil aria-hidden="true" /></span>
-          <div><span>Brouillons</span><strong>{stats.brouillons}</strong></div>
-        </article>
-      </div>
-
-      <div className="dashboard-secondary-metrics">
-        <article><span className="dashboard-secondary-icon"><ListChecks aria-hidden="true" /></span><div><strong>{stats.listes}</strong><span>Listes</span></div></article>
-        <article><span className="dashboard-secondary-icon"><ContactRound aria-hidden="true" /></span><div><strong>{stats.contacts}</strong><span>Contacts</span></div></article>
-        <article><span className="dashboard-secondary-icon"><UsersRound aria-hidden="true" /></span><div><strong>{stats.membres}</strong><span>Membres visibles</span></div></article>
-      </div>
-
-      <div className="workspace-panel associated-campaigns-panel">
-        <div className="workspace-panel-header">
-          <div><h2>Campagnes associées</h2><p>Les campagnes qui vous sont attribuées par l’administrateur.</p></div>
-          <span>{associatedCampaigns.length} campagne(s)</span>
-        </div>
-        {associatedCampaigns.length === 0 ? (
-          <div className="workspace-empty associated-campaigns-empty">
-            <BarChart3 aria-hidden="true" />
-            <p>Aucune campagne associée pour le moment.</p>
-            <span>Lorsqu’une campagne vous sera attribuée, elle apparaîtra ici, même sans liste de contacts.</span>
-          </div>
-        ) : (
-          <div className="associated-campaigns-list">
-            {associatedCampaigns.map((campaign) => {
-              const typeName = typeNameById.get(campaign.type_campagne_id)
-              return <article className="associated-campaign-item" key={campaign.id}>
-                <div><strong>{campaign.titre}</strong><span>{typeName ?? 'Campagne'} · {STATUS_LABELS[campaign.status]}</span>{campaign.note && <p>{campaign.note}</p>}</div>
-                <small>{formatDate(campaign.date_modification)}</small>
-              </article>
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="dashboard-overview-grid">
-        <section className="dashboard-analytics-panel">
-          <header className="dashboard-analytics-heading"><div><span className="settings-eyebrow">ANALYSE DU PROJET</span><h2>Vue d’ensemble & performance</h2><p>Indicateurs calculés à partir des données présentes dans votre espace.</p></div><span className="dashboard-live-tag"><Activity size={14}/> Actualisé</span></header>
-          <div className="dashboard-health-row">
-            <div className="dashboard-health-score"><div className="dashboard-health-ring" style={{ '--health-score': diagnostic.health } as CSSProperties}><div><strong>{diagnostic.health}</strong><span>/100</span></div></div><span>Indice de suivi</span></div>
-            <div className="dashboard-health-summary"><strong>{diagnostic.health >= 70 ? 'Projet bien suivi' : diagnostic.health >= 40 ? 'Projet à optimiser' : 'Projet à structurer'}</strong><p>Indice indicatif basé sur l’avancement, l’activité récente, la collaboration et la base contacts. Ce n’est pas une mesure de délivrabilité ou de conversion.</p><div className="dashboard-health-progress"><span style={{width: `${diagnostic.health}%`}} /></div></div>
-          </div>
-          <div className="dashboard-status-breakdown">
-            {[
-              { label: 'En cours', value: diagnostic.active, color: 'progress' },
-              { label: 'Terminées', value: diagnostic.completed, color: 'done' },
-              { label: 'Brouillons', value: diagnostic.drafts, color: 'draft' },
-              { label: 'Archivées', value: diagnostic.archived, color: 'archived' },
-            ].map((item) => <div key={item.label} className="dashboard-status-stat"><span className={`dashboard-status-dot ${item.color}`}/><span>{item.label}</span><strong>{item.value}</strong></div>)}
-          </div>
-          <div className="dashboard-analytics-metrics"><div><TrendingUp/><span>Taux de finalisation</span><strong>{diagnostic.completionRate}%</strong></div><div><Clock/><span>Activité sur 30 jours</span><strong>{diagnostic.recentCampaigns} campagne(s)</strong></div><div><MessageCircle/><span>Engagement équipe</span><strong>{commentaires.length} commentaire(s)</strong></div><div><Target/><span>Contacts / liste</span><strong>{stats.listes ? Math.round(stats.contacts / stats.listes).toLocaleString('fr-FR') : '—'}</strong></div></div>
-        </section>
-        <section className="dashboard-diagnostic-panel">
-          <header className="dashboard-analytics-heading"><div><span className="settings-eyebrow">DIAGNOSTIC</span><h2>Recommandations</h2><p>Points d’attention pour améliorer votre organisation.</p></div><Sparkles size={19}/></header>
-          <div className="dashboard-findings">{diagnostic.findings.map((finding, i) => <article key={i} className={`dashboard-finding ${finding.tone}`}><span className="dashboard-finding-icon">{finding.tone === 'warn' ? <AlertTriangle/> : finding.tone === 'good' ? <CheckCircle2/> : <Activity/>}</span><div><strong>{finding.title}</strong><p>{finding.detail}</p></div></article>)}</div>
-        </section>
-      </div>
 
       <section className="kpi-command-center">
         <div className="kpi-command-header">
@@ -296,7 +222,7 @@ export function DashboardView({
         </div>
         <div className="kpi-module-grid">
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon email"><Mail/></span><span>Email</span><small>{moduleStats.email.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.email.sent.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Emails envoyés</span><div className="kpi-module-pairs"><div><b>{moduleStats.email.campaigns}</b><span>Campagnes</span></div><div><b>{moduleStats.email.opened}</b><span>Ouvertures</span></div><div><b>{moduleStats.email.clicked}</b><span>Clics</span></div><div><b>{moduleStats.email.failed}</b><span>Échecs</span></div></div></article>
-          <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon whatsapp"><MessageCircle/></span><span>WhatsApp</span><small>{moduleStats.whatsapp.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.whatsapp.recipients.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Destinataires préparés</span><div className="kpi-module-pairs"><div><b>{moduleStats.whatsapp.campaigns}</b><span>Campagnes</span></div><div><b>{moduleStats.whatsapp.running}</b><span>En cours</span></div><div><b>—</b><span>Envoyés*</span></div><div><b>—</b><span>Échecs*</span></div></div></article>
+          <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon whatsapp"><MessageCircle/></span><span>WhatsApp</span><small>{moduleStats.whatsapp.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.whatsapp.recipients.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Destinataires préparés</span><div className="kpi-module-pairs"><div><b>{moduleStats.whatsapp.campaigns}</b><span>Campagnes</span></div><div><b>{moduleStats.whatsapp.running}</b><span>En cours</span></div><div><b>{moduleStats.whatsapp.sent}</b><span>Envoyés</span></div><div><b>{moduleStats.whatsapp.failed}</b><span>Échecs</span></div></div></article>
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon tasks"><ListTodo/></span><span>Tasks</span><small>{moduleStats.tasks.loaded ? 'Connecté' : 'Indisponible'}</small></div><strong className="kpi-module-value">{moduleStats.tasks.open.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Tâches à suivre</span><div className="kpi-module-pairs"><div><b>{moduleStats.tasks.total}</b><span>Total</span></div><div><b>{moduleStats.tasks.done}</b><span>Terminées</span></div><div><b>{moduleStats.tasks.late}</b><span>En retard</span></div><div><b>{teamUsers.length}</b><span>Membres</span></div></div></article>
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon database"><UsersRound/></span><span>Contacts & listes</span><small>CRM</small></div><strong className="kpi-module-value">{stats.contacts.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Contacts enregistrés</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes</span></div><div><b>{teamUsers.length}</b><span>Membres</span></div><div><b>{commentaires.length}</b><span>Commentaires</span></div><div><b>{campagneMembres.length}</b><span>Affectations</span></div></div></article>
         </div>
