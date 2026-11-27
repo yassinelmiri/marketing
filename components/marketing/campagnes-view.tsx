@@ -12,6 +12,7 @@ import {
 } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
+import { buildCampaignListNameIndex, getCampaignsVisibleToUser } from '@/lib/campaigns/view-utils'
 
 interface CampagnesViewProps {
   user: User
@@ -73,23 +74,19 @@ export function CampagnesView({
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
   const typeNameById = useMemo(() => new Map(localTypes.map((type) => [type.id, type.nom])), [localTypes])
   const listNameById = useMemo(() => new Map(localListes.map((list) => [list.id, list.nom])), [localListes])
-  const linkedListNamesByCampaignId = useMemo(() => {
-    const names = new Map<number, string[]>()
-    for (const link of campaignListLinks) {
-      const current = names.get(link.campagne_id) ?? []
-      const listName = listNameById.get(link.liste_id)
-      if (listName) current.push(listName)
-      names.set(link.campagne_id, current)
-    }
-    return new Map([...names].map(([id, values]) => [id, values.join(' ')]))
-  }, [campaignListLinks, listNameById])
-  const assignedCampaignIds = useMemo(
-    () => new Set(campagneMembres.filter((assignment) => assignment.user_id === user.id).map((assignment) => assignment.campagne_id)),
-    [campagneMembres, user.id],
+  const linkedListNamesByCampaignId = useMemo(
+    () => buildCampaignListNameIndex(campaignListLinks, localListes),
+    [campaignListLinks, localListes],
   )
-  const campaignsVisibleToUser = user.role_id === 1
-    ? (Array.isArray(campagnes) ? campagnes : [])
-    : (Array.isArray(campagnes) ? campagnes : []).filter((campaign) => assignedCampaignIds.has(campaign.id))
+  const campaignsVisibleToUser = useMemo(
+    () => getCampaignsVisibleToUser(
+      Array.isArray(campagnes) ? campagnes : [],
+      campagneMembres,
+      Number(user.id),
+      Number(user.role_id) === 1,
+    ),
+    [campagnes, campagneMembres, user.id, user.role_id],
+  )
   const filtered = useMemo(() => campaignsVisibleToUser.filter((campaign) => {
     const matchesStatus = filter === 'all' || campaign.status === filter
     if (!matchesStatus) return false
