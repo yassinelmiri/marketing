@@ -4,7 +4,7 @@ import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,
 import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
-import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue, formatDateValue } from '@/lib/email/view-utils'
+import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue } from '@/lib/email/view-utils'
 import {
  EMPTY_SMTP_FORM,
  campaignDateToInput,
