@@ -15,6 +15,7 @@ export type ViewKey =
   | 'email'
   | 'sms'
   | 'admin-users'
+  | 'alerts'
   | 'settings'
 
 /**
