@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -71,22 +72,7 @@ function getAdminClientOrNull() {
   }
 }
 
-function checkRequestOrigin(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) {
-    return NextResponse.json({ error: 'En-tête Origin manquant.' }, { status: 403 })
-  }
 
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 })
-  }
-
-  return null
-}
 
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -177,7 +163,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()
@@ -261,7 +247,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()
@@ -379,7 +365,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()
