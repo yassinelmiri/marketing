@@ -7,10 +7,10 @@ import {
 } from 'lucide-react'
 import { parseWhatsAppImportFile, type WhatsAppImportContact, type WhatsAppContactStatus } from '@/lib/whatsapp/file-parser'
 import { getWhatsAppContactStats } from '@/lib/whatsapp/view-utils'
+import { useWhatsAppCampaigns } from '@/hooks/use-whatsapp-campaigns'
 
 type ContactStatus = WhatsAppContactStatus
 type WhatsAppContact = WhatsAppImportContact
-import { useWhatsAppCampaigns } from '@/hooks/use-whatsapp-campaigns'
 
 export function WhatsAppBotView() {
   const fileInput = useRef<HTMLInputElement>(null)
