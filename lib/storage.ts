@@ -59,6 +59,8 @@ export interface Contact {
   address: string
   code_postal: string
   ville: string
+  pays?: string | null
+  age?: number | null
   email: string
   profile: string
   date_creation: string

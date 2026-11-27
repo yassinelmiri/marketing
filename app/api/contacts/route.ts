@@ -6,7 +6,7 @@ import { sameOriginError } from '@/lib/api/request-security'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const CONTACT_COLUMNS = 'id,nom,prenom,reseau_social,telephone,mobile,address,code_postal,ville,email,profile,date_creation,date_modification,created_by,commentaire'
+const CONTACT_COLUMNS = 'id,nom,prenom,reseau_social,telephone,mobile,address,code_postal,ville,pays,age,email,profile,date_creation,date_modification,created_by,commentaire'
 
 async function authorize() {
   const supabase = await createClient()
