@@ -287,7 +287,7 @@
 .dashboard-live-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid rgba(34,197,94,.2);border-radius:999px;background:rgba(34,197,94,.07);color:#4ade80;font-size:10px;font-weight:700;white-space:nowrap}
 .dashboard-health-row{display:flex;align-items:center;gap:20px;padding:18px;border:1px solid rgba(59,130,246,.16);border-radius:16px;background:linear-gradient(120deg,rgba(37,99,235,.09),rgba(139,92,246,.045))}
 .dashboard-health-score{display:grid;justify-items:center;gap:8px;flex:none;color:var(--workspace-muted,#94a3b8);font-size:10px;font-weight:700}
-.dashboard-health-ring{width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#3b82f6 calc(var(--health-score)*1%),rgba(148,163,184,.14) 0);position:relative}
+.dashboard-health-ring{width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#3b82f6 var(--health-score),rgba(148,163,184,.14) 0);position:relative}
 .dashboard-health-ring:before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--workspace-panel,#0f172a)}
 .dashboard-health-ring>div{position:relative;display:flex;align-items:baseline;gap:2px}.dashboard-health-ring strong{font-size:26px;font-weight:850;color:var(--workspace-text,#f1f5f9)}.dashboard-health-ring span{font-size:10px;color:var(--workspace-muted,#94a3b8)}
 .dashboard-health-summary{min-width:0;flex:1}.dashboard-health-summary>strong{font-size:15px;font-weight:800}.dashboard-health-summary p{margin:6px 0 12px;color:var(--workspace-muted,#94a3b8);font-size:11px;line-height:1.55}
