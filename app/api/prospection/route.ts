@@ -190,17 +190,24 @@ export async function POST(request: NextRequest) {
     }).select('id').single()
     if (listResult.error || !listResult.data) throw listResult.error || new Error('Création de la liste impossible.')
     const listId = Number(listResult.data.id)
+    const mapping = body.mapping && typeof body.mapping === 'object' && !Array.isArray(body.mapping)
+      ? body.mapping as Record<string, string>
+      : {}
     const rows = body.records.map((record: any) => {
       const values = flatten(record)
+      const valueByNormalizedKey = new Map<string, string>()
+      for (const [key, value] of Object.entries(values)) {
+        const normalizedKey = key.toLowerCase()
+        if (!valueByNormalizedKey.has(normalizedKey)) valueByNormalizedKey.set(normalizedKey, value)
+      }
       const get = (mappedField: string | undefined, ...names: string[]) => {
         const candidates = [mappedField, ...names].filter((name): name is string => Boolean(name))
         for (const name of candidates) {
-          const key = Object.keys(values).find(k => k.toLowerCase() === name.toLowerCase())
-          if (key && values[key]) return values[key].slice(0, 500)
+          const value = valueByNormalizedKey.get(name.toLowerCase())
+          if (value) return value.slice(0, 500)
         }
         return ''
       }
-      const mapping = body.mapping && typeof body.mapping === 'object' ? body.mapping as Record<string, string> : {}
       const fullName = get(mapping.name, 'name', 'nom', 'full_name', 'fullname', 'contact_name')
       const firstName = get(mapping.firstName, 'first_name', 'firstname', 'prenom', 'given_name')
       const lastName = get(mapping.lastName, 'last_name', 'lastname', 'surname', 'family_name')
