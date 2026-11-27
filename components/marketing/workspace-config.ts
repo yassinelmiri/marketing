@@ -5,6 +5,7 @@ import {
   MessageCircle,
   Settings,
   ShieldCheck,
+  BellRing,
   Smartphone,
   Users,
   ListTodo,
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavigationItem[] = [
   { key: 'whatsapp', label: 'Campagnes WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
   { key: 'sms', label: 'SMS', icon: Smartphone },
+  { key: 'alerts', label: 'Alertes & incidents', icon: BellRing, adminOnly: true },
   { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
   { key: 'settings', label: 'Paramètres', icon: Settings },
 ]
@@ -65,6 +67,10 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
   sms: {
     title: 'Envoi SMS',
     subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
+  },
+  alerts: {
+    title: 'Alertes & incidents',
+    subtitle: 'Surveillez les services, les erreurs techniques et les points à traiter.',
   },
   'admin-users': {
     title: 'Administration',
