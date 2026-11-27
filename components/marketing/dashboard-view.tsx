@@ -246,35 +246,6 @@ export function DashboardView({
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
           {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong><span>{member.email}</span></td><td>{teamRoles.find((role) => role.id === member.role_id)?.nom ?? '—'}</td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
         </section>
-        <div className="kpi-analytics-grid">
-          <article className="kpi-chart-card">
-            <div className="kpi-panel-title"><div><strong>Volume des envois</strong><span>Comparaison des canaux · aujourd’hui / hier</span></div><TrendingUp /></div>
-            {[
-              { label: 'E-mail', today: moduleStats.email.todaySent, yesterday: moduleStats.email.yesterdaySent, tone: 'email' },
-              { label: 'WhatsApp', today: moduleStats.whatsapp.todaySent, yesterday: moduleStats.whatsapp.yesterdaySent, tone: 'whatsapp' },
-            ].map((item) => {
-              const max = Math.max(item.today, item.yesterday, 1)
-              return <div className="kpi-channel-chart" key={item.label}>
-                <div className="kpi-channel-chart-heading"><strong>{item.label}</strong><span>Aujourd’hui <b>{item.today.toLocaleString('fr-FR')}</b> · Hier <b>{item.yesterday.toLocaleString('fr-FR')}</b></span></div>
-                <div className="kpi-chart-track"><i className={item.tone} style={{ width: `${item.today / max * 100}%` }} /></div>
-                <div className="kpi-chart-track yesterday"><i style={{ width: `${item.yesterday / max * 100}%` }} /></div>
-              </div>
-            })}
-            <div className="kpi-chart-legend"><span><i className="today"/> Aujourd’hui</span><span><i className="yesterday"/> Hier</span></div>
-          </article>
-          <article className="kpi-chart-card">
-            <div className="kpi-panel-title"><div><strong>Répartition des campagnes</strong><span>Vue synthétique par statut</span></div><Target /></div>
-            <div className="kpi-status-chart">
-              <div className="kpi-status-ring" style={{ background: `conic-gradient(#18b6a4 0% ${diagnostic.total ? diagnostic.active / diagnostic.total * 100 : 0}%, #5c7cfa ${diagnostic.total ? diagnostic.active / diagnostic.total * 100 : 0}% ${diagnostic.total ? (diagnostic.active + diagnostic.completed) / diagnostic.total * 100 : 0}%, #a78bfa ${diagnostic.total ? (diagnostic.active + diagnostic.completed) / diagnostic.total * 100 : 0}% ${diagnostic.total ? (diagnostic.active + diagnostic.completed + diagnostic.drafts) / diagnostic.total * 100 : 0}%, #e2e8f0 ${diagnostic.total ? (diagnostic.active + diagnostic.completed + diagnostic.drafts) / diagnostic.total * 100 : 0}% 100%)` }}><div><strong>{diagnostic.total}</strong><span>Campagnes</span></div></div>
-              <div className="kpi-status-legend">
-                <span><i className="active"/> En cours <b>{diagnostic.active}</b></span>
-                <span><i className="completed"/> Terminées <b>{diagnostic.completed}</b></span>
-                <span><i className="draft"/> Brouillons <b>{diagnostic.drafts}</b></span>
-                <span><i className="archived"/> Archivées <b>{diagnostic.archived}</b></span>
-              </div>
-            </div>
-          </article>
-        </div>
       </section> : <section className="dashboard-member-overview">
         <div className="dashboard-member-card"><span>Mes campagnes</span><strong>{dashboardCampaigns.length}</strong><small>Créées ou affectées à votre compte</small></div>
         <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'en_cours').length}</strong><small>Campagnes actives</small></div>
