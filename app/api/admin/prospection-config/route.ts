@@ -18,16 +18,6 @@ function encryptSecret(secret: string) {
   return [iv.toString('base64'), cipher.getAuthTag().toString('base64'), encrypted.toString('base64')].join('.')
 }
 
-function decryptSecret(value: string) {
-  const rawKey = process.env.PROSPECTION_CONFIG_ENCRYPTION_KEY
-  if (!rawKey) throw new Error('Clé de chiffrement non configurée.')
-  const key = Buffer.from(rawKey, 'base64')
-  if (key.length !== 32) throw new Error('Clé de chiffrement invalide.')
-  const [iv, tag, encrypted] = value.split('.')
-  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'))
-  decipher.setAuthTag(Buffer.from(tag, 'base64'))
-  return Buffer.concat([decipher.update(Buffer.from(encrypted, 'base64')), decipher.final()]).toString('utf8')
-}
 
 async function authorizeAdmin() {
   const session = await createClient()
