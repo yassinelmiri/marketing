@@ -171,7 +171,7 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
         <span style={{fontSize:12,color:'#7b8494'}}>Maximum 5 000 contacts par préparation.</span>
       </div>
 
-      {searching && <div style={progressPanel} role="status" aria-live="polite">
+      {(searching || (result !== null && preparationProgress === 100)) && <div style={progressPanel} role="status" aria-live="polite">
         <div style={progressCircleWrap}>
           <svg width="76" height="76" viewBox="0 0 76 76" aria-label={`Préparation à ${preparationProgress}%`}>
             <circle cx="38" cy="38" r="31" fill="none" stroke="#ece9f8" strokeWidth="7" />
@@ -179,7 +179,7 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
             <text x="38" y="42" textAnchor="middle" fill="#263047" fontSize="15" fontWeight="700">{preparationProgress}%</text>
           </svg>
         </div>
-        <div style={{flex:1,minWidth:180}}><strong style={{fontSize:14,color:'#263047'}}>Préparation de votre audience…</strong><p style={{...sub,marginTop:4}}>Page {preparationPage} · Les données sont récupérées et analysées.</p><p style={{...sub,marginTop:3}}>Vous pouvez continuer à utiliser les autres modules : la préparation continue en arrière-plan.</p></div>
+        <div style={{flex:1,minWidth:180}}><strong style={{fontSize:14,color:'#263047'}}>{preparationProgress === 100 ? 'Préparation terminée !' : 'Préparation de votre audience…'}</strong><p style={{...sub,marginTop:4}}>{preparationProgress === 100 ? `${result?.records.length.toLocaleString('fr-FR') ?? 0} contacts prêts à être enregistrés.` : `Page ${preparationPage} · Les données sont récupérées et analysées.`}</p><p style={{...sub,marginTop:3}}>{preparationProgress === 100 ? 'Vous pouvez maintenant consulter les résultats et enregistrer la liste.' : 'Vous pouvez continuer à utiliser les autres modules : la préparation continue en arrière-plan.'}</p></div>
       </div>}
 
       {error && <div role="alert" style={errorBox}>{error}</div>}
