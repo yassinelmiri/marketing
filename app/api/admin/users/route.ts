@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -71,22 +72,7 @@ function getAdminClientOrNull() {
   }
 }
 
-function checkRequestOrigin(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) {
-    return NextResponse.json({ error: 'En-tête Origin manquant.' }, { status: 403 })
-  }
 
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 })
-  }
-
-  return null
-}
 
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -133,18 +119,35 @@ export async function GET() {
       )
     }
 
+    const permissionIdsByCode = new Map(
+      (permissions ?? []).map((permission) => [permission.code, Number(permission.id)]),
+    )
+    const rolePermissionIdsByRole = new Map<number, Set<number>>()
+    for (const link of roleLinks ?? []) {
+      const roleId = Number(link.role_id)
+      const permissionId = Number(link.permission_id)
+      const rolePermissionIds = rolePermissionIdsByRole.get(roleId) ?? new Set<number>()
+      rolePermissionIds.add(permissionId)
+      rolePermissionIdsByRole.set(roleId, rolePermissionIds)
+    }
+
+    const userPermissionOverrides = new Map<number, Map<number, boolean>>()
+    for (const link of userLinks ?? []) {
+      const userId = Number(link.user_id)
+      const permissionId = Number(link.permission_id)
+      const overrides = userPermissionOverrides.get(userId) ?? new Map<number, boolean>()
+      overrides.set(permissionId, Boolean(link.granted))
+      userPermissionOverrides.set(userId, overrides)
+    }
+
     const usersWithPermissions = (users ?? []).map((user) => {
-      const inheritedIds = new Set((roleLinks ?? [])
-        .filter((link) => Number(link.role_id) === Number(user.role_id))
-        .map((link) => Number(link.permission_id)))
-      const overrides = new Map((userLinks ?? [])
-        .filter((link) => Number(link.user_id) === Number(user.id))
-        .map((link) => [Number(link.permission_id), Boolean(link.granted)]))
+      const inheritedIds = rolePermissionIdsByRole.get(Number(user.role_id))
+      const overrides = userPermissionOverrides.get(Number(user.id))
       const effectivePermissions = MODULE_PERMISSION_CODES.filter((code) => {
-        const permission = (permissions ?? []).find((item) => item.code === code)
-        if (!permission) return false
-        const permissionId = Number(permission.id)
-        return overrides.has(permissionId) ? overrides.get(permissionId) === true : inheritedIds.has(permissionId)
+        const permissionId = permissionIdsByCode.get(code)
+        if (permissionId === undefined) return false
+        if (overrides?.has(permissionId)) return overrides.get(permissionId) === true
+        return inheritedIds?.has(permissionId) ?? false
       })
       return { ...user, permissions: effectivePermissions }
     })
@@ -160,7 +163,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()
@@ -244,7 +247,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()
@@ -362,7 +365,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const originError = checkRequestOrigin(request)
+  const originError = sameOriginError(request, { missing: 'En-tête Origin manquant.', forbidden: 'Origine non autorisée.' })
   if (originError) return originError
 
   const result = await requireAdmin()

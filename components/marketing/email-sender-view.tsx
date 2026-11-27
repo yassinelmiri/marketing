@@ -4,6 +4,7 @@ import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,
 import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
+import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue, formatDateValue } from '@/lib/email/view-utils'
 import {
  EMPTY_SMTP_FORM,
  campaignDateToInput,
@@ -16,27 +17,7 @@ import {
 } from '@/lib/email/types'
 const tabs=[['dashboard','Dashboard',LayoutDashboard],['campaigns','Campagnes',Send],['lists','Listes',Users],['templates','Templates',FileText],['senders','Expéditeurs',Server],['unsubscribes','Désabonnements',Ban]] as const
 
-function normalizeText(value:unknown):string{
- if(typeof value==='string')return value
- if(typeof value==='number'||typeof value==='boolean')return String(value)
- if(value&&typeof value==='object'&&'message' in value)return normalizeText((value as {message?:unknown}).message)
- return ''
-}
-function normalizeTemplate(value:unknown):Template{
- const item=value&&typeof value==='object'?value as Record<string,unknown>:{}
- return {id:Number(item.id)||0,name:normalizeText(item.name),subject:normalizeText(item.subject),html_content:normalizeText(item.html_content),created_at:normalizeText(item.created_at)} as Template
-}
-function escapeTemplateText(value:string){
- return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char))
-}
-function composeTemplateHtml(templateHtml:string,body:string){
- const safeBody=escapeTemplateText(body).replace(/\r?\n/g,'<br/>')
- if(templateHtml.includes('{{message}}'))return templateHtml.split('{{message}}').join(safeBody)
- const contentBlock='<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#334155;padding:20px 24px;">'+safeBody+'</div>'
- const closingBody='</body>'
- const closingIndex=templateHtml.toLowerCase().lastIndexOf(closingBody)
- return closingIndex>=0?templateHtml.slice(0,closingIndex)+contentBlock+templateHtml.slice(closingIndex):templateHtml+contentBlock
-}
+
 
 export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:ListeContact[];contactListCounts:Record<number,number>;isAdmin:boolean}){
  const [tab,setTab]=useState('dashboard'),[editingId,setEditingId]=useState<number|null>(null),[accounts,setAccounts]=useState<SMTP[]>([]),[campaigns,setCampaigns]=useState<Campaign[]>([]),[templates,setTemplates]=useState<Template[]>([]),[unsubs,setUnsubs]=useState<Unsub[]>([])
@@ -53,11 +34,12 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
  const [activityKind,setActivityKind]=useState<string|null>(null),[activity,setActivity]=useState<Activity[]>([]),[activityLoading,setActivityLoading]=useState(false),[activitySearch,setActivitySearch]=useState('')
- const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=listes.filter(x=>listeIds.includes(x.id)),selectedTemplate=templates.find(x=>x.id===template)
- const filteredLists=useMemo(()=>listes.filter(x=>x.nom.toLowerCase().includes(listQuery.toLowerCase())),[listes,listQuery])
- const filteredSenders=useMemo(()=>active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(senderQuery.toLowerCase())),[active,senderQuery])
- const selectedSenders=active.filter(x=>smtpIds.includes(x.id))
- const sent=campaigns.reduce((n,x)=>n+Number(x.sent_count||0),0),failed=campaigns.reduce((n,x)=>n+Number(x.failed_count||0),0),opened=campaigns.reduce((n,x)=>n+Number(x.open_count||0),0),clicked=campaigns.reduce((n,x)=>n+Number(x.click_count||0),0)
+ const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=useMemo(()=>listes.filter(x=>listeIds.includes(x.id)),[listes,listeIds]),selectedTemplate=templates.find(x=>x.id===template)
+ const filteredLists=useMemo(()=>{const query=listQuery.toLowerCase();return listes.filter(x=>x.nom.toLowerCase().includes(query))},[listes,listQuery])
+ const filteredSenders=useMemo(()=>{const query=senderQuery.toLowerCase();return active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(query))},[active,senderQuery])
+ const selectedSenders=useMemo(()=>active.filter(x=>smtpIds.includes(x.id)),[active,smtpIds])
+ const campaignStats=useMemo(()=>campaigns.reduce((total,campaign)=>({sent:total.sent+Number(campaign.sent_count||0),failed:total.failed+Number(campaign.failed_count||0),opened:total.opened+Number(campaign.open_count||0),clicked:total.clicked+Number(campaign.click_count||0)}),{sent:0,failed:0,opened:0,clicked:0}),[campaigns])
+ const {sent,failed,opened,clicked}=campaignStats
  async function refresh(showLoading=true){
   const requestId=++refreshRequestId.current
   if(showLoading)setLoading(true)
@@ -96,21 +78,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
    refreshRequestId.current++
   }
  },[])
- function displayMessage(value:unknown,fallback='Une erreur est survenue'):string{
- if(typeof value==='string')return value
- if(value instanceof Error)return value.message
- if(value&&typeof value==='object'&&'message' in value){const message=(value as {message?:unknown}).message;return typeof message==='string'?message:fallback}
- return fallback
-}
-function displayValue(value:unknown,fallback='—'):string{
- if(value===null||value===undefined||value==='')return fallback
- if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value)
- if(value instanceof Error)return value.message
- if(typeof value==='object'&&'message' in value)return displayValue((value as {message?:unknown}).message,fallback)
- try{return JSON.stringify(value)??fallback}catch{return fallback}
-}
-function flash(value:unknown){setNotice(displayMessage(value,'Opération terminée'));window.setTimeout(()=>setNotice(''),3000)}
-function formatDateValue(value:unknown):string{const normalized=normalizeText(value);if(!normalized)return '—';const date=new Date(normalized);return Number.isNaN(date.getTime())?'—':date.toLocaleString('fr-FR')}
+ function flash(value:unknown){setNotice(displayMessage(value,'Opération terminée'));window.setTimeout(()=>setNotice(''),3000)}
  async function openActivity(kind:string){
   setActivityKind(kind);setActivitySearch('');setActivityLoading(true);setActivity([]);
   try{
@@ -120,7 +88,7 @@ function formatDateValue(value:unknown):string{const normalized=normalizeText(va
    setActivity(data.details||[]);
   }catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setActivityLoading(false)}
  }
- const filteredActivity=activity.filter(item=>[item.recipient_email,item.campaign_subject,item.target_url||''].join(' ').toLowerCase().includes(activitySearch.toLowerCase()));
+ const filteredActivity=useMemo(()=>{const query=activitySearch.toLowerCase();return activity.filter(item=>[item.recipient_email,item.campaign_subject,item.target_url||''].join(' ').toLowerCase().includes(query))},[activity,activitySearch]);
  function exportActivity(){
   const rows=[['Email','Campagne','Type','Lien / motif','Date'],...filteredActivity.map(item=>[item.recipient_email,item.campaign_subject,item.event_type,item.target_url||'',item.created_at||''])];
   const csv=rows.map(row=>row.map(value=>'\"'+String(value).replace(/\"/g,'\"\"')+'\"').join(';')).join('\r\n');

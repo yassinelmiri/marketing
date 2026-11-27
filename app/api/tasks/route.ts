@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -124,20 +125,7 @@ function cleanText(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function originCheck(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origin manquant.' }, { status: 403 })
 
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origin refusé.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origin invalide.' }, { status: 403 })
-  }
-
-  return null
-}
 
 export async function GET() {
   const result = await access()
@@ -153,24 +141,26 @@ export async function GET() {
   if (taskError) return NextResponse.json({ error: 'Chargement des tâches impossible.' }, { status: 500 })
 
   const taskIds = (tasks ?? []).map((task) => Number(task.id))
-  const { data: assignments, error: assignmentError } = taskIds.length
-    ? await admin.from('task_assignments').select('task_id,user_id').in('task_id', taskIds)
-    : { data: [], error: null }
+  const [assignmentResult, memberResult] = await Promise.all([
+    taskIds.length
+      ? admin.from('task_assignments').select('task_id,user_id').in('task_id', taskIds)
+      : Promise.resolve({ data: [], error: null }),
+    isAdmin
+      ? admin.from('user_profiles').select('id,prenom,nom,email').order('prenom')
+      : Promise.resolve({ data: [] }),
+  ])
+  const { data: assignments, error: assignmentError } = assignmentResult
 
   if (assignmentError) {
     return NextResponse.json({ error: 'Chargement des affectations impossible.' }, { status: 500 })
   }
 
   const memberIds = Array.from(new Set((assignments ?? []).map((assignment) => Number(assignment.user_id))))
-  const { data: assignedProfiles } = memberIds.length
+  const { data: assignedProfiles } = !isAdmin && memberIds.length
     ? await admin.from('user_profiles').select('id,prenom,nom,email').in('id', memberIds)
     : { data: [] }
 
-  const { data: allMembers } = isAdmin
-    ? await admin.from('user_profiles').select('id,prenom,nom,email').order('prenom')
-    : { data: [] }
-
-  const profiles = isAdmin ? (allMembers ?? []) : (assignedProfiles ?? [])
+  const profiles = isAdmin ? (memberResult.data ?? []) : (assignedProfiles ?? [])
   const profileById = new Map((profiles ?? []).map((member) => [Number(member.id), member]))
   const assigneesByTask = new Map<number, number[]>()
 
@@ -200,7 +190,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()
@@ -300,7 +290,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()
@@ -434,7 +424,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()

@@ -29,6 +29,7 @@ import {
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
+import { buildDashboardModuleStats, createEmptyDashboardModuleStats, buildCampaignDiagnostic, type DashboardModuleStats } from '@/lib/dashboard/view-utils'
 
 interface DashboardViewProps {
   user: User
@@ -57,15 +58,7 @@ export function DashboardView({
   const isAdmin = Number(user.role_id) === 1
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
-  const [moduleStats, setModuleStats] = useState<{
-    email: { campaigns: number; sent: number; failed: number; opened: number; clicked: number; running: number; todaySent: number; yesterdaySent: number; loaded: boolean }
-    whatsapp: { campaigns: number; recipients: number; sent: number; failed: number; running: number; todaySent: number; yesterdaySent: number; loaded: boolean }
-    tasks: { total: number; open: number; done: number; late: number; loaded: boolean }
-  }>({
-    email: { campaigns: 0, sent: 0, failed: 0, opened: 0, clicked: 0, running: 0, todaySent: 0, yesterdaySent: 0, loaded: false },
-    whatsapp: { campaigns: 0, recipients: 0, sent: 0, failed: 0, running: 0, todaySent: 0, yesterdaySent: 0, loaded: false },
-    tasks: { total: 0, open: 0, done: 0, late: 0, loaded: false },
-  })
+  const [moduleStats, setModuleStats] = useState<DashboardModuleStats>(createEmptyDashboardModuleStats())
   const [moduleError, setModuleError] = useState('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [systemHealth, setSystemHealth] = useState<{
@@ -98,39 +91,11 @@ export function DashboardView({
         }),
       ])
       if (!active) return
-      const emailCampaigns = emailResult.status === 'fulfilled' ? (emailResult.value.campaigns ?? []) : []
-      const whatsappCampaigns = whatsappResult.status === 'fulfilled' ? (whatsappResult.value.campaigns ?? []) : []
-      const tasks = tasksResult.status === 'fulfilled' ? (tasksResult.value.tasks ?? []) : []
-      setModuleStats({
-        email: {
-          campaigns: emailCampaigns.length,
-          sent: emailCampaigns.reduce((sum: number, item: { sent_count?: number }) => sum + Number(item.sent_count || 0), 0),
-          failed: emailCampaigns.reduce((sum: number, item: { failed_count?: number }) => sum + Number(item.failed_count || 0), 0),
-          opened: emailCampaigns.reduce((sum: number, item: { open_count?: number }) => sum + Number(item.open_count || 0), 0),
-          clicked: emailCampaigns.reduce((sum: number, item: { click_count?: number }) => sum + Number(item.click_count || 0), 0),
-          running: emailCampaigns.filter((item: { status?: string }) => ['sending', 'processing', 'running'].includes(String(item.status))).length,
-          todaySent: Number(emailResult.status === 'fulfilled' ? emailResult.value.daily_stats?.today_sent ?? 0 : 0),
-          yesterdaySent: Number(emailResult.status === 'fulfilled' ? emailResult.value.daily_stats?.yesterday_sent ?? 0 : 0),
-          loaded: emailResult.status === 'fulfilled',
-        },
-        whatsapp: {
-          campaigns: whatsappCampaigns.length,
-          recipients: whatsappCampaigns.reduce((sum: number, item: { total_recipients?: number }) => sum + Number(item.total_recipients || 0), 0),
-          sent: whatsappCampaigns.reduce((sum: number, item: { counts?: { sent?: number } }) => sum + Number(item.counts?.sent || 0), 0),
-          failed: whatsappCampaigns.reduce((sum: number, item: { counts?: { failed?: number } }) => sum + Number(item.counts?.failed || 0), 0),
-          running: whatsappCampaigns.filter((item: { status?: string }) => item.status === 'in_progress').length,
-          todaySent: Number(whatsappResult.status === 'fulfilled' ? whatsappResult.value.daily_stats?.today_sent ?? 0 : 0),
-          yesterdaySent: Number(whatsappResult.status === 'fulfilled' ? whatsappResult.value.daily_stats?.yesterday_sent ?? 0 : 0),
-          loaded: whatsappResult.status === 'fulfilled',
-        },
-        tasks: {
-          total: tasks.length,
-          open: tasks.filter((item: { status?: string }) => item.status !== 'done').length,
-          done: tasks.filter((item: { status?: string }) => item.status === 'done').length,
-          late: tasks.filter((item: { status?: string; due_date?: string | null }) => item.status !== 'done' && item.due_date && new Date(String(item.due_date) + 'T23:59:59').getTime() < Date.now()).length,
-          loaded: tasksResult.status === 'fulfilled',
-        },
-      })
+      setModuleStats(buildDashboardModuleStats({
+        email: emailResult.status === 'fulfilled' ? emailResult.value : null,
+        whatsapp: whatsappResult.status === 'fulfilled' ? whatsappResult.value : null,
+        tasks: tasksResult.status === 'fulfilled' ? tasksResult.value : null,
+      }))
       const failures = [emailResult, whatsappResult, tasksResult].filter((result) => result.status === 'rejected').length
       setModuleError(failures ? `${failures} module(s) n'ont pas pu charger leurs statistiques selon vos accès.` : '')
       setLastUpdated(new Date())
@@ -200,33 +165,10 @@ export function DashboardView({
     () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
     [campagnes, assignedCampaignIds],
   )
-  const diagnostic = useMemo(() => {
-    const total = campagnes.length
-    const active = campagnes.filter((c) => c.status === 'en_cours').length
-    const completed = campagnes.filter((c) => c.status === 'terminee').length
-    const drafts = campagnes.filter((c) => c.status === 'brouillon').length
-    const archived = campagnes.filter((c) => c.status === 'archivee').length
-    const completionRate = total ? Math.round((completed / total) * 100) : 0
-    const activeRate = total ? Math.round((active / total) * 100) : 0
-    const commentsCount = commentaires.length
-    const recentCampaigns = campagnes.filter((c) => {
-      const date = new Date(c.date_modification).getTime()
-      return Number.isFinite(date) && Date.now() - date <= 30 * 24 * 60 * 60 * 1000
-    }).length
-    const health = total === 0 ? 0 : Math.min(100, Math.round(
-      (completionRate * 0.45) + (Math.min(recentCampaigns / total, 1) * 25) + (Math.min(commentsCount / total, 1) * 15) + (Math.min(stats.contacts / Math.max(stats.listes, 1) / 10, 1) * 15),
-    ))
-    const findings: { tone: 'good' | 'warn' | 'info'; title: string; detail: string }[] = []
-    if (!total) findings.push({ tone: 'info', title: 'Démarrage du projet', detail: 'Aucune campagne encore créée. Créez une campagne pour commencer à suivre les performances.' })
-    else if (drafts > active + completed) findings.push({ tone: 'warn', title: 'Beaucoup de campagnes en préparation', detail: `${drafts} brouillon(s) : pensez à les planifier ou à les lancer.` })
-    else findings.push({ tone: 'good', title: 'Pipeline de campagnes', detail: `${active} campagne(s) en cours et ${completed} terminée(s) sur ${total} au total.` })
-    if (stats.contacts === 0) findings.push({ tone: 'warn', title: 'Base de contacts vide', detail: 'Importez ou ajoutez des contacts pour alimenter les campagnes.' })
-    else if (stats.listes === 0) findings.push({ tone: 'warn', title: 'Aucune liste de contacts', detail: 'Créez des listes pour segmenter la base et associer les contacts aux campagnes.' })
-    else findings.push({ tone: 'good', title: 'Base de données marketing', detail: `${stats.contacts.toLocaleString('fr-FR')} contact(s) répartis sur ${stats.listes} liste(s).` })
-    if (commentsCount === 0 && total > 0) findings.push({ tone: 'info', title: 'Collaboration à renforcer', detail: 'Aucun commentaire : utilisez les commentaires de campagne pour centraliser les échanges.' })
-    else if (commentsCount > 0) findings.push({ tone: 'good', title: 'Suivi collaboratif', detail: `${commentsCount} commentaire(s) pour garder le contexte et les décisions.` })
-    return { total, active, completed, drafts, archived, completionRate, activeRate, recentCampaigns, health, findings }
-  }, [campagnes, commentaires, stats.contacts, stats.listes])
+  const diagnostic = useMemo(
+    () => buildCampaignDiagnostic(campagnes, commentaires.length, stats.contacts, stats.listes),
+    [campagnes, commentaires.length, stats.contacts, stats.listes],
+  )
 
   const dashboardCampaigns = useMemo(
     () => isAdmin ? campagnes : campagnes.filter((campaign) => campaign.user_id === user.id || assignedCampaignIds.has(campaign.id)),

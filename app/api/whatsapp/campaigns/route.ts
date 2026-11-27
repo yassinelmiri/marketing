@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCasablancaDayStart } from '@/lib/dates/casablanca'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,16 +10,6 @@ export const dynamic = 'force-dynamic'
 type CampaignStatus = 'draft' | 'in_progress' | 'paused' | 'completed'
 type RecipientStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
 
-function getCasablancaDayStart(date: Date) {
-  const timeZone = 'Africa/Casablanca'
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
-  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '0'
-  const wallClockUtc = Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day')))
-  const offsetLabel = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date).find((item) => item.type === 'timeZoneName')?.value ?? 'GMT+00:00'
-  const match = offsetLabel.match(/GMT([+-])(\d{2}):(\d{2})/)
-  const offsetMinutes = match ? (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0
-  return new Date(wallClockUtc - offsetMinutes * 60 * 1000)
-}
 
 async function authorize() {
   const session = await createClient()
@@ -52,18 +44,7 @@ async function authorize() {
   }
 }
 
-function originCheck(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origin manquant.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origin refusé.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origin invalide.' }, { status: 403 })
-  }
-  return null
-}
+
 
 function cleanText(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -88,15 +69,10 @@ export async function GET(request: NextRequest) {
       .select('id,user_id,name,source_file,message,consent_confirmed_at,status,total_recipients,created_at,updated_at')
       .eq('id', campaignId)
       .maybeSingle()
-    if (!auth.isAdmin) {
-      const { data: ownedCampaign, error: ownershipError } = await auth.admin
-        .from('whatsapp_campaigns').select('id').eq('id', campaignId).eq('user_id', auth.userId).maybeSingle()
-      if (ownershipError) return NextResponse.json({ error: 'Vérification de la campagne impossible.' }, { status: 500 })
-      if (!ownedCampaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
-    }
-
     if (error) return NextResponse.json({ error: 'Chargement de la campagne impossible.' }, { status: 500 })
-    if (!campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    if (!campaign || (!auth.isAdmin && Number(campaign.user_id) !== auth.userId)) {
+      return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    }
 
     const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
     const pageSize = Math.max(10, Math.min(100, Number(request.nextUrl.searchParams.get('pageSize')) || 50))
@@ -136,26 +112,27 @@ export async function GET(request: NextRequest) {
     : { data: [], error: null }
   if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
   const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
-  for (const row of recipientRows ?? []) {
-    const id = Number(row.campaign_id)
-    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
-    if (row.status === 'sent') counts.sent += 1
-    else if (row.status === 'failed') counts.failed += 1
-    else if (row.status === 'skipped') counts.skipped += 1
-    else counts.pending += 1
-    countsByCampaign.set(id, counts)
-  }
   const now = new Date()
   const todayStart = getCasablancaDayStart(now).getTime()
   const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).getTime()
   const yesterdayStart = getCasablancaDayStart(new Date(now.getTime() - 24 * 60 * 60 * 1000)).getTime()
-  const dailyStats = (recipientRows ?? []).reduce((totals, row) => {
-    if (row.status !== 'sent' || !row.updated_at) return totals
-    const sentAt = new Date(row.updated_at).getTime()
-    if (sentAt >= todayStart && sentAt < tomorrowStart) totals.today_sent += 1
-    else if (sentAt >= yesterdayStart && sentAt < todayStart) totals.yesterday_sent += 1
-    return totals
-  }, { today_sent: 0, yesterday_sent: 0 })
+  const dailyStats = { today_sent: 0, yesterday_sent: 0 }
+
+  for (const row of recipientRows ?? []) {
+    const id = Number(row.campaign_id)
+    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
+    if (row.status === 'sent') {
+      counts.sent += 1
+      if (row.updated_at) {
+        const sentAt = new Date(row.updated_at).getTime()
+        if (sentAt >= todayStart && sentAt < tomorrowStart) dailyStats.today_sent += 1
+        else if (sentAt >= yesterdayStart && sentAt < todayStart) dailyStats.yesterday_sent += 1
+      }
+    } else if (row.status === 'failed') counts.failed += 1
+    else if (row.status === 'skipped') counts.skipped += 1
+    else counts.pending += 1
+    countsByCampaign.set(id, counts)
+  }
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((campaign) => ({
       ...campaign,
@@ -166,7 +143,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originCheck(request)
+  const origin = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (origin) return origin
   const auth = await authorize()
   if ('response' in auth) return auth.response
@@ -239,7 +216,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const origin = originCheck(request)
+  const origin = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (origin) return origin
   const auth = await authorize()
   if ('response' in auth) return auth.response

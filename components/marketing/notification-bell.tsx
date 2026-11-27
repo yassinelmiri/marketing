@@ -19,7 +19,7 @@ export function NotificationBell({ userId }: { userId: number }) {
   const [items, setItems] = useState<NotificationItem[]>([])
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const unread = items.filter((item) => !item.is_read).length
+  const unread = useMemo(() => items.reduce((count, item) => count + (item.is_read ? 0 : 1), 0), [items])
 
   async function load() {
     try {

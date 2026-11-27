@@ -127,29 +127,20 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         const typedProfile = profile as WorkspaceProfile
         const roleId = Number(typedProfile.role_id)
 
-        // 2. Récupérer le nom du rôle.
-        const { data: role, error: roleError } = await supabase
-          .from('roles')
-          .select('nom')
-          .eq('id', roleId)
-          .maybeSingle()
+        // 2. Charger le rôle et les deux sources de permissions en parallèle.
+        const [roleResult, roleLinksResult, userLinksResult] = await Promise.all([
+          supabase.from('roles').select('nom').eq('id', roleId).maybeSingle(),
+          supabase.from('role_permissions').select('permission_id').eq('role_id', roleId),
+          supabase.from('user_permissions').select('permission_id, granted').eq('user_id', Number(typedProfile.id)),
+        ])
 
-        if (roleError) throw roleError
+        if (roleResult.error) throw roleResult.error
+        if (roleLinksResult.error) throw roleLinksResult.error
+        if (userLinksResult.error) throw userLinksResult.error
 
-        // 3. Charger les permissions héritées du rôle et les dérogations individuelles.
-        const { data: roleLinks, error: linksError } = await supabase
-          .from('role_permissions')
-          .select('permission_id')
-          .eq('role_id', roleId)
-
-        if (linksError) throw linksError
-
-        const { data: userLinks, error: userLinksError } = await supabase
-          .from('user_permissions')
-          .select('permission_id, granted')
-          .eq('user_id', Number(typedProfile.id))
-
-        if (userLinksError) throw userLinksError
+        const role = roleResult.data
+        const roleLinks = roleLinksResult.data
+        const userLinks = userLinksResult.data
 
         const permissionIds = Array.from(new Set([
           ...(roleLinks ?? []).map((item) => Number(item.permission_id)),
