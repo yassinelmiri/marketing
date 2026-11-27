@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: 'Anntel Marketing — Plateforme multicanal',
   description:
     'Organisez vos campagnes e-mail, WhatsApp et SMS au même endroit, avec votre équipe.',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
