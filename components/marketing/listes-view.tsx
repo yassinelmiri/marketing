@@ -183,6 +183,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     setSelectedContactIds([])
 
     async function loadContactPage() {
+      const loadingStartedAt = Date.now()
       if (!selectedListeId) {
         setContacts([])
         setContactLinks([])
@@ -220,7 +221,14 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
         if (!active || isAbortError) return
         toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
       } finally {
-        if (active) setContactsLoading(false)
+        // Keep the indicator visible long enough to be noticed, even for fast API responses.
+        const remainingLoadingTime = Math.max(0, 450 - (Date.now() - loadingStartedAt))
+        if (active) {
+          if (remainingLoadingTime > 0) {
+            await new Promise((resolve) => setTimeout(resolve, remainingLoadingTime))
+          }
+          setContactsLoading(false)
+        }
       }
     }
 
