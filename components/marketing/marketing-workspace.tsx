@@ -716,11 +716,11 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
 
           {visitedViews.includes('scraping') && (
             <div hidden={activeView !== 'scraping'}>
-              <section className="workspace-section" style={{ padding: 28, background: '#fff', border: '1px solid #e8eaf0', borderRadius: 18, textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, margin: '8px auto 18px', display: 'grid', placeItems: 'center', borderRadius: 18, background: '#f1edff', color: '#7655d9', fontSize: 28 }}>⌕</div>
-                <h2 style={{ margin: '0 0 10px', color: '#172033' }}>Module Scrapping</h2>
-                <p style={{ maxWidth: 520, margin: '0 auto', color: '#687386', lineHeight: 1.7 }}>Cette fonctionnalité est en cours de préparation. Elle sera bientôt disponible.</p>
-                <span style={{ display: 'inline-flex', marginTop: 18, padding: '7px 13px', borderRadius: 999, background: '#f3efff', color: '#7655d9', fontSize: 12, fontWeight: 700 }}>COMING SOON</span>
+              <section className="workspace-section" style={{ padding: 28, background: 'var(--workspace-panel, var(--surface, #fff))', border: '1px solid var(--workspace-border, var(--border, #e2e8f0))', borderRadius: 18, textAlign: 'center', color: 'var(--workspace-text, var(--text, #334155))', boxShadow: '0 10px 28px rgba(15, 23, 42, 0.06)' }}>
+                <div style={{ width: 64, height: 64, margin: '8px auto 18px', display: 'grid', placeItems: 'center', borderRadius: 18, background: 'color-mix(in srgb, var(--blue, #f59e0b) 12%, var(--workspace-panel, #fff))', color: 'var(--blue, #f59e0b)', fontSize: 28 }}>⌕</div>
+                <h2 style={{ margin: '0 0 10px', color: 'var(--workspace-text, var(--text-strong, #172033))' }}>Module Scrapping</h2>
+                <p style={{ maxWidth: 520, margin: '0 auto', color: 'var(--workspace-muted, var(--muted, #64748b))', lineHeight: 1.7 }}>Cette fonctionnalité est en cours de préparation. Elle sera bientôt disponible.</p>
+                <span style={{ display: 'inline-flex', marginTop: 18, padding: '7px 13px', borderRadius: 999, background: 'color-mix(in srgb, var(--blue, #f59e0b) 12%, var(--workspace-panel, #fff))', color: 'var(--blue, #f59e0b)', fontSize: 12, fontWeight: 700 }}>COMING SOON</span>
               </section>
             </div>
           )}
