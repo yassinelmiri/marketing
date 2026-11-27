@@ -101,7 +101,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const [listeForm, setListeForm] = useState(emptyListeForm)
   const [listeCampagneIds, setListeCampagneIds] = useState<number[]>([])
   const [listeSearch, setListeSearch] = useState('')
-  const [listeDateFilter, setListeDateFilter] = useState('all')
+  const [listeDateFilter, setListeDateFilter] = useState<'all' | 'today' | '7d' | '30d'>('all')
   const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
 
   const [showContactForm, setShowContactForm] = useState(false)
