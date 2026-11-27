@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sameOriginError } from '@/lib/api/request-security'
+import { getNextRecurringDueDate } from '@/lib/tasks/recurrence'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,27 +55,12 @@ async function createNextOccurrence(admin: ReturnType<typeof createAdminClient>,
   const { data: task, error: taskError } = await admin.from('tasks').select('*').eq('id', taskId).maybeSingle()
   if (taskError || !task || task.recurrence_frequency === 'none' || !task.due_date) return
 
-  const next = new Date(String(task.due_date) + 'T12:00:00.000Z')
   const interval = Math.max(1, Math.min(365, Number(task.recurrence_interval) || 1))
-  if (task.recurrence_frequency === 'daily') next.setUTCDate(next.getUTCDate() + interval)
-  if (task.recurrence_frequency === 'weekly') next.setUTCDate(next.getUTCDate() + 7 * interval)
-  if (task.recurrence_frequency === 'monthly') {
-    const day = next.getUTCDate()
-    next.setUTCDate(1)
-    next.setUTCMonth(next.getUTCMonth() + interval)
-    const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate()
-    next.setUTCDate(Math.min(day, lastDay))
-  }
-  if (task.recurrence_frequency === 'yearly') {
-    const month = next.getUTCMonth()
-    const day = next.getUTCDate()
-    next.setUTCDate(1)
-    next.setUTCFullYear(next.getUTCFullYear() + interval)
-    next.setUTCMonth(month)
-    const lastDay = new Date(Date.UTC(next.getUTCFullYear(), month + 1, 0)).getUTCDate()
-    next.setUTCDate(Math.min(day, lastDay))
-  }
-  const nextDueDate = next.toISOString().slice(0, 10)
+  const nextDueDate = getNextRecurringDueDate(
+    String(task.due_date),
+    task.recurrence_frequency,
+    interval,
+  )
   if (task.recurrence_until && nextDueDate > String(task.recurrence_until)) return
 
   const seriesId = Number(task.recurrence_series_id ?? task.id)
