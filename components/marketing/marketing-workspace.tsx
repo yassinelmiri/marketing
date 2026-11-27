@@ -662,6 +662,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               user={currentUser}
               typesCampagnes={typesCampagnes}
               teamUsers={teamUsers}
+              teamRoles={teamRoles}
               stats={stats}
               campagnes={campagnes}
               campagneMembres={campagneMembres}
