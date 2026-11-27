@@ -161,6 +161,36 @@ export function DashboardView({
     [campagneMembres, user.id],
   )
   const typeNameById = useMemo(() => new Map(typesCampagnes.map((type) => [type.id, type.nom])), [typesCampagnes])
+  const teamRoleNameById = useMemo(() => new Map(teamRoles.map((role) => [role.id, role.nom])), [teamRoles])
+  const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'terminee') counts.completed++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    else if (campaign.status === 'archivee') counts.archived++
+    return counts
+  }, { inProgress: 0, completed: 0, drafts: 0, archived: 0 }), [campagnes])
+  const dashboardStatusCounts = useMemo(() => dashboardCampaigns.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'terminee') counts.completed++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    return counts
+  }, { inProgress: 0, completed: 0, drafts: 0 }), [dashboardCampaigns])
+  const teamPerformance = useMemo(() => {
+    const performance = new Map<number, { owned: number; assigned: number; inProgress: number; completed: number }>()
+    for (const member of teamUsers) performance.set(member.id, { owned: 0, assigned: 0, inProgress: 0, completed: 0 })
+    for (const campaign of campagnes) {
+      const stats = performance.get(campaign.user_id)
+      if (!stats) continue
+      stats.owned++
+      if (campaign.status === 'en_cours') stats.inProgress++
+      else if (campaign.status === 'terminee') stats.completed++
+    }
+    for (const assignment of campagneMembres) {
+      const stats = performance.get(assignment.user_id)
+      if (stats) stats.assigned++
+    }
+    return performance
+  }, [teamUsers, campagnes, campagneMembres])
   const associatedCampaigns = useMemo(
     () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
     [campagnes, assignedCampaignIds],
@@ -211,10 +241,10 @@ export function DashboardView({
             <div className="kpi-chart-total"><strong>{campagnes.length}</strong><span>campagnes CRM</span></div>
             <div className="kpi-bars">
               {[
-                { label: 'En cours', value: campagnes.filter((item) => item.status === 'en_cours').length, color: 'cyan' },
-                { label: 'Terminées', value: campagnes.filter((item) => item.status === 'terminee').length, color: 'green' },
-                { label: 'Brouillons', value: campagnes.filter((item) => item.status === 'brouillon').length, color: 'violet' },
-                { label: 'Archivées', value: campagnes.filter((item) => item.status === 'archivee').length, color: 'slate' },
+                { label: 'En cours', value: campaignStatusCounts.inProgress, color: 'cyan' },
+                { label: 'Terminées', value: campaignStatusCounts.completed, color: 'green' },
+                { label: 'Brouillons', value: campaignStatusCounts.drafts, color: 'violet' },
+                { label: 'Archivées', value: campaignStatusCounts.archived, color: 'slate' },
               ].map((item) => <div className="kpi-bar-row" key={item.label}><span>{item.label}</span><div><i className={item.color} style={{width: `${campagnes.length ? Math.max(3, item.value / campagnes.length * 100) : 0}%`}}/></div><strong>{item.value}</strong></div>)}
             </div>
           </article>
@@ -243,13 +273,13 @@ export function DashboardView({
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
         <section className="workspace-panel dashboard-team-overview">
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
-          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong></td><td>{teamRoles.find((role) => role.id === member.role_id)?.nom ?? '—'}</td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
+          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const performance = teamPerformance.get(member.id); return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong></td><td>{teamRoleNameById.get(member.role_id) ?? '—'}</td><td>{performance?.owned ?? 0}</td><td>{performance?.assigned ?? 0}</td><td>{performance?.inProgress ?? 0}</td><td>{performance?.completed ?? 0}</td></tr> })}</tbody></table></div>}
         </section>
       </section> : <section className="dashboard-member-overview">
         <div className="dashboard-member-card"><span>Mes campagnes</span><strong>{dashboardCampaigns.length}</strong><small>Créées ou affectées à votre compte</small></div>
-        <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'en_cours').length}</strong><small>Campagnes actives</small></div>
-        <div className="dashboard-member-card"><span>Terminées</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'terminee').length}</strong><small>Campagnes finalisées</small></div>
-        <div className="dashboard-member-card"><span>À préparer</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'brouillon').length}</strong><small>Brouillons à lancer</small></div>
+        <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardStatusCounts.inProgress}</strong><small>Campagnes actives</small></div>
+        <div className="dashboard-member-card"><span>Terminées</span><strong>{dashboardStatusCounts.completed}</strong><small>Campagnes finalisées</small></div>
+        <div className="dashboard-member-card"><span>À préparer</span><strong>{dashboardStatusCounts.drafts}</strong><small>Brouillons à lancer</small></div>
       </section>}
 
       <div className="workspace-panels">
