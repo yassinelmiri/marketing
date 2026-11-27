@@ -677,7 +677,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
           )}
 
           {visitedViews.includes('prospection') && (
-            <div hidden={activeView !== 'prospection'}><ProspectionView /></div>
+            <div hidden={activeView !== 'prospection'}><ProspectionView onSaved={refresh} /></div>
           )}
 
           {visitedViews.includes('campagnes') && (
