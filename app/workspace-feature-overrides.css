@@ -372,3 +372,16 @@
 .dashboard-finding.good .dashboard-finding-icon{background:#ecfdf5;color:#16a34a}
 .dashboard-live-tag{background:#ecfdf5;border-color:#bbf7d0;color:#15803d}
 @media(prefers-color-scheme:dark){html,body{color-scheme:light!important;background:#f5f8ff!important}.workspace-root{color-scheme:light!important;background:#f5f8ff!important}}
+
+/* Admin-only Prospection API settings — light mode */
+.prospection-api-settings{margin-top:18px;border:1px solid #dbe5f2!important;background:#fff!important;box-shadow:0 8px 24px rgba(30,64,120,.055)!important}
+.prospection-api-settings .settings-section-heading p{max-width:720px}
+.prospection-api-settings .settings-field select,.prospection-api-settings .settings-field input{background:#fff;color:#1e293b;border:1px solid #dbe3ef;border-radius:10px;min-height:42px}
+.prospection-api-settings .settings-field select:focus,.prospection-api-settings .settings-field input:focus{outline:2px solid rgba(59,130,246,.18);border-color:#60a5fa}
+.prospection-api-settings .settings-input-icon{position:relative}
+.prospection-api-settings .settings-input-icon input{width:100%;padding-right:44px}
+.prospection-api-settings .settings-secret-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:#f1f5f9;color:#64748b;cursor:pointer}
+.prospection-api-settings .settings-secret-toggle svg{width:15px;height:15px}
+.prospection-api-settings .settings-api-clear{display:flex;align-items:center;gap:9px;margin-top:15px;color:#b45309;font-size:12px}
+.prospection-api-settings .settings-form-footer{margin-top:18px}
+.prospection-api-settings .settings-form-footer p{color:#64748b}
