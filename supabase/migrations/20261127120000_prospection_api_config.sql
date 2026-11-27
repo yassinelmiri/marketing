@@ -10,3 +10,5 @@ create table if not exists public.prospection_api_config (
 
 alter table public.prospection_api_config enable row level security;
 revoke all on public.prospection_api_config from anon, authenticated;
+
+notify pgrst, 'reload schema';
