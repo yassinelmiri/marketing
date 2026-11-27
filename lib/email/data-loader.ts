@@ -1,4 +1,4 @@
-import type { EmailActivity, EmailCampaign, EmailTemplate, EmailUnsubscribe, SmtpAccount } from '@/lib/email/types'
+import type { EmailCampaign, EmailTemplate, EmailUnsubscribe, SmtpAccount } from '@/lib/email/types'
 import { normalizeTemplate } from '@/lib/email/view-utils'
 
 type ApiResponse = {
