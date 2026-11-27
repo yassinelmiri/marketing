@@ -141,24 +141,26 @@ export async function GET() {
   if (taskError) return NextResponse.json({ error: 'Chargement des tâches impossible.' }, { status: 500 })
 
   const taskIds = (tasks ?? []).map((task) => Number(task.id))
-  const { data: assignments, error: assignmentError } = taskIds.length
-    ? await admin.from('task_assignments').select('task_id,user_id').in('task_id', taskIds)
-    : { data: [], error: null }
+  const [assignmentResult, memberResult] = await Promise.all([
+    taskIds.length
+      ? admin.from('task_assignments').select('task_id,user_id').in('task_id', taskIds)
+      : Promise.resolve({ data: [], error: null }),
+    isAdmin
+      ? admin.from('user_profiles').select('id,prenom,nom,email').order('prenom')
+      : Promise.resolve({ data: [] }),
+  ])
+  const { data: assignments, error: assignmentError } = assignmentResult
 
   if (assignmentError) {
     return NextResponse.json({ error: 'Chargement des affectations impossible.' }, { status: 500 })
   }
 
   const memberIds = Array.from(new Set((assignments ?? []).map((assignment) => Number(assignment.user_id))))
-  const { data: assignedProfiles } = memberIds.length
+  const { data: assignedProfiles } = !isAdmin && memberIds.length
     ? await admin.from('user_profiles').select('id,prenom,nom,email').in('id', memberIds)
     : { data: [] }
 
-  const { data: allMembers } = isAdmin
-    ? await admin.from('user_profiles').select('id,prenom,nom,email').order('prenom')
-    : { data: [] }
-
-  const profiles = isAdmin ? (allMembers ?? []) : (assignedProfiles ?? [])
+  const profiles = isAdmin ? (memberResult.data ?? []) : (assignedProfiles ?? [])
   const profileById = new Map((profiles ?? []).map((member) => [Number(member.id), member]))
   const assigneesByTask = new Map<number, number[]>()
 
