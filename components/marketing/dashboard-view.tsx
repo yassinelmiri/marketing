@@ -156,10 +156,13 @@ export function DashboardView({
   }, [isAdmin])
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
-  const assignedCampaignIds = useMemo(
-    () => new Set(campagneMembres.filter((link) => link.user_id === user.id).map((link) => link.campagne_id)),
-    [campagneMembres, user.id],
-  )
+  const assignedCampaignIds = useMemo(() => {
+    const ids = new Set<number>()
+    for (const link of campagneMembres) {
+      if (link.user_id === user.id) ids.add(link.campagne_id)
+    }
+    return ids
+  }, [campagneMembres, user.id])
   const typeNameById = useMemo(() => new Map(typesCampagnes.map((type) => [type.id, type.nom])), [typesCampagnes])
   const teamRoleNameById = useMemo(() => new Map(teamRoles.map((role) => [role.id, role.nom])), [teamRoles])
   const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
