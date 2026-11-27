@@ -34,10 +34,10 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const [smtpForm,setSmtpForm]=useState(EMPTY_SMTP_FORM),[templateForm,setTemplateForm]=useState({name:'',subject:'',html_content:''}),[showSmtp,setShowSmtp]=useState(false),[showTemplate,setShowTemplate]=useState(false),[editingTemplateId,setEditingTemplateId]=useState<number|null>(null),[templateMode,setTemplateMode]=useState<'html'|'preview'>('html'),[previewTemplate,setPreviewTemplate]=useState<Template|null>(null),[previewDevice,setPreviewDevice]=useState<'desktop'|'mobile'>('desktop')
  const [blockEmail,setBlockEmail]=useState(''),[reason,setReason]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[result,setResult]=useState<any>(null)
  const [activityKind,setActivityKind]=useState<string|null>(null),[activity,setActivity]=useState<Activity[]>([]),[activityLoading,setActivityLoading]=useState(false),[activitySearch,setActivitySearch]=useState('')
- const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedLists=useMemo(()=>listes.filter(x=>listeIds.includes(x.id)),[listes,listeIds]),selectedTemplate=templates.find(x=>x.id===template)
+ const active=useMemo(()=>accounts.filter(x=>x.is_active),[accounts]),selectedListeIdSet=useMemo(()=>new Set(listeIds),[listeIds]),selectedSenderIdSet=useMemo(()=>new Set(smtpIds),[smtpIds]),selectedLists=useMemo(()=>listes.filter(x=>selectedListeIdSet.has(x.id)),[listes,selectedListeIdSet]),selectedTemplate=templates.find(x=>x.id===template)
  const filteredLists=useMemo(()=>{const query=listQuery.toLowerCase();return listes.filter(x=>x.nom.toLowerCase().includes(query))},[listes,listQuery])
  const filteredSenders=useMemo(()=>{const query=senderQuery.toLowerCase();return active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(query))},[active,senderQuery])
- const selectedSenders=useMemo(()=>active.filter(x=>smtpIds.includes(x.id)),[active,smtpIds])
+ const selectedSenders=useMemo(()=>active.filter(x=>selectedSenderIdSet.has(x.id)),[active,smtpIds])
  const campaignStats=useMemo(()=>campaigns.reduce((total,campaign)=>({sent:total.sent+Number(campaign.sent_count||0),failed:total.failed+Number(campaign.failed_count||0),opened:total.opened+Number(campaign.open_count||0),clicked:total.clicked+Number(campaign.click_count||0)}),{sent:0,failed:0,opened:0,clicked:0}),[campaigns])
  const {sent,failed,opened,clicked}=campaignStats
  async function refresh(showLoading=true){
@@ -143,7 +143,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   </summary>
   <div className="email-picker-popover">
    <label className="email-picker-search"><Search size={15}/><input value={listQuery} onChange={e=>setListQuery(e.target.value)} placeholder="Rechercher une liste…"/></label>
-   <div className="email-picker-options">{filteredLists.map(l=><label key={l.id} className="email-picker-option"><input type="checkbox" disabled={editingId!==null} checked={listeIds.includes(l.id)} onChange={e=>setListeIds(ids=>e.target.checked?[...ids,l.id]:ids.filter(id=>id!==l.id))}/><span><strong>{displayValue(l.nom)}</strong><small>{(contactListCounts[l.id] ?? 0)} contacts</small></span></label>)}{!filteredLists.length&&<p className="email-picker-empty">Aucune liste trouvée.</p>}</div>
+   <div className="email-picker-options">{filteredLists.map(l=><label key={l.id} className="email-picker-option"><input type="checkbox" disabled={editingId!==null} checked={selectedListeIdSet.has(l.id)} onChange={e=>setListeIds(ids=>e.target.checked?[...ids,l.id]:ids.filter(id=>id!==l.id))}/><span><strong>{displayValue(l.nom)}</strong><small>{(contactListCounts[l.id] ?? 0)} contacts</small></span></label>)}{!filteredLists.length&&<p className="email-picker-empty">Aucune liste trouvée.</p>}</div>
    <div className="email-picker-footer"><span>{listeIds.length} sélectionnée(s) · {listeIds.reduce((total,id)=>total+(contactListCounts[id]??0),0)} contacts au total</span><button type="button" onClick={()=>setListQuery('')}>Effacer la recherche</button></div>
   </div>
  </details>
@@ -158,7 +158,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   </summary>
   <div className="email-picker-popover">
    <label className="email-picker-search"><Search size={15}/><input value={senderQuery} onChange={e=>setSenderQuery(e.target.value)} placeholder="Rechercher un nom ou une adresse…"/></label>
-   <div className="email-picker-options">{filteredSenders.map(a=><label key={a.id} className="email-picker-option"><input type="checkbox" disabled={editingId!==null} checked={smtpIds.includes(a.id)} onChange={e=>setSmtpIds(ids=>e.target.checked?[...ids,a.id]:ids.filter(id=>id!==a.id))}/><span><strong>{displayValue(a.name)}</strong><small>{displayValue(a.email)}</small></span></label>)}{!filteredSenders.length&&<p className="email-picker-empty">Aucun expéditeur trouvé.</p>}</div>
+   <div className="email-picker-options">{filteredSenders.map(a=><label key={a.id} className="email-picker-option"><input type="checkbox" disabled={editingId!==null} checked={selectedSenderIdSet.has(a.id)} onChange={e=>setSmtpIds(ids=>e.target.checked?[...ids,a.id]:ids.filter(id=>id!==a.id))}/><span><strong>{displayValue(a.name)}</strong><small>{displayValue(a.email)}</small></span></label>)}{!filteredSenders.length&&<p className="email-picker-empty">Aucun expéditeur trouvé.</p>}</div>
    <div className="email-picker-footer"><span>{smtpIds.length} compte(s) SMTP sélectionné(s)</span><button type="button" onClick={()=>setSenderQuery('')}>Effacer la recherche</button></div>
   </div>
  </details>
