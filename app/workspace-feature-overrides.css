@@ -976,3 +976,192 @@
 .email-stat-trend small{font-size:10px;color:#b8b8b8!important;font-weight:500}
 .email-stat-card{overflow:hidden}
 @media(max-width:700px){.prospection-page>div:first-child{padding:16px!important}.prospection-page [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}.scrapping-placeholder{padding:20px!important}}
+
+ 
+/* =========================================================
+   Final brand finish — warm ivory + Anntel orange glass
+   ========================================================= */
+.workspace-root{
+  --bg:#f7f3ed!important;--surface:rgba(255,253,249,.86)!important;
+  --surface-2:#f5eee5!important;--border:#e9ded1!important;
+  --border-strong:#d9c5b2!important;--text:#62564b!important;
+  --text-strong:#30291f!important;--muted:#857568!important;
+  --muted-2:#a99a8b!important;--blue:#e85b2a!important;
+  --blue-600:#c94b22!important;--blue-50:#fff1e8!important;
+  --ui-accent:#e85b2a!important;--ui-accent-strong:#c94b22!important;
+  --ui-accent-soft:rgba(232,91,42,.11)!important;
+  --ui-focus:rgba(232,91,42,.2)!important;
+  --ui-shadow-card:0 8px 26px rgba(92,61,38,.07)!important;
+  --ui-shadow-hover:0 16px 36px rgba(177,91,48,.15)!important;
+}
+.workspace-root .workspace-sidebar{
+  background:linear-gradient(160deg,rgba(255,253,249,.97),rgba(246,238,228,.94))!important;
+  border-right-color:#e9ded1!important;backdrop-filter:blur(22px) saturate(145%);
+}
+.workspace-root .workspace-nav-item.is-active,
+.workspace-root .workspace-sidebar :is(a:hover,button:hover,[aria-current=page]){
+  color:#c94b22!important;background:linear-gradient(110deg,#fff0e6,#fffaf5)!important;border-color:#f0d2c0!important;
+}
+.workspace-root .workspace-nav-item.is-active:before{background:linear-gradient(180deg,#e85b2a,#f5a06f)!important}
+.workspace-root .workspace-topbar{background:rgba(255,253,249,.82)!important;border-color:#e9ded1!important;backdrop-filter:blur(22px) saturate(155%)}
+.workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,.dashboard-card,.settings-card,.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card,.data-list-panel,.data-contacts-panel,.data-content-panel,.wa-panel,.email-stat-card,.email-activity-dialog,.workspace-modal,.campagne-table-wrap){
+  background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(255,250,244,.82))!important;
+  border:1px solid rgba(224,207,190,.78)!important;
+  box-shadow:0 9px 28px rgba(91,63,43,.065),inset 0 1px 0 rgba(255,255,255,.92)!important;
+  backdrop-filter:blur(16px) saturate(135%);
+}
+.workspace-root :is(.workspace-primary,.btn-default,.taskz-primary,.wa-action-button,.email-primary-button){
+  background:linear-gradient(115deg,#ed7547,#d94f25)!important;box-shadow:0 6px 16px rgba(216,83,39,.2)!important
+}
+.workspace-root :is(.workspace-primary,.btn-default,.taskz-primary,.wa-action-button,.email-primary-button):hover{box-shadow:0 10px 23px rgba(216,83,39,.27)!important;filter:brightness(1.035)}
+.workspace-root :is(.workspace-secondary,.btn-secondary,.wa-secondary-button){border-color:#e4d2c2!important;background:rgba(255,253,249,.9)!important;color:#5f5145!important}
+.workspace-root :is(.workspace-secondary,.btn-secondary,.wa-secondary-button):hover{background:#fff1e8!important;border-color:#e9a17e!important}
+.workspace-root :is(input,select,textarea){border-color:#e4d5c7!important;background:rgba(255,255,255,.92)!important;color:#30291f!important}
+.workspace-root :is(input,select,textarea):focus{border-color:#e85b2a!important;box-shadow:0 0 0 3px rgba(232,91,42,.12)!important}
+.workspace-root :is(button,a,input,select,textarea):focus-visible{outline-color:#e85b2a!important}
+.workspace-root table th{background:#f7efe6!important;color:#766354!important}
+.workspace-root table tbody tr:hover{background:#fff6ef!important}
+.workspace-root .workspace-modal-backdrop,.workspace-root .email-activity-backdrop{background:rgba(48,36,27,.34)!important;backdrop-filter:blur(5px)}
+.workspace-root .workspace-modal{
+  width:min(620px,calc(100vw - 28px));max-height:min(88vh,820px);overflow:hidden;
+  border-radius:22px!important;background:linear-gradient(145deg,#fffefa,#fbf5ed)!important;
+  box-shadow:0 26px 80px rgba(65,42,25,.2),inset 0 1px 0 #fff!important;
+}
+.workspace-root .workspace-modal>header,.workspace-root .workspace-modal>footer{background:transparent!important;border-color:#eadfd4!important}
+.workspace-root .workspace-modal>header h3{color:#30291f!important}
+.workspace-root .workspace-modal .campagne-table-desc,.workspace-root .workspace-modal .form-hint{color:#827365!important}
+.workspace-root .permissions-modal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.workspace-root .permissions-modal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.workspace-root .permissions-modal-option{
+  display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px;
+  border:1px solid #eadfd4!important;border-radius:13px!important;
+  background:rgba(255,255,255,.7)!important;transition:transform .18s,border-color .18s,box-shadow .18s,background .18s;
+}
+.workspace-root .permissions-modal-option:hover{transform:translateY(-2px);border-color:#e9a17e!important;box-shadow:0 7px 18px rgba(150,88,52,.09)}
+.workspace-root .permissions-modal-option.is-selected{border-color:#e9a17e!important;background:linear-gradient(120deg,#fff0e6,#fffaf6)!important}
+.workspace-root .permissions-modal-option input{accent-color:#e85b2a!important;flex:none;margin-top:3px}
+.workspace-root .permissions-modal-copy{display:grid;gap:4px;min-width:0}
+.workspace-root .permissions-modal-copy strong{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#3b3027!important}
+.workspace-root .permissions-modal-copy strong svg{color:#df5b2d!important;flex:none}
+.workspace-root .permissions-modal-copy>span{color:#827365!important;font-size:11px;line-height:1.45}
+.workspace-root .workspace-live-clock{
+  display:flex!important;align-items:center!important;gap:12px!important;padding:13px 14px!important;margin-bottom:12px!important;
+  border-radius:16px!important;border:1px solid rgba(232,91,42,.22)!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(255,239,228,.84))!important;
+  box-shadow:0 8px 22px rgba(176,88,47,.09),inset 0 1px 0 #fff!important;
+  backdrop-filter:blur(18px) saturate(145%);
+}
+.workspace-root .workspace-live-clock-icon{width:36px;height:36px;display:grid;place-items:center;flex-shrink:0;border-radius:11px;color:#df5b2d;background:linear-gradient(145deg,#fff0e6,#f9d9c7);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.workspace-root .workspace-live-clock :is(strong,span){color:#766354!important}
+.workspace-root .workspace-live-clock strong{color:#c94b22!important}
+.workspace-root .workspace-live-clock>div>span:first-child{color:#9a7863!important}
+.workspace-root .dashboard-page .kpi-main-panel,.workspace-root .dashboard-page .kpi-module-card{
+  position:relative;overflow:hidden;border:1px solid rgba(224,207,190,.78)!important;
+  border-radius:17px!important;background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,248,240,.82))!important;
+  box-shadow:0 8px 25px rgba(91,63,43,.065),inset 0 1px 0 rgba(255,255,255,.95)!important;
+  backdrop-filter:blur(18px) saturate(145%);
+  transition:transform .24s cubic-bezier(.2,.75,.25,1),box-shadow .24s,border-color .24s,background .24s;
+}
+.workspace-root .dashboard-page .kpi-main-panel:before,.workspace-root .dashboard-page .kpi-module-card:before{
+  content:"";position:absolute;inset:0 0 auto;height:48%;pointer-events:none;
+  background:linear-gradient(125deg,rgba(255,255,255,.72),rgba(255,255,255,0) 70%);
+}
+.workspace-root .dashboard-page .kpi-main-panel:hover,.workspace-root .dashboard-page .kpi-module-card:hover{
+  transform:translateY(-5px) scale(1.008);border-color:rgba(232,124,78,.62)!important;
+  box-shadow:0 18px 38px rgba(153,83,47,.15),inset 0 1px 0 #fff!important;
+}
+.workspace-root .dashboard-page .kpi-module-card{padding:16px}
+.workspace-root .dashboard-page .kpi-module-icon{background:#fff0e6!important;color:#d9572c!important}
+.workspace-root .dashboard-page .kpi-module-icon.whatsapp{background:#eaf7ef!important;color:#238653!important}
+.workspace-root .dashboard-page .kpi-module-icon.tasks{background:#f6eee4!important;color:#a66b35!important}
+.workspace-root .dashboard-page .kpi-module-icon.sms{background:#fff0e6!important;color:#d9572c!important}
+.workspace-root .dashboard-page .kpi-module-icon.database{background:#f7f0e5!important;color:#a66b35!important}
+.workspace-root .dashboard-page .kpi-module-value,.workspace-root .dashboard-page .kpi-panel-title strong,.workspace-root .dashboard-page .kpi-chart-total strong{color:#30291f!important}
+.workspace-root .dashboard-page .kpi-bar-row i{background:linear-gradient(90deg,#ed7547,#d94f25)!important}
+.workspace-root .dashboard-page .kpi-bar-row i.green{background:linear-gradient(90deg,#4dbb83,#238653)!important}
+.workspace-root .dashboard-page .kpi-bar-row i.violet{background:linear-gradient(90deg,#ed986c,#e85b2a)!important}
+.workspace-root .dashboard-page .kpi-glass-card{isolation:isolate}
+.workspace-root .dashboard-page .kpi-module-card:hover .kpi-module-icon{transform:translateY(-2px) rotate(-3deg);transition:transform .22s}
+.workspace-root .dashboard-page .kpi-daily-comparison{position:relative;z-index:1}
+.workspace-root .dashboard-page .kpi-module-pairs{border-color:#eee2d7!important}
+.workspace-root .dashboard-page .kpi-module-pairs b{color:#3c3027!important}
+.workspace-root .dashboard-page .kpi-command-center{background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(250,242,233,.78))!important;border-color:#e9ded1!important;backdrop-filter:blur(18px) saturate(140%)}
+.workspace-root .dashboard-page .kpi-command-header h2{color:#30291f!important}
+.workspace-root .dashboard-page .kpi-main-panel :is(.kpi-panel-title span,.kpi-chart-total span,.kpi-alert-foot,.kpi-recent-row span){color:#88786a!important}
+.workspace-root .dashboard-page .kpi-panel-title>svg{color:#e85b2a!important}
+.workspace-root .dashboard-page .kpi-module-card small{color:#89796b!important}
+.workspace-root .dashboard-page .kpi-module-card .kpi-module-caption{color:#857568!important}
+.workspace-root .dashboard-page .kpi-module-card .kpi-module-pairs span{color:#928174!important}
+.workspace-root .dashboard-page .kpi-main-panel,.workspace-root .dashboard-page .kpi-module-card{will-change:transform}
+.workspace-root .dashboard-page .dashboard-member-card{background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(255,247,239,.84))!important;border:1px solid #eadfd4!important;box-shadow:0 8px 24px rgba(91,63,43,.07),inset 0 1px 0 #fff!important;transition:transform .22s,box-shadow .22s,border-color .22s}
+.workspace-root .dashboard-page .dashboard-member-card:hover{transform:translateY(-5px);border-color:#e9a17e!important;box-shadow:0 16px 32px rgba(153,83,47,.14)!important}
+
+/* Prospection: override component inline legacy purple/flat styles and make layout fluid. */
+.workspace-root .prospection-page{display:grid;gap:18px;min-width:0}
+.workspace-root .prospection-page>div{
+  min-width:0!important;padding:clamp(16px,2.4vw,28px)!important;border:1px solid #e8d9cc!important;
+  border-radius:20px!important;background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,249,242,.88))!important;
+  box-shadow:0 10px 30px rgba(91,63,43,.07),inset 0 1px 0 #fff!important;backdrop-filter:blur(16px) saturate(140%);
+}
+.workspace-root .prospection-page :is(h2,h3,strong){color:#30291f}
+.workspace-root .prospection-page :is(p,label,span){color:inherit}
+.workspace-root .prospection-page input,.workspace-root .prospection-page select{
+  width:100%;min-width:0;min-height:42px;border:1px solid #e4d5c7!important;border-radius:10px!important;
+  background:rgba(255,255,255,.94)!important;color:#30291f!important;padding:9px 11px!important;font-size:12px;
+}
+.workspace-root .prospection-page input:focus,.workspace-root .prospection-page select:focus{outline:0!important;border-color:#e85b2a!important;box-shadow:0 0 0 3px rgba(232,91,42,.12)!important}
+.workspace-root .prospection-page button{transition:transform .18s,box-shadow .18s,filter .18s}
+.workspace-root .prospection-page button:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(153,83,47,.13)}
+.workspace-root .prospection-page button:disabled{opacity:.5;cursor:not-allowed}
+.workspace-root .prospection-page table{min-width:680px;border-collapse:separate;border-spacing:0}
+.workspace-root .prospection-page th{background:#f7efe6!important;color:#786858!important}
+.workspace-root .prospection-page td{color:#65594e!important}
+.workspace-root .prospection-page tr:hover td{background:#fff7f0!important}
+.workspace-root .prospection-page .permissions-modal-option{background:#fff}
+.workspace-root .prospection-page svg{flex-shrink:0}
+.workspace-root .prospection-page>div>div[style*="grid-template-columns"]{min-width:0}
+.workspace-root .prospection-page>div>div[style*="overflow-x"]{max-width:100%;overflow-x:auto!important}
+.workspace-root .prospection-page>div>div[style*="grid-template-columns: repeat(auto-fit"]{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))!important}
+.workspace-root .prospection-page>div>div[style*="grid-template-columns: minmax(150px"]{grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,1fr) 38px!important}
+.workspace-root .prospection-page>div>div[style*="display: flex"]{min-width:0}
+.workspace-root .prospection-page [role=alert]{border-radius:12px!important}
+.workspace-root .prospection-page [role=status]{border-radius:12px!important}
+.workspace-root .prospection-page svg circle:nth-of-type(2){stroke:#e85b2a!important}
+.workspace-root .prospection-page svg text{fill:#30291f!important}
+.workspace-root .prospection-page .workspace-panel{background:transparent!important}
+.workspace-root .email-suite{--workspace-bg:#f7f3ed;--workspace-surface:#fffdf9;--workspace-input:#fff;--workspace-border:#e9ded1;--workspace-muted:#857568;color:#62564b!important}
+.workspace-root .email-suite .email-suite-heading :is(h1,p){color:#30291f!important}
+.workspace-root .email-suite .email-suite-eyebrow,.workspace-root .email-suite .email-panel-header h2 svg{color:#df5b2d!important}
+.workspace-root .email-suite .email-suite-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:6px;border:1px solid #eadfd4;border-radius:15px;background:rgba(255,253,249,.78);box-shadow:inset 0 1px 0 #fff}
+.workspace-root .email-suite .email-suite-tabs button{color:#786858!important;border:1px solid transparent!important;background:transparent!important;transition:all .18s}
+.workspace-root .email-suite .email-suite-tabs button.active{color:#c94b22!important;background:linear-gradient(120deg,#fff0e6,#fffaf5)!important;border-color:#f0d2c0!important;box-shadow:0 4px 12px rgba(180,91,48,.08)}
+.workspace-root .email-suite .email-stat-card{
+  min-height:145px;display:flex;align-items:center;gap:12px;padding:18px!important;text-align:left;
+  border:1px solid #eadfd4!important;border-radius:17px!important;
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,248,241,.84))!important;
+  box-shadow:0 8px 24px rgba(91,63,43,.065),inset 0 1px 0 #fff!important;
+  transition:transform .22s,box-shadow .22s,border-color .22s;
+}
+.workspace-root .email-suite .email-stat-card-button:hover{transform:translateY(-4px);border-color:#e9a17e!important;box-shadow:0 16px 32px rgba(153,83,47,.14)!important}
+.workspace-root .email-suite .email-stat-icon{background:#fff0e6!important;color:#d9572c!important}
+.workspace-root .email-suite .email-stat-icon.green{background:#eaf7ef!important;color:#238653!important}
+.workspace-root .email-suite .email-stat-icon.red{background:#fff0ee!important;color:#c84d43!important}
+.workspace-root .email-suite .email-stat-icon.violet{background:#fff0e6!important;color:#d9572c!important}
+.workspace-root .email-suite .email-stat-icon.amber{background:#fbf1df!important;color:#a66b35!important}
+.workspace-root .email-suite :is(.email-stat-card strong,.email-stat-card span,.email-panel h2,.email-table td,.email-table th){color:#30291f}
+.workspace-root .email-suite .email-stat-trend{display:grid;gap:3px;margin-top:5px;color:#238653;font-size:11px}
+.workspace-root .email-suite .email-stat-trend.negative{color:#c84d43}
+.workspace-root .email-suite .email-stat-trend small{color:#8b7a6c}
+.workspace-root .email-suite :is(.email-panel,.workspace-panel){background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(255,250,245,.84))!important;border-color:#eadfd4!important}
+.workspace-root .email-suite :is(input:not([type=checkbox]),select,textarea){background:#fff!important;border-color:#e4d5c7!important;color:#30291f!important}
+.workspace-root .email-suite .email-picker-popover{background:#fffdf9!important;border-color:#e9ded1!important;box-shadow:0 18px 42px rgba(91,63,43,.15)!important}
+.workspace-root .email-suite .email-picker-option:hover{background:#fff5ed!important;border-color:#f0d2c0!important}
+.workspace-root .email-suite .email-picker-option:has(input:checked){background:#fff0e6!important;border-color:#e9a17e!important}
+.workspace-root .email-suite .email-picker-option input{accent-color:#e85b2a!important}
+.workspace-root .email-suite .email-selected-chips span{background:#fff0e6!important;border-color:#f0d2c0!important;color:#b94720!important}
+.workspace-root .email-suite .email-template-mode button.active,.workspace-root .email-suite .email-template-device button.active{background:#fff0e6!important;color:#c94b22!important}
+.workspace-root .email-suite .email-activity-dialog{background:linear-gradient(145deg,#fffefa,#fbf5ed)!important;color:#30291f!important}
+.workspace-root .email-suite .email-activity-dialog :is(h2,td,th,strong){color:#30291f!important}
+@media(max-width:720px){.workspace-root .permissions-modal-list{grid-template-columns:1fr}.workspace-root .email-suite .email-stat-card{min-height:120px;padding:14px!important}}
+@media(max-width:640px){.workspace-root .prospection-page>div{padding:15px!important}.workspace-root .prospection-page>div>div[style*="grid-template-columns: minmax(150px"]{grid-template-columns:1fr!important}.workspace-root .workspace-live-clock{padding:10px!important}.workspace-root .permissions-modal-toolbar{align-items:stretch;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.workspace-root .dashboard-page :is(.kpi-main-panel,.kpi-module-card,.dashboard-member-card),.workspace-root .email-suite .email-stat-card,.workspace-root .prospection-page button{transition:none!important;transform:none!important}}
