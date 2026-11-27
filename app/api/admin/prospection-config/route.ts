@@ -48,7 +48,11 @@ export async function GET() {
       },
     }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {
+    const dbError = error as { code?: string }
     console.error('[prospection-config] read failed:', error)
+    if (dbError?.code === 'PGRST205') {
+      return NextResponse.json({ error: 'La table prospection_api_config est absente de Supabase. Appliquez la migration 20261127120000_prospection_api_config.sql dans SQL Editor, puis rechargez le schéma API.' }, { status: 503 })
+    }
     return NextResponse.json({ error: 'Impossible de charger la configuration API.' }, { status: 500 })
   }
 }
