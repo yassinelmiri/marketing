@@ -175,7 +175,7 @@ export function ProspectionView() {
         <div style={mappingPanel}>
           <strong style={{fontSize:13,color:'#344054'}}>Correspondance des champs de contacts</strong>
           <p style={sub}>Associez les champs de l’API aux champs de votre base. Les correspondances automatiques peuvent être modifiées.</p>
-          <div style={mappingGrid}>{canonicalFields.map(item=><label key={item.key} style={fieldLabel}>{item.label}<select style={control} value={mapping[item.key] ?? ''} onChange={event=>setMapping(current=>({...current,[item.key]:event.target.value}))}><option value="">Non disponible / ignorer</option>{result.fields.map(field=><option key={field} value={field}>{field}</option>)}</select></label>)}</div>
+          <div style={mappingGrid}>{canonicalFields.map(item=><label key={item.key} style={fieldLabelStyle}>{item.label}<select style={control} value={mapping[item.key] ?? ''} onChange={event=>setMapping(current=>({...current,[item.key]:event.target.value}))}><option value="">Non disponible / ignorer</option>{result.fields.map(field=><option key={field} value={field}>{field}</option>)}</select></label>)}</div>
         </div>
         <div style={{overflowX:'auto',border:'1px solid #e7eaf0',borderRadius:12,marginTop:16}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:680}}><thead><tr style={{background:'#f8f9fc',textAlign:'left'}}>{result.fields.slice(0,7).map(field=><th key={field} style={th}>{fieldLabel(field)}</th>)}</tr></thead>
@@ -186,8 +186,8 @@ export function ProspectionView() {
         <div style={divider}/>
         <div style={stepHeading}><span style={stepNumber}>3</span><div><h3 style={stepTitle}>Enregistrer comme liste</h3><p style={sub}>La liste sera disponible dans le module Listes pour l’ajouter ensuite à une campagne.</p></div></div>
         <div style={saveGrid}>
-          <label style={fieldLabel}>Nom de la liste<input style={control} value={listName} onChange={event=>setListName(event.target.value)} placeholder="Ex. Prospects Casablanca — Décembre"/></label>
-          <label style={fieldLabel}>Description (facultatif)<input style={control} value={listDescription} onChange={event=>setListDescription(event.target.value)} placeholder="Description de la cible"/></label>
+          <label style={fieldLabelStyle}>Nom de la liste<input style={control} value={listName} onChange={event=>setListName(event.target.value)} placeholder="Ex. Prospects Casablanca — Décembre"/></label>
+          <label style={fieldLabelStyle}>Description (facultatif)<input style={control} value={listDescription} onChange={event=>setListDescription(event.target.value)} placeholder="Description de la cible"/></label>
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',marginTop:16}}><button type="button" style={primary} disabled={saving||!listName.trim()||!result.records.length} onClick={()=>void saveList()}>{saving?<Loader2 size={16}/>:<CheckCircle2 size={16}/>} {saving?'Enregistrement…':'Sauvegarder dans mes listes'} <ArrowRight size={15}/></button></div>
       </>}
@@ -219,6 +219,6 @@ const mappingGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto
 const th:CSSProperties={padding:'12px 13px',color:'#667085',fontSize:11,fontWeight:700,textTransform:'uppercase'}
 const td:CSSProperties={padding:'11px 13px',color:'#536075',fontSize:12,maxWidth:240,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}
 const saveGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}
-const fieldLabel:CSSProperties={display:'flex',flexDirection:'column',gap:7,color:'#536075',fontSize:12,fontWeight:650}
+const fieldLabelStyle:CSSProperties={display:'flex',flexDirection:'column',gap:7,color:'#536075',fontSize:12,fontWeight:650}
 const errorBox:CSSProperties={marginTop:16,padding:13,borderRadius:10,background:'#fff1f2',border:'1px solid #fecdd3',color:'#9f1239',fontSize:13}
 const successBox:CSSProperties={marginTop:16,padding:13,borderRadius:10,background:'#f0fdf4',border:'1px solid #bbf7d0',color:'#166534',fontSize:13}
