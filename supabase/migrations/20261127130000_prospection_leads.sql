@@ -17,5 +17,7 @@ create index if not exists prospection_leads_saved_by_idx on public.prospection_
 
 alter table public.prospection_leads enable row level security;
 revoke all on public.prospection_leads from anon, authenticated;
+grant all on public.prospection_leads to service_role;
+grant usage, select on sequence public.prospection_leads_id_seq to service_role;
 
 notify pgrst, 'reload schema';
