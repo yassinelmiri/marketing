@@ -31,6 +31,10 @@ const MODULE_PERMISSIONS: ModulePermission[] = [
   { code: 'sms.access', label: 'Envoi SMS', description: 'Accéder au module d’envoi SMS.' },
 ]
 
+const MODULE_PERMISSION_LABEL_BY_CODE = new Map(
+  MODULE_PERMISSIONS.map(({ code, label }) => [code, label] as const),
+)
+
 const emptyForm = {
   prenom: '',
   nom: '',
