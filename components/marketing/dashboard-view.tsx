@@ -69,7 +69,7 @@ export function DashboardView({
   const [moduleError, setModuleError] = useState('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [systemHealth, setSystemHealth] = useState<{
-    database: { totalRows: number; tables: { name: string; rows: number | null; available: boolean }[]; checkedAt: string } | null
+    database: { totalRows: number; sizeBytes: number | null; limitBytes: number | null; usagePercent: number | null; tables: { name: string; rows: number | null; available: boolean }[]; checkedAt: string } | null
     website: { responseMs: number | null; status: 'online' | 'slow' | 'offline'; checkedAt: string } | null
     alerts: { level: 'warning' | 'error'; title: string; detail: string }[]
   }>({ database: null, website: null, alerts: [] })
@@ -454,17 +454,23 @@ export function DashboardView({
             </div>
             <p className="kpi-system-note">{healthLoading ? 'Vérification en cours…' : 'Historique conservé pendant cette session du Dashboard (30 dernières mesures). La mesure correspond au temps de réponse serveur, pas aux Core Web Vitals.'}</p>
           </article>
-          <article className="kpi-system-card kpi-system-alerts">
-            <div className="kpi-panel-title"><div><strong>Alertes système</strong><span>Erreurs et anomalies détectées</span></div><AlertCircle /></div>
-            {systemHealth.alerts.length ? systemHealth.alerts.map((alert, index) => <div className={'kpi-system-alert ' + alert.level} key={alert.title + index}><AlertCircle size={16}/><div><strong>{alert.title}</strong><span>{alert.detail}</span></div></div>) : <div className="kpi-system-ok"><CheckCircle2 size={18}/>Aucun problème détecté lors du dernier contrôle.</div>}
-          </article>
-          <article className="kpi-system-card">
-            <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Volume réel des enregistrements Supabase</span></div><UsersRound /></div>
-            <div className="kpi-system-main"><strong>{systemHealth.database ? systemHealth.database.totalRows.toLocaleString('fr-FR') : '—'}</strong><span>lignes comptabilisées</span></div>
-            <div className="kpi-system-table-list">
-              {(systemHealth.database?.tables ?? []).map((table) => <div key={table.name}><span>{table.name}</span><strong>{table.available ? Number(table.rows ?? 0).toLocaleString('fr-FR') : 'Indisponible'}</strong></div>)}
+          <article className="kpi-system-card kpi-system-database">
+            <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Occupation réelle de l’espace PostgreSQL</span></div><UsersRound /></div>
+            <div className="kpi-db-gauge-row">
+              <div className="kpi-db-gauge" style={{ '--db-usage': `${systemHealth.database?.usagePercent ?? 0}%` } as CSSProperties}>
+                <div className="kpi-db-gauge-inner">
+                  <strong>{systemHealth.database?.usagePercent != null ? `${systemHealth.database.usagePercent}%` : '—'}</strong>
+                  <span>utilisé</span>
+                </div>
+              </div>
+              <div className="kpi-db-size">
+                <strong>{systemHealth.database?.sizeBytes != null ? (systemHealth.database.sizeBytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : '—'} <small>MB</small></strong>
+                <span>sur {systemHealth.database?.limitBytes != null ? (systemHealth.database.limitBytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' MB' : 'capacité non configurée'}</span>
+              </div>
             </div>
-            <p className="kpi-system-note">Quota disque restant : non exposé par l’API standard Supabase. Les chiffres ci-dessus représentent les lignes, pas l’espace disque.</p>
+            <div className="kpi-db-progress"><i style={{ width: `${systemHealth.database?.usagePercent ?? 0}%` }} /></div>
+            <div className="kpi-db-capacity-labels"><span>0%</span><span>100% — base pleine</span></div>
+            <p className="kpi-system-note">{systemHealth.database?.usagePercent == null ? 'Configurez SUPABASE_DB_SIZE_LIMIT_MB et appliquez la migration SQL pour afficher le taux réel.' : `${systemHealth.database.totalRows.toLocaleString('fr-FR')} lignes au total dans les tables surveillées.`}</p>
           </article>
         </section>
     </section>
