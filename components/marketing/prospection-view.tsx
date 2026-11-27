@@ -141,8 +141,8 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
   const preview = result?.records.slice(0, 8) ?? []
   const suggested = fields.filter(field => fieldAliases.includes(field.toLowerCase()))
   return <section className="workspace-section prospection-page">
-    <div style={panel}>
-      <header style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:14, flexWrap:'wrap', marginBottom:24 }}>
+    <div className="prospection-panel" style={panel}>
+      <header className="prospection-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:14, flexWrap:'wrap', marginBottom:24 }}>
         <div style={{ display:'flex', alignItems:'center', gap:13 }}>
           <span style={heroIcon}><Search size={23}/></span>
           <div><h2 style={{ margin:0, color:'#172033', fontSize:23 }}>Préparation de fichier</h2><p style={sub}>Construisez une audience depuis votre base de données API, puis enregistrez-la dans vos listes.</p></div>
@@ -150,7 +150,7 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
         <button type="button" style={secondary} disabled={loadingFields} onClick={() => void loadFields()}>{loadingFields?<Loader2 size={15}/>:<RefreshCw size={15}/>} Actualiser les champs</button>
       </header>
 
-      <div style={stepHeading}><span style={stepNumber}>1</span><div><h3 style={stepTitle}>Définir les caractéristiques</h3><p style={sub}>Les champs sont détectés automatiquement à partir des données renvoyées par votre API.</p></div></div>
+      <div className="prospection-step-heading" style={stepHeading}><span style={stepNumber}>1</span><div><h3 style={stepTitle}>Définir les caractéristiques</h3><p style={sub}>Les champs sont détectés automatiquement à partir des données renvoyées par votre API.</p></div></div>
       <div style={infoBar}><Database size={16}/> {loadingFields ? 'Analyse de la structure API…' : fields.length ? `${fields.length} champs détectés dans la réponse API` : 'En attente de la connexion API'}</div>
       <div style={apiModes}>
         <label style={modeLabel}>Format des filtres API<select style={control} value={filterMode} onChange={event=>setFilterMode(event.target.value)}><option value="query">field=value</option><option value="filter">filter[field]=value</option><option value="filters">filters[field]=value</option><option value="none">Filtrage local uniquement</option></select></label>
@@ -188,13 +188,13 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
       {result && <>
         <div style={divider}/>
         <div style={stepHeading}><span style={stepNumber}>2</span><div><h3 style={stepTitle}>Résultats de la requête</h3><p style={sub}>Aperçu des données récupérées depuis l’API avant leur enregistrement.</p></div></div>
-        <div style={resultStats}><div><strong>{result.records.length.toLocaleString('fr-FR')}</strong><span>Contacts récupérés</span></div><div><strong>{result.fields.length}</strong><span>Champs disponibles</span></div><div><strong>{activeFilters.length}</strong><span>Critères appliqués</span></div></div>
-        <div style={mappingPanel}>
+        <div className="prospection-result-stats" style={resultStats}><div><strong>{result.records.length.toLocaleString('fr-FR')}</strong><span>Contacts récupérés</span></div><div><strong>{result.fields.length}</strong><span>Champs disponibles</span></div><div><strong>{activeFilters.length}</strong><span>Critères appliqués</span></div></div>
+        <div className="prospection-mapping-panel" style={mappingPanel}>
           <strong style={{fontSize:13,color:'#344054'}}>Correspondance des champs de contacts</strong>
           <p style={sub}>Associez les champs de l’API aux champs de votre base. Les correspondances automatiques peuvent être modifiées.</p>
           <div style={mappingGrid}>{canonicalFields.map(item=><label key={item.key} style={fieldLabelStyle}>{item.label}<select style={control} value={mapping[item.key] ?? ''} onChange={event=>setMapping(current=>({...current,[item.key]:event.target.value}))}><option value="">Non disponible / ignorer</option>{result.fields.map(field=><option key={field} value={field}>{field}</option>)}</select></label>)}</div>
         </div>
-        <div style={{overflowX:'auto',border:'1px solid #e7eaf0',borderRadius:12,marginTop:16}}>
+        <div className="prospection-preview-table" style={{overflowX:'auto',border:'1px solid #e7eaf0',borderRadius:12,marginTop:16}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:680}}><thead><tr style={{background:'#f8f9fc',textAlign:'left'}}>{result.fields.slice(0,7).map(field=><th key={field} style={th}>{fieldLabel(field)}</th>)}</tr></thead>
           <tbody>{preview.map((record,index)=><tr key={String(record.id??record.email??index)} style={{borderTop:'1px solid #edf0f5'}}>{result.fields.slice(0,7).map(field=><td key={field} style={td}>{readField(record,field)||'—'}</td>)}</tr>)}</tbody></table>
         </div>
@@ -202,7 +202,7 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
 
         <div style={divider}/>
         <div style={stepHeading}><span style={stepNumber}>3</span><div><h3 style={stepTitle}>Enregistrer comme liste</h3><p style={sub}>La liste sera disponible dans le module Listes pour l’ajouter ensuite à une campagne.</p></div></div>
-        <div style={saveGrid}>
+        <div className="prospection-save-grid" style={saveGrid}>
           <label style={fieldLabelStyle}>Nom de la liste<input style={control} value={listName} onChange={event=>setListName(event.target.value)} placeholder="Ex. Prospects Casablanca — Décembre"/></label>
           <label style={fieldLabelStyle}>Description (facultatif)<input style={control} value={listDescription} onChange={event=>setListDescription(event.target.value)} placeholder="Description de la cible"/></label>
         </div>
