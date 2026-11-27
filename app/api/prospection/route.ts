@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
     }
     let records = extractRecords(payload)
     const rawCount = records.length
+    const rawFirstId = records[0] ? String(records[0].id ?? records[0].email ?? JSON.stringify(records[0])) : ''
     // If the API does not implement filtering, apply the selected criteria locally
     // to the returned page, while clearly keeping the API pagination metadata.
     records = records.filter(record => filters.every(filter => !filter.value.trim() || compare(String(flatten(record)[filter.field] ?? ''), filter.operator || 'contains', filter.value)))
@@ -154,6 +155,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       records,
       rawCount,
+      rawFirstId,
       fields,
       page,
       pageSize,
