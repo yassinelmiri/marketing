@@ -35,7 +35,7 @@ export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
 ]
 
 /** Permissions par défaut d'un nouveau membre. */
-export const DEFAULT_MEMBER_PERMISSIONS: ViewKey[] = ['dashboard']
+export const DEFAULT_MEMBER_PERMISSIONS: ViewKey[] = ['dashboard', 'prospection']
 
 /** Nettoie un tableau de permissions (retire les doublons et les valeurs invalides). */
 export function sanitizePermissions(input: unknown): ViewKey[] {
