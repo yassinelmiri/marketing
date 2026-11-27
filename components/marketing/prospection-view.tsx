@@ -26,6 +26,18 @@ const readField = (record: Record<string, unknown>, field: string) => {
   return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 const fieldAliases = Object.values(aliases).flat()
+const canonicalFields = [
+  { key: 'name', label: 'Nom complet', aliases: ['name','nom','full_name','fullname'] },
+  { key: 'firstName', label: 'Prénom', aliases: ['first_name','firstname','prenom','given_name'] },
+  { key: 'lastName', label: 'Nom', aliases: ['last_name','lastname','surname','family_name'] },
+  { key: 'email', label: 'E-mail', aliases: ['email','e-mail','mail'] },
+  { key: 'phone', label: 'Téléphone', aliases: ['phone','telephone','tel','mobile','phone_number'] },
+  { key: 'age', label: 'Âge', aliases: ['age'] },
+  { key: 'city', label: 'Ville', aliases: ['city','ville','locality'] },
+  { key: 'country', label: 'Pays', aliases: ['country','pays'] },
+  { key: 'postalCode', label: 'Code postal', aliases: ['postal_code','postcode','zip','zipcode','code_postal'] },
+  { key: 'address', label: 'Adresse', aliases: ['address','street','adresse'] },
+]
 
 export function ProspectionView() {
   const [fields, setFields] = useState<string[]>([])
@@ -39,6 +51,7 @@ export function ProspectionView() {
   const [notice, setNotice] = useState('')
   const [listName, setListName] = useState('')
   const [listDescription, setListDescription] = useState('')
+  const [mapping, setMapping] = useState<Record<string, string>>({})
   const [paginationMode, setPaginationMode] = useState('page')
   const [filterMode, setFilterMode] = useState('query')
 
@@ -50,6 +63,7 @@ export function ProspectionView() {
       if (!response.ok) throw new Error(data.error || 'Impossible de découvrir les champs de cette API.')
       const detected = Array.isArray(data.fields) ? data.fields as string[] : []
       setFields(detected)
+      setMapping(current => Object.keys(current).length ? current : Object.fromEntries(canonicalFields.map(item => [item.key, detected.find(field => item.aliases.includes(field.toLowerCase())) ?? ''])))
       if (!detected.length) throw new Error('Aucun champ détecté. Vérifiez l’URL et le format JSON de l’API.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Erreur de connexion.') }
     finally { setLoadingFields(false) }
@@ -108,7 +122,7 @@ export function ProspectionView() {
     try {
       const response = await fetch('/api/prospection', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save-list', name: listName.trim(), description: listDescription, target: activeFilters.map(filter => `${fieldLabel(filter.field)} ${filter.operator} ${filter.value}`).join(' · '), records: result.records }),
+        body: JSON.stringify({ action: 'save-list', name: listName.trim(), description: listDescription, mapping, target: activeFilters.map(filter => `${fieldLabel(filter.field)} ${filter.operator} ${filter.value}`).join(' · '), records: result.records }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Impossible de sauvegarder la liste.')
@@ -158,6 +172,11 @@ export function ProspectionView() {
         <div style={divider}/>
         <div style={stepHeading}><span style={stepNumber}>2</span><div><h3 style={stepTitle}>Résultats de la requête</h3><p style={sub}>Aperçu des données récupérées depuis l’API avant leur enregistrement.</p></div></div>
         <div style={resultStats}><div><strong>{result.records.length.toLocaleString('fr-FR')}</strong><span>Contacts récupérés</span></div><div><strong>{result.fields.length}</strong><span>Champs disponibles</span></div><div><strong>{activeFilters.length}</strong><span>Critères appliqués</span></div></div>
+        <div style={mappingPanel}>
+          <strong style={{fontSize:13,color:'#344054'}}>Correspondance des champs de contacts</strong>
+          <p style={sub}>Associez les champs de l’API aux champs de votre base. Les correspondances automatiques peuvent être modifiées.</p>
+          <div style={mappingGrid}>{canonicalFields.map(item=><label key={item.key} style={fieldLabel}>{item.label}<select style={control} value={mapping[item.key] ?? ''} onChange={event=>setMapping(current=>({...current,[item.key]:event.target.value}))}><option value="">Non disponible / ignorer</option>{result.fields.map(field=><option key={field} value={field}>{field}</option>)}</select></label>)}</div>
+        </div>
         <div style={{overflowX:'auto',border:'1px solid #e7eaf0',borderRadius:12,marginTop:16}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:680}}><thead><tr style={{background:'#f8f9fc',textAlign:'left'}}>{result.fields.slice(0,7).map(field=><th key={field} style={th}>{fieldLabel(field)}</th>)}</tr></thead>
           <tbody>{preview.map((record,index)=><tr key={String(record.id??record.email??index)} style={{borderTop:'1px solid #edf0f5'}}>{result.fields.slice(0,7).map(field=><td key={field} style={td}>{readField(record,field)||'—'}</td>)}</tr>)}</tbody></table>
@@ -195,6 +214,8 @@ const primary:CSSProperties={display:'inline-flex',alignItems:'center',justifyCo
 const secondary:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'9px 12px',border:'1px solid #dfe3ec',borderRadius:9,background:'#fff',color:'#465268',fontWeight:600,cursor:'pointer',fontSize:12}
 const divider:CSSProperties={height:1,background:'#e9ecf2',margin:'26px 0'}
 const resultStats:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10}
+const mappingPanel:CSSProperties={marginTop:16,padding:16,border:'1px solid #e8eaf0',borderRadius:12,background:'#fbfcfe'}
+const mappingGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:12}
 const th:CSSProperties={padding:'12px 13px',color:'#667085',fontSize:11,fontWeight:700,textTransform:'uppercase'}
 const td:CSSProperties={padding:'11px 13px',color:'#536075',fontSize:12,maxWidth:240,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}
 const saveGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}
