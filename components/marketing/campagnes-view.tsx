@@ -102,6 +102,15 @@ export function CampagnesView({
     }
     return names
   }, [campagneMembres, teamUserById])
+  const memberIdsByCampaignId = useMemo(() => {
+    const ids = new Map<number, number[]>()
+    for (const link of campagneMembres) {
+      const current = ids.get(link.campagne_id)
+      if (current) current.push(link.user_id)
+      else ids.set(link.campagne_id, [link.user_id])
+    }
+    return ids
+  }, [campagneMembres])
   const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
     if (campaign.status === 'en_cours') counts.inProgress++
     else if (campaign.status === 'brouillon') counts.drafts++
@@ -156,7 +165,7 @@ export function CampagnesView({
       note: c.note,
       status: c.status,
     })
-    setFormMemberIds(campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => link.user_id))
+    setFormMemberIds(memberIdsByCampaignId.get(c.id) ?? [])
     setMemberPickerOpen(false)
     setMemberSearch('')
     setShowForm(true)
