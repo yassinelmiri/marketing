@@ -130,8 +130,8 @@ function formatDateValue(value:unknown):string{const normalized=normalizeText(va
  async function campaignAction(id:number,action:'pause'|'resume'){try{const d=await post('/api/email/campaigns','PATCH',{id,action});flash(action==='pause'?'Campagne mise en pause':'Campagne relancée');await refresh(false)}catch(e){setError(e instanceof Error?e.message:'Action impossible')}}
  function editCampaign(c:Campaign){
   if(c.sent_count>0||!['pending','scheduled','paused'].includes(c.status)){setError('Cette campagne a déjà commencé et ne peut plus être modifiée.');return}
-  setEditingId(c.id);setTemplate('');setCampaignBody('');setSubject(c.subject);setMessage(c.message||'');setReplyTo(c.reply_to||'');setBatch(String(c.batch_size||25));setDelay(String(c.batch_delay_seconds||0));
-  const date=c.scheduled_at||c.next_batch_at;setLaunchAt(campaignDateToInput(date));
+  setEditingId(c.id);setTemplate('');setCampaignBody('');setSubject(normalizeText(c.subject));setMessage(normalizeText(c.message));setReplyTo(normalizeText(c.reply_to));setBatch(String(Number(c.batch_size)||25));setDelay(String(Number(c.batch_delay_seconds)||0));
+  const date=normalizeText(c.scheduled_at)||normalizeText(c.next_batch_at);setLaunchAt(campaignDateToInput(date));
   setTab('campaigns');setError('');flash('Campagne chargée dans le formulaire. Modifiez les champs puis enregistrez.')
  }
  async function saveCampaignEdit(){if(editingId===null)return;setBusy(true);setError('');try{await post('/api/email/campaigns','PATCH',{id:editingId,action:'edit',subject,message,reply_to:replyTo,batch_size:Number(batch),batch_delay_seconds:Number(delay),scheduled_at:launchAt?campaignInputToIso(launchAt):new Date().toISOString()});setEditingId(null);setSubject('');setMessage('');setReplyTo('');setLaunchAt('');await refresh(false);flash('Campagne modifiée avec succès.')}catch(e){setError(e instanceof Error?e.message:'Modification impossible')}finally{setBusy(false)}}
