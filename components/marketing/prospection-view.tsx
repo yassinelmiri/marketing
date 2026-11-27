@@ -85,12 +85,13 @@ export function ProspectionView() {
         const rows = Array.isArray(data.records) ? data.records as Record<string, unknown>[] : []
         detectedFields = Array.isArray(data.fields) && data.fields.length ? data.fields : detectedFields
         total = data.total ?? total; totalPages = data.totalPages ?? totalPages
-        if (!rows.length) break
+        const rawCount = Number(data.rawCount ?? rows.length)
+        if (rawCount === 0) break
         const firstId = String(rows[0]?.id ?? rows[0]?.email ?? JSON.stringify(rows[0]))
         if (page > 1 && firstId === previousFirst) break
         previousFirst = firstId
         all.push(...rows)
-        if (rows.length < 100 || (total !== null && all.length >= total) || (totalPages !== null && page >= totalPages)) break
+        if (rawCount < 100 || (total !== null && all.length >= total) || (totalPages !== null && page >= totalPages)) break
         page += 1
       }
       setFields(detectedFields)
