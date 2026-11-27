@@ -1,20 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useTasksData, type Task, type TaskMember } from '@/hooks/use-tasks-data'
+import { useTasksData } from '@/hooks/use-tasks-data'
+import type { Task, TaskMember } from '@/lib/tasks/types'
+import { EMPTY_TASK_DRAFT as empty, TASK_STATUS_LABELS as statusLabel, TASK_PRIORITY_LABELS as priorityLabel, TASK_STATUS_COLORS as statusColor, TASK_PRIORITY_COLORS as priorityColor, formatTaskDate as dateLabel, isTaskLate as isLate, getTaskMemberInitials as initials, type TaskDraft } from '@/lib/tasks/view-utils'
 import { CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
 import type { User } from '@/lib/storage'
 
 type Member = TaskMember
-type TaskDraft={title:string;description:string;priority:Task['priority'];status:Task['status'];due_date:string;assignee_ids:number[];recurrence_frequency:Task['recurrence_frequency'];recurrence_interval:number;recurrence_until:string}
-const empty:TaskDraft={title:'',description:'',priority:'medium',status:'todo',due_date:'',assignee_ids:[],recurrence_frequency:'none',recurrence_interval:1,recurrence_until:''}
-const statusLabel={todo:'À faire',in_progress:'En cours',waiting:'En attente',done:'Terminée'}
-const priorityLabel={low:'Basse',medium:'Moyenne',high:'Haute',urgent:'Urgente'}
-const statusColor={todo:'taskz-slate',in_progress:'taskz-blue',waiting:'taskz-amber',done:'taskz-green'}
-const priorityColor={low:'taskz-slate',medium:'taskz-blue',high:'taskz-amber',urgent:'taskz-red'}
-function dateLabel(date:string|null){if(!date)return 'Sans échéance';return new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})}
-function isLate(task:Task){return task.status!=='done'&&!!task.due_date&&new Date(task.due_date+'T23:59:59').getTime()<Date.now()}
-function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0]??'')}
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
  const { tasks, members, loading, error, setError, loadTasks } = useTasksData(user.id)
