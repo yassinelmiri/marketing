@@ -27,7 +27,7 @@ export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
  const filtered=useMemo(()=>tasks.filter(t=>(statusFilter==='all'||t.status===statusFilter)&&(''+t.title+' '+t.description+' '+t.assignees.map(a=>a.prenom+' '+a.nom).join(' ')).toLowerCase().includes(search.toLowerCase())),[tasks,statusFilter,search])
  const pageTasks=filtered.slice((page-1)*pageSize,page*pageSize)
  const groups:Task['status'][]=['todo','in_progress','waiting','done']
- const stats={all:tasks.length,open:tasks.filter(t=>t.status!=='done').length,done:tasks.filter(t=>t.status==='done').length,late:tasks.filter(isLate).length}
+ const stats=useMemo(()=>tasks.reduce((total,task)=>{total.all+=1;if(task.status==='done')total.done+=1;else{total.open+=1;if(isLate(task))total.late+=1}return total},{all:0,open:0,done:0,late:0}),[tasks])
  function openCreate(){setEditing(null);setDraft({...empty});setModal(true)}
  function openEdit(task:Task){setEditing(task);setDraft({title:task.title,description:task.description,priority:task.priority,status:task.status,due_date:task.due_date??'',assignee_ids:task.assignee_ids,recurrence_frequency:task.recurrence_frequency??'none',recurrence_interval:task.recurrence_interval??1,recurrence_until:task.recurrence_until??''});setModal(true)}
  function toggleMember(id:number){setDraft(d=>({...d,assignee_ids:d.assignee_ids.includes(id)?d.assignee_ids.filter(x=>x!==id):[...d.assignee_ids,id]}))}
