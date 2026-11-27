@@ -52,3 +52,20 @@ export function getVisibleListes({
     return sort === 'date-asc' ? delta : -delta
   })
 }
+
+/** Builds the contact-to-list names index used by the contacts table. */
+export function buildContactListNamesByContactId(
+  contactLinks: { contact_id: number; liste_id: number }[],
+  listes: Pick<ListeContact, 'id' | 'nom'>[],
+): Map<number, string[]> {
+  const listsById = new Map(listes.map((liste) => [liste.id, liste.nom]))
+  const namesByContactId = new Map<number, string[]>()
+  for (const link of contactLinks) {
+    const listName = listsById.get(link.liste_id)
+    if (!listName) continue
+    const names = namesByContactId.get(link.contact_id) ?? []
+    names.push(listName)
+    namesByContactId.set(link.contact_id, names)
+  }
+  return namesByContactId
+}
