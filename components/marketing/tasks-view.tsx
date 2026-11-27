@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import { useTasksData } from '@/hooks/use-tasks-data'
-import type { Task, TaskMember } from '@/lib/tasks/types'
+import type { Task } from '@/lib/tasks/types'
 import { EMPTY_TASK_DRAFT as empty, TASK_STATUS_LABELS as statusLabel, TASK_PRIORITY_LABELS as priorityLabel, TASK_STATUS_COLORS as statusColor, TASK_PRIORITY_COLORS as priorityColor, formatTaskDate as dateLabel, isTaskLate as isLate, getTaskMemberInitials as initials, type TaskDraft } from '@/lib/tasks/view-utils'
 import { CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
 import type { User } from '@/lib/storage'
-
-type Member = TaskMember
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
  const { tasks, members, loading, error, setError, loadTasks } = useTasksData(user.id)
