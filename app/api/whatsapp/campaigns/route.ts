@@ -69,15 +69,10 @@ export async function GET(request: NextRequest) {
       .select('id,user_id,name,source_file,message,consent_confirmed_at,status,total_recipients,created_at,updated_at')
       .eq('id', campaignId)
       .maybeSingle()
-    if (!auth.isAdmin) {
-      const { data: ownedCampaign, error: ownershipError } = await auth.admin
-        .from('whatsapp_campaigns').select('id').eq('id', campaignId).eq('user_id', auth.userId).maybeSingle()
-      if (ownershipError) return NextResponse.json({ error: 'Vérification de la campagne impossible.' }, { status: 500 })
-      if (!ownedCampaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
-    }
-
     if (error) return NextResponse.json({ error: 'Chargement de la campagne impossible.' }, { status: 500 })
-    if (!campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    if (!campaign || (!auth.isAdmin && Number(campaign.user_id) !== auth.userId)) {
+      return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    }
 
     const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
     const pageSize = Math.max(10, Math.min(100, Number(request.nextUrl.searchParams.get('pageSize')) || 50))
