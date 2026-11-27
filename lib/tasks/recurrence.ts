@@ -1,4 +1,4 @@
-import type { RecurrenceFrequency } from './types'
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 /**
  * Calculate the next calendar date for a recurring task.
