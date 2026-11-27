@@ -97,7 +97,9 @@ export async function GET() {
     admin.rpc('get_database_size_bytes'),
   ])
   const sizeBytes = sizeError || sizeResult == null ? null : Number(sizeResult)
-  const configuredLimitMb = Number(process.env.SUPABASE_DB_SIZE_LIMIT_MB || 0)
+  // Supabase Free includes a 500 MB database-size quota per project.
+  // Allow an environment override if the project plan/quota changes.
+  const configuredLimitMb = Number(process.env.SUPABASE_DB_SIZE_LIMIT_MB || 500)
   const limitBytes = configuredLimitMb > 0 ? configuredLimitMb * 1024 * 1024 : null
   const usagePercent = sizeBytes != null && limitBytes != null
     ? Math.min(100, Math.max(0, Math.round((sizeBytes / limitBytes) * 100)))
