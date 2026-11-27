@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useTasksData, type Task, type TaskMember } from '@/hooks/use-tasks-data'
 import { CalendarClock, CheckCircle2, Clock3, ListTodo, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react'
 import type { User } from '@/lib/storage'
 
-type Member={id:number;prenom:string;nom:string;email?:string}
-type Task={id:number;title:string;description:string;priority:'low'|'medium'|'high'|'urgent';status:'todo'|'in_progress'|'waiting'|'done';due_date:string|null;created_by:number|null;created_at:string;assignee_ids:number[];assignees:Member[];recurrence_frequency:'none'|'daily'|'weekly'|'monthly'|'yearly';recurrence_interval:number;recurrence_until:string|null;recurrence_series_id:number|null}
+type Member = TaskMember
 type TaskDraft={title:string;description:string;priority:Task['priority'];status:Task['status'];due_date:string;assignee_ids:number[];recurrence_frequency:Task['recurrence_frequency'];recurrence_interval:number;recurrence_until:string}
 const empty:TaskDraft={title:'',description:'',priority:'medium',status:'todo',due_date:'',assignee_ids:[],recurrence_frequency:'none',recurrence_interval:1,recurrence_until:''}
 const statusLabel={todo:'À faire',in_progress:'En cours',waiting:'En attente',done:'Terminée'}
@@ -17,13 +17,11 @@ function isLate(task:Task){return task.status!=='done'&&!!task.due_date&&new Dat
 function initials(member:Member){return (member.prenom?.[0]??'')+(member.nom?.[0]??'')}
 
 export function TasksView({user,isAdmin}:{user:User;isAdmin:boolean}){
- const [tasks,setTasks]=useState<Task[]>([]),[members,setMembers]=useState<Member[]>([])
- const [loading,setLoading]=useState(true),[error,setError]=useState(''),[search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
+ const { tasks, members, loading, error, setError, loadTasks } = useTasksData(user.id)
+ const [search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('all')
  const [page,setPage]=useState(1),[pageSize,setPageSize]=useState(25)
  const [modal,setModal]=useState(false),[editing,setEditing]=useState<Task|null>(null)
  const [draft,setDraft]=useState<TaskDraft>(empty),[saving,setSaving]=useState(false),[view,setView]=useState<'list'|'board'>('list'),[draggedTaskId,setDraggedTaskId]=useState<number|null>(null),[dragOverStatus,setDragOverStatus]=useState<Task['status']|null>(null)
- async function loadTasks(){setLoading(true);setError('');try{const res=await fetch('/api/tasks',{cache:'no-store'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Chargement des tâches impossible.');setTasks(data.tasks??[]);setMembers(data.members??[])}catch(e){setError(e instanceof Error?e.message:'Erreur de chargement')}finally{setLoading(false)}}
- useEffect(()=>{void loadTasks()},[user.id])
  const normalizedSearch=search.trim().toLocaleLowerCase('fr')
  const searchableTaskText=useMemo(()=>new Map(tasks.map(task=>[
   task.id,
