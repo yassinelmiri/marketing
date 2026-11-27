@@ -44,7 +44,10 @@ export async function POST(request: NextRequest) {
     if (listsError || (lists ?? []).length !== listeIds.length) return NextResponse.json({ error: 'Une ou plusieurs listes sont introuvables.' }, { status: 404 })
     if (linksError) throw linksError
 
-    const smtpById = new Map((smtpAccounts ?? []).map((account) => [Number(account.id), account]))
+    type SmtpAccount = NonNullable<typeof smtpAccounts>[number]
+    const smtpById = new Map<number, SmtpAccount>(
+      (smtpAccounts ?? []).map((account): [number, SmtpAccount] => [Number(account.id), account]),
+    )
     const primarySmtp = smtpIds.map((id) => smtpById.get(id)).find(Boolean)
     if (!primarySmtp) return NextResponse.json({ error: 'Un ou plusieurs comptes expéditeurs sont introuvables ou désactivés.' }, { status: 404 })
 
