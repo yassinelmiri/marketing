@@ -29,7 +29,7 @@ import {
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
-import { buildDashboardModuleStats, createEmptyDashboardModuleStats, type DashboardModuleStats } from '@/lib/dashboard/view-utils'
+import { buildDashboardModuleStats, createEmptyDashboardModuleStats, buildCampaignDiagnostic, type DashboardModuleStats } from '@/lib/dashboard/view-utils'
 
 interface DashboardViewProps {
   user: User
@@ -165,33 +165,10 @@ export function DashboardView({
     () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
     [campagnes, assignedCampaignIds],
   )
-  const diagnostic = useMemo(() => {
-    const total = campagnes.length
-    const active = campagnes.filter((c) => c.status === 'en_cours').length
-    const completed = campagnes.filter((c) => c.status === 'terminee').length
-    const drafts = campagnes.filter((c) => c.status === 'brouillon').length
-    const archived = campagnes.filter((c) => c.status === 'archivee').length
-    const completionRate = total ? Math.round((completed / total) * 100) : 0
-    const activeRate = total ? Math.round((active / total) * 100) : 0
-    const commentsCount = commentaires.length
-    const recentCampaigns = campagnes.filter((c) => {
-      const date = new Date(c.date_modification).getTime()
-      return Number.isFinite(date) && Date.now() - date <= 30 * 24 * 60 * 60 * 1000
-    }).length
-    const health = total === 0 ? 0 : Math.min(100, Math.round(
-      (completionRate * 0.45) + (Math.min(recentCampaigns / total, 1) * 25) + (Math.min(commentsCount / total, 1) * 15) + (Math.min(stats.contacts / Math.max(stats.listes, 1) / 10, 1) * 15),
-    ))
-    const findings: { tone: 'good' | 'warn' | 'info'; title: string; detail: string }[] = []
-    if (!total) findings.push({ tone: 'info', title: 'Démarrage du projet', detail: 'Aucune campagne encore créée. Créez une campagne pour commencer à suivre les performances.' })
-    else if (drafts > active + completed) findings.push({ tone: 'warn', title: 'Beaucoup de campagnes en préparation', detail: `${drafts} brouillon(s) : pensez à les planifier ou à les lancer.` })
-    else findings.push({ tone: 'good', title: 'Pipeline de campagnes', detail: `${active} campagne(s) en cours et ${completed} terminée(s) sur ${total} au total.` })
-    if (stats.contacts === 0) findings.push({ tone: 'warn', title: 'Base de contacts vide', detail: 'Importez ou ajoutez des contacts pour alimenter les campagnes.' })
-    else if (stats.listes === 0) findings.push({ tone: 'warn', title: 'Aucune liste de contacts', detail: 'Créez des listes pour segmenter la base et associer les contacts aux campagnes.' })
-    else findings.push({ tone: 'good', title: 'Base de données marketing', detail: `${stats.contacts.toLocaleString('fr-FR')} contact(s) répartis sur ${stats.listes} liste(s).` })
-    if (commentsCount === 0 && total > 0) findings.push({ tone: 'info', title: 'Collaboration à renforcer', detail: 'Aucun commentaire : utilisez les commentaires de campagne pour centraliser les échanges.' })
-    else if (commentsCount > 0) findings.push({ tone: 'good', title: 'Suivi collaboratif', detail: `${commentsCount} commentaire(s) pour garder le contexte et les décisions.` })
-    return { total, active, completed, drafts, archived, completionRate, activeRate, recentCampaigns, health, findings }
-  }, [campagnes, commentaires, stats.contacts, stats.listes])
+  const diagnostic = useMemo(
+    () => buildCampaignDiagnostic(campagnes, commentaires.length, stats.contacts, stats.listes),
+    [campagnes, commentaires.length, stats.contacts, stats.listes],
+  )
 
   const dashboardCampaigns = useMemo(
     () => isAdmin ? campagnes : campagnes.filter((campaign) => campaign.user_id === user.id || assignedCampaignIds.has(campaign.id)),
