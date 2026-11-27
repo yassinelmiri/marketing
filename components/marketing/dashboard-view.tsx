@@ -165,6 +165,7 @@ export function DashboardView({
   }, [campagneMembres, user.id])
   const typeNameById = useMemo(() => new Map(typesCampagnes.map((type) => [type.id, type.nom])), [typesCampagnes])
   const teamRoleNameById = useMemo(() => new Map(teamRoles.map((role) => [role.id, role.nom])), [teamRoles])
+  const teamUserById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
   const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
     if (campaign.status === 'en_cours') counts.inProgress++
     else if (campaign.status === 'terminee') counts.completed++
@@ -360,7 +361,7 @@ export function DashboardView({
               <dl className="campagne-detail-grid">
                 <div>
                   <dt>Type</dt>
-                  <dd>{typesCampagnes.find((item) => item.id === selectedCampagne.type_campagne_id)?.nom ?? '—'}</dd>
+                  <dd>{typeNameById.get(selectedCampagne.type_campagne_id) ?? '—'}</dd>
                 </div>
                 <div><dt>Créée le</dt><dd>{formatDate(selectedCampagne.date_creation)}</dd></div>
                 <div><dt>Cible</dt><dd>{selectedCampagne.cible || '—'}</dd></div>
@@ -374,7 +375,7 @@ export function DashboardView({
                 ) : (
                   <ul>
                     {selectedComments.map((cm) => {
-                      const author = teamUsers.find((item) => item.id === cm.user_id)
+                      const author = teamUserById.get(cm.user_id)
                       return (
                         <li key={cm.id}>
                           <div className="comment-meta">
