@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 const ADMIN_ROLE_ID = 1
 const TABLES = [
   'contacts',
+  'listes',
   'liste_contacts',
   'campagnes',
   'campagne_listes',
@@ -27,6 +28,9 @@ const TABLES = [
   'email_delivery_logs',
   'email_templates',
   'email_unsubscribes',
+  'smtp_accounts',
+  'whatsapp_campaigns',
+  'whatsapp_campaign_recipients',
   'prospection_leads',
 ] as const
 
