@@ -146,15 +146,28 @@ export function DashboardView({
     const loadHealth = async () => {
       setHealthLoading(true)
       try {
-        const response = await fetch('/api/admin/health', { cache: 'no-store' })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || 'Diagnostic système indisponible')
+        const [healthResponse, pingResult] = await Promise.all([
+          fetch('/api/admin/health', { cache: 'no-store' }),
+          (async () => {
+            const started = performance.now()
+            try {
+              const response = await fetch('/api/health/ping', { cache: 'no-store' })
+              const responseMs = Math.round(performance.now() - started)
+              return { responseMs, status: !response.ok ? 'offline' as const : responseMs > 1500 ? 'slow' as const : 'online' as const, checkedAt: new Date().toISOString() }
+            } catch {
+              return { responseMs: null, status: 'offline' as const, checkedAt: new Date().toISOString() }
+            }
+          })(),
+        ])
+        const data = await healthResponse.json()
+        if (!healthResponse.ok) throw new Error(data.error || 'Diagnostic système indisponible')
+        data.website = pingResult
         if (active) {
           setSystemHealth(data)
-          if (typeof data.website?.responseMs === 'number') {
+          if (typeof pingResult.responseMs === 'number') {
             setSpeedHistory((history) => [
               ...history,
-              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: data.website.responseMs },
+              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: pingResult.responseMs as number },
             ].slice(-30))
           }
         }
