@@ -112,9 +112,10 @@ export function CampagnesView({
   const filteredTeamUsers = useMemo(() => teamUsers.filter((member) =>
     `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(normalizedMemberSearch),
   ), [teamUsers, normalizedMemberSearch])
+  const formMemberIdSet = useMemo(() => new Set(formMemberIds), [formMemberIds])
   const selectedTeamUsers = useMemo(
-    () => teamUsers.filter((member) => formMemberIds.includes(member.id)),
-    [teamUsers, formMemberIds],
+    () => teamUsers.filter((member) => formMemberIdSet.has(member.id)),
+    [teamUsers, formMemberIdSet],
   )
   const campaignsVisibleToUser = useMemo(
     () => getCampaignsVisibleToUser(
@@ -372,7 +373,7 @@ export function CampagnesView({
                           </label>
                           <div className="campaign-member-options" role="listbox" aria-multiselectable="true" aria-label="Membres associés">
                             {filteredTeamUsers.map((member) => {
-                              const checked = formMemberIds.includes(member.id)
+                              const checked = formMemberIdSet.has(member.id)
                               return (
                                 <label key={member.id} className={`campaign-member-option${checked ? ' is-selected' : ''}`}>
                                   <input type="checkbox" checked={checked} onChange={() => setFormMemberIds((current) => checked ? current.filter((id) => id !== member.id) : [...current, member.id])} />
