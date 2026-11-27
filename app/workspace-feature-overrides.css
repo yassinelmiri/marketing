@@ -961,7 +961,9 @@
     background-color .22s ease;
 }
 .workspace-root :is(.workspace-panel,[class*="-card"],[class*="-tile"]):not(.dashboard-member-card):hover {
+  transform: translateY(-2px);
   border-color: rgba(232,91,42,.22);
+  box-shadow: 0 12px 28px rgba(0,0,0,.18);
 }
 .workspace-root .workspace-sidebar :is(a,button,[role="button"]) {
   transition: color .18s ease,background-color .18s ease,border-color .18s ease,transform .18s ease;
