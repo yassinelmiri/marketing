@@ -421,6 +421,7 @@ export function DashboardView({
             </div>
           )}
         </div>
+      </div>
         <section className="kpi-system-grid">
           <article className="kpi-system-card kpi-system-speed">
             <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Évolution du temps de réponse — mesures réelles chaque minute</span></div><Activity /></div>
@@ -462,7 +463,6 @@ export function DashboardView({
             <p className="kpi-system-note">Quota disque restant : non exposé par l’API standard Supabase. Les chiffres ci-dessus représentent les lignes, pas l’espace disque.</p>
           </article>
         </section>
-      </div>
     </section>
   )
 }
