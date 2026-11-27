@@ -156,6 +156,12 @@ export async function GET() {
   }
 
   const memberIds = Array.from(new Set((assignments ?? []).map((assignment) => Number(assignment.user_id))))
+  const visibleTaskIds = new Set<number>()
+  if (!isAdmin) {
+    for (const assignment of assignments ?? []) {
+      if (Number(assignment.user_id) === profile.id) visibleTaskIds.add(Number(assignment.task_id))
+    }
+  }
   const { data: assignedProfiles } = !isAdmin && memberIds.length
     ? await admin.from('user_profiles').select('id,prenom,nom,email').in('id', memberIds)
     : { data: [] }
@@ -182,7 +188,7 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      tasks: isAdmin ? rows : rows.filter((task) => task.assignee_ids.includes(profile.id)),
+      tasks: isAdmin ? rows : rows.filter((task) => visibleTaskIds.has(Number(task.id))),
       members: isAdmin ? (profiles ?? []) : [],
     },
     { headers: { 'Cache-Control': 'no-store' } },
