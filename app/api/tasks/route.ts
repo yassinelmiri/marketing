@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -124,20 +125,7 @@ function cleanText(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function originCheck(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origin manquant.' }, { status: 403 })
 
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origin refusé.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origin invalide.' }, { status: 403 })
-  }
-
-  return null
-}
 
 export async function GET() {
   const result = await access()
@@ -200,7 +188,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()
@@ -300,7 +288,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()
@@ -434,7 +422,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const originError = originCheck(request)
+  const originError = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (originError) return originError
 
   const result = await access()
