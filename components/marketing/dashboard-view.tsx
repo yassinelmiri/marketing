@@ -454,6 +454,10 @@ export function DashboardView({
             </div>
             <p className="kpi-system-note">{healthLoading ? 'Vérification en cours…' : 'Historique conservé pendant cette session du Dashboard (30 dernières mesures). La mesure correspond au temps de réponse serveur, pas aux Core Web Vitals.'}</p>
           </article>
+          <article className="kpi-system-card kpi-system-alerts">
+            <div className="kpi-panel-title"><div><strong>Alertes système</strong><span>Erreurs et anomalies détectées</span></div><AlertCircle /></div>
+            {systemHealth.alerts.length ? systemHealth.alerts.map((alert, index) => <div className={'kpi-system-alert ' + alert.level} key={alert.title + index}><AlertCircle size={16}/><div><strong>{alert.title}</strong><span>{alert.detail}</span></div></div>) : <div className="kpi-system-ok"><CheckCircle2 size={18}/>Aucun problème détecté lors du dernier contrôle.</div>}
+          </article>
           <article className="kpi-system-card">
             <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Volume réel des enregistrements Supabase</span></div><UsersRound /></div>
             <div className="kpi-system-main"><strong>{systemHealth.database ? systemHealth.database.totalRows.toLocaleString('fr-FR') : '—'}</strong><span>lignes comptabilisées</span></div>
