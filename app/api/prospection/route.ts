@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams
     const page = Math.max(1, Math.min(10000, Number(params.get('page') || 1)))
     const pageSize = Math.max(1, Math.min(100, Number(params.get('pageSize') || 25)))
+    const paginationMode = params.get('pagination') || 'page'
+    const filterMode = params.get('filterMode') || 'query'
     const filters = JSON.parse(params.get('filters') || '[]') as FieldFilter[]
     if (!Array.isArray(filters) || filters.length > 30 || filters.some(f => !f || typeof f.field !== 'string' || !/^[\w.$-]{1,120}$/.test(f.field) || typeof f.value !== 'string')) {
       return NextResponse.json({ error: 'Critères de recherche invalides.' }, { status: 400 })
@@ -109,20 +111,31 @@ export async function GET(request: NextRequest) {
     // The external API receives the exact field names selected by the user.
     // Unknown API-specific filter syntax can be configured later through an adapter.
     for (const filter of filters) {
-      if (!filter.value.trim()) continue
-      endpoint.searchParams.set(filter.field, filter.value.trim().slice(0, 200))
+      if (!filter.value.trim() || filter.operator !== 'eq' || filterMode === 'none') continue
+      const key = filterMode === 'filter' ? `filter[${filter.field}]` : filterMode === 'filters' ? `filters[${filter.field}]` : filter.field
+      endpoint.searchParams.set(key, filter.value.trim().slice(0, 200))
     }
-    endpoint.searchParams.set('page', String(page))
-    endpoint.searchParams.set('per_page', String(pageSize))
-    endpoint.searchParams.set('limit', String(pageSize))
-    endpoint.searchParams.set('offset', String((page - 1) * pageSize))
+    if (paginationMode === 'page') {
+      endpoint.searchParams.set('page', String(page))
+      endpoint.searchParams.set('per_page', String(pageSize))
+    } else if (paginationMode === 'pageSize') {
+      endpoint.searchParams.set('page', String(page))
+      endpoint.searchParams.set('pageSize', String(pageSize))
+    } else if (paginationMode === 'offset') {
+      endpoint.searchParams.set('limit', String(pageSize))
+      endpoint.searchParams.set('offset', String((page - 1) * pageSize))
+    }
     let upstream = await fetch(endpoint, { headers: apiHeaders(config), cache: 'no-store', signal: AbortSignal.timeout(20000) })
     let payload = await upstream.json().catch(() => null)
     // Some APIs reject unknown filter parameters. Retry without filters and filter
     // the returned records locally rather than making the connector unusable.
     if (!upstream.ok && filters.length) {
       const fallback = new URL(endpoint)
-      for (const filter of filters) fallback.searchParams.delete(filter.field)
+      for (const filter of filters) {
+        fallback.searchParams.delete(filter.field)
+        fallback.searchParams.delete(`filter[${filter.field}]`)
+        fallback.searchParams.delete(`filters[${filter.field}]`)
+      }
       upstream = await fetch(fallback, { headers: apiHeaders(config), cache: 'no-store', signal: AbortSignal.timeout(20000) })
       payload = await upstream.json().catch(() => null)
     }
