@@ -77,20 +77,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
    refreshRequestId.current++
   }
  },[])
- function displayMessage(value:unknown,fallback='Une erreur est survenue'):string{
- if(typeof value==='string')return value
- if(value instanceof Error)return value.message
- if(value&&typeof value==='object'&&'message' in value){const message=(value as {message?:unknown}).message;return typeof message==='string'?message:fallback}
- return fallback
-}
-function displayValue(value:unknown,fallback='—'):string{
- if(value===null||value===undefined||value==='')return fallback
- if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value)
- if(value instanceof Error)return value.message
- if(typeof value==='object'&&'message' in value)return displayValue((value as {message?:unknown}).message,fallback)
- try{return JSON.stringify(value)??fallback}catch{return fallback}
-}
-function flash(value:unknown){setNotice(displayMessage(value,'Opération terminée'));window.setTimeout(()=>setNotice(''),3000)}
+ function flash(value:unknown){setNotice(displayMessage(value,'Opération terminée'));window.setTimeout(()=>setNotice(''),3000)}
 function formatDateValue(value:unknown):string{const normalized=normalizeText(value);if(!normalized)return '—';const date=new Date(normalized);return Number.isNaN(date.getTime())?'—':date.toLocaleString('fr-FR')}
  async function openActivity(kind:string){
   setActivityKind(kind);setActivitySearch('');setActivityLoading(true);setActivity([]);
