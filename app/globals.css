@@ -8353,3 +8353,40 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .hero-photo-float { animation: none !important; }
 }
+
+
+/* Landing page — remove leftover light surfaces in the steps and hero stats. */
+.landing-shell .landing-steps {
+  background: transparent !important;
+  color: #F5F5F5 !important;
+}
+.landing-shell .landing-steps .landing-section-heading,
+.landing-shell .landing-steps .landing-section-heading > div,
+.landing-shell .landing-steps .landing-section-heading > p {
+  background: transparent !important;
+}
+.landing-shell .landing-steps .landing-step-card {
+  background: linear-gradient(145deg, rgba(39,39,39,.94), rgba(22,22,22,.98)) !important;
+  color: #E5E5E5 !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,.24) !important;
+}
+.landing-shell .landing-steps .landing-step-card h3 { color: #FAFAFA !important; }
+.landing-shell .landing-steps .landing-step-card p { color: #B8B8B8 !important; }
+.landing-shell .landing-steps .landing-steps-cta {
+  background: linear-gradient(125deg, rgba(232,91,42,.14), rgba(36,36,36,.96) 48%, rgba(230,74,155,.08)) !important;
+  color: #F5F5F5 !important;
+  border-color: rgba(232,91,42,.24) !important;
+}
+.landing-shell .landing-hero-stats > div:not(.landing-hero-stats-divider) {
+  background: transparent !important;
+  color: #A3A3A3 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.landing-shell .landing-hero-stats > div:not(.landing-hero-stats-divider) strong {
+  color: #FAFAFA !important;
+}
+.landing-shell .landing-hero-stats > div:not(.landing-hero-stats-divider) span {
+  color: #A3A3A3 !important;
+}
