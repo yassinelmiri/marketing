@@ -32,6 +32,22 @@
   --ui-radius-xl: 23px;
   --ui-shadow-card: 0 12px 34px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.035);
   --ui-shadow-hover: 0 18px 42px rgba(0,0,0,.32), 0 0 24px rgba(232,91,42,.055), inset 0 1px 0 rgba(255,255,255,.07);
+  /* Compatibility aliases used by legacy feature-level CSS. */
+  --bg: var(--ui-bg);
+  --surface: var(--ui-surface-strong);
+  --surface-2: #2B2C2D;
+  --border: var(--ui-border);
+  --border-strong: var(--ui-border-strong);
+  --text: var(--ui-text);
+  --text-strong: var(--ui-text-strong);
+  --muted: var(--ui-muted);
+  --muted-2: var(--ui-muted-2);
+  --blue: var(--ui-accent);
+  --blue-600: #D94D20;
+  --blue-50: rgba(232,91,42,.13);
+  --navy: #F5F5F5;
+  --teal: #42C98A;
+  --amber: #E8B653;
   --workspace-bg: var(--ui-bg);
   --workspace-surface: var(--ui-surface-strong);
   --workspace-input: #1B1C1D;
