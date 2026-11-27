@@ -63,7 +63,7 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   )
   const adminCount = useMemo(() => countAdminUsers(users), [users])
   const memberCount = users.length - adminCount
-  const permissionLabel = (code: string) => MODULE_PERMISSIONS.find((permission) => permission.code === code)?.label ?? code
+  const permissionLabel = (code: string) => MODULE_PERMISSION_LABEL_BY_CODE.get(code) ?? code
 
   async function loadUsers() {
     setLoading(true)
