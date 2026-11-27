@@ -55,11 +55,10 @@ async function createNextOccurrence(admin: ReturnType<typeof createAdminClient>,
   const { data: task, error: taskError } = await admin.from('tasks').select('*').eq('id', taskId).maybeSingle()
   if (taskError || !task || task.recurrence_frequency === 'none' || !task.due_date) return
 
-  const interval = Math.max(1, Math.min(365, Number(task.recurrence_interval) || 1))
   const nextDueDate = getNextRecurringDueDate(
     String(task.due_date),
     task.recurrence_frequency,
-    interval,
+    Number(task.recurrence_interval) || 1,
   )
   if (task.recurrence_until && nextDueDate > String(task.recurrence_until)) return
 
