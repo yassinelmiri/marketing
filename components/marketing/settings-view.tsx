@@ -24,7 +24,6 @@ export function SettingsView({ user, onSaved, isAdmin = false }: SettingsViewPro
   })
   const [saving, setSaving] = useState(false)
   const [apiConfig, setApiConfig] = useState({ baseUrl: '', authType: 'bearer', authHeader: 'x-api-key', secret: '', secretConfigured: false, clearSecret: false, updatedAt: null as string | null })
-  const [apiLoading, setApiLoading] = useState(false)
   const [apiSaving, setApiSaving] = useState(false)
   const [showSecret, setShowSecret] = useState(false)
 
