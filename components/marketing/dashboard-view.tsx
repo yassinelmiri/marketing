@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
@@ -167,7 +167,7 @@ export function DashboardView({
         <section className="dashboard-analytics-panel">
           <header className="dashboard-analytics-heading"><div><span className="settings-eyebrow">ANALYSE DU PROJET</span><h2>Vue d’ensemble & performance</h2><p>Indicateurs calculés à partir des données présentes dans votre espace.</p></div><span className="dashboard-live-tag"><Activity size={14}/> Actualisé</span></header>
           <div className="dashboard-health-row">
-            <div className="dashboard-health-score"><div className="dashboard-health-ring" style={{ '--health-score': diagnostic.health } as React.CSSProperties}><div><strong>{diagnostic.health}</strong><span>/100</span></div></div><span>Indice de suivi</span></div>
+            <div className="dashboard-health-score"><div className="dashboard-health-ring" style={{ '--health-score': diagnostic.health } as CSSProperties}><div><strong>{diagnostic.health}</strong><span>/100</span></div></div><span>Indice de suivi</span></div>
             <div className="dashboard-health-summary"><strong>{diagnostic.health >= 70 ? 'Projet bien suivi' : diagnostic.health >= 40 ? 'Projet à optimiser' : 'Projet à structurer'}</strong><p>Indice indicatif basé sur l’avancement, l’activité récente, la collaboration et la base contacts. Ce n’est pas une mesure de délivrabilité ou de conversion.</p><div className="dashboard-health-progress"><span style={{width: `${diagnostic.health}%`}} /></div></div>
           </div>
           <div className="dashboard-status-breakdown">
