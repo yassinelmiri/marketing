@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
@@ -29,8 +29,9 @@ import {
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
-import { buildDashboardModuleStats, createEmptyDashboardModuleStats, buildCampaignDiagnostic, type DashboardModuleStats } from '@/lib/dashboard/view-utils'
+import { buildCampaignDiagnostic } from '@/lib/dashboard/view-utils'
 import { useDashboardHealth } from '@/hooks/use-dashboard-health'
+import { useDashboardModuleStats } from '@/hooks/use-dashboard-module-stats'
 
 interface DashboardViewProps {
   user: User
@@ -59,46 +60,8 @@ export function DashboardView({
   const isAdmin = Number(user.role_id) === 1
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
-  const [moduleStats, setModuleStats] = useState<DashboardModuleStats>(createEmptyDashboardModuleStats())
-  const [moduleError, setModuleError] = useState('')
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const { moduleStats, moduleError, lastUpdated } = useDashboardModuleStats(isAdmin)
   const { systemHealth, healthLoading, speedHistory } = useDashboardHealth(isAdmin)
-
-  useEffect(() => {
-    if (!isAdmin) return
-    let active = true
-    const loadModules = async () => {
-      const [emailResult, whatsappResult, tasksResult] = await Promise.allSettled([
-        fetch('/api/email/send', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Email indisponible')
-          return data
-        }),
-        fetch('/api/whatsapp/campaigns', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'WhatsApp indisponible')
-          return data
-        }),
-        fetch('/api/tasks', { cache: 'no-store' }).then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Tâches indisponibles')
-          return data
-        }),
-      ])
-      if (!active) return
-      setModuleStats(buildDashboardModuleStats({
-        email: emailResult.status === 'fulfilled' ? emailResult.value : null,
-        whatsapp: whatsappResult.status === 'fulfilled' ? whatsappResult.value : null,
-        tasks: tasksResult.status === 'fulfilled' ? tasksResult.value : null,
-      }))
-      const failures = [emailResult, whatsappResult, tasksResult].filter((result) => result.status === 'rejected').length
-      setModuleError(failures ? `${failures} module(s) n'ont pas pu charger leurs statistiques selon vos accès.` : '')
-      setLastUpdated(new Date())
-    }
-    void loadModules()
-    const interval = window.setInterval(() => void loadModules(), 60000)
-    return () => { active = false; window.clearInterval(interval) }
-  }, [isAdmin])
 
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
