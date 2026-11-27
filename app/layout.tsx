@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr" data-workspace-theme="light" suppressHydrationWarning>
+    <html lang="fr" data-workspace-theme="dark" suppressHydrationWarning>
       <body>
         <ReduxProvider>
           <ToastProvider>
