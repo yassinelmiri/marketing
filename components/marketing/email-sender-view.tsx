@@ -4,7 +4,7 @@ import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,
 import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
-import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue } from '@/lib/email/view-utils'
+import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue, formatDateValue } from '@/lib/email/view-utils'
 import {
  EMPTY_SMTP_FORM,
  campaignDateToInput,
@@ -78,7 +78,6 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   }
  },[])
  function flash(value:unknown){setNotice(displayMessage(value,'Opération terminée'));window.setTimeout(()=>setNotice(''),3000)}
-function formatDateValue(value:unknown):string{const normalized=normalizeText(value);if(!normalized)return '—';const date=new Date(normalized);return Number.isNaN(date.getTime())?'—':date.toLocaleString('fr-FR')}
  async function openActivity(kind:string){
   setActivityKind(kind);setActivitySearch('');setActivityLoading(true);setActivity([]);
   try{
