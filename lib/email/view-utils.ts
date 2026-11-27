@@ -25,13 +25,13 @@ export function composeTemplateHtml(templateHtml: string, body: string): string 
   return closingIndex >= 0 ? templateHtml.slice(0, closingIndex) + contentBlock + templateHtml.slice(closingIndex) : templateHtml + contentBlock
 }
 
-function displayMessage(value:unknown,fallback='Une erreur est survenue'):string{
+export function displayMessage(value:unknown,fallback='Une erreur est survenue'):string{
  if(typeof value==='string')return value
  if(value instanceof Error)return value.message
  if(value&&typeof value==='object'&&'message' in value){const message=(value as {message?:unknown}).message;return typeof message==='string'?message:fallback}
  return fallback
 }
-function displayValue(value:unknown,fallback='—'):string{
+export function displayValue(value:unknown,fallback='—'):string{
  if(value===null||value===undefined||value==='')return fallback
  if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value)
  if(value instanceof Error)return value.message
