@@ -231,7 +231,6 @@ export function LandingPage() {
         <div className="landing-auth-actions">
           <div className="landing-auth-buttons">
             <Link className="landing-auth-login" href="/login">Se connecter</Link>
-            <Link className="landing-signup-button" href="/register">Créer un compte</Link>
           </div>
         </div>
       </header>
