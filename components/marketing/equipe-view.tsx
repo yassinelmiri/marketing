@@ -9,6 +9,7 @@ interface EquipeViewProps {
 }
 
 export function EquipeView({ user, team, roles }: EquipeViewProps) {
+  const roleById = new Map(roles.map((role) => [role.id, role]))
   return (
     <section className="workspace-section">
       <div className="workspace-panel">
@@ -18,7 +19,7 @@ export function EquipeView({ user, team, roles }: EquipeViewProps) {
         </div>
         <div className="team-grid">
           {team.map((m) => {
-            const role = roles.find((item) => item.id === m.role_id)
+            const role = roleById.get(m.role_id)
             return (
               <article key={m.id} className="team-card">
                 <span className="team-avatar" aria-hidden="true">
