@@ -17,8 +17,11 @@ async function findToken(token: string) {
   return { admin, data }
 }
 
-async function saveUnsubscribe(email: string, campaignId: number | null) {
-  const admin = createAdminClient()
+async function saveUnsubscribe(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+  campaignId: number | null,
+) {
   const normalized = email.trim().toLowerCase()
   const { data: existing, error: lookupError } = await admin.from('email_unsubscribes')
     .select('id')
@@ -72,7 +75,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   if (!result) return new NextResponse('Lien de désabonnement invalide ou expiré.', { status: 404 })
 
   try {
-    await saveUnsubscribe(result.data.email, result.data.campaign_id)
+    await saveUnsubscribe(result.admin, result.data.email, result.data.campaign_id)
     await result.admin.from('email_unsubscribe_tokens')
       .update({ used_at: new Date().toISOString() })
       .eq('token', token)
