@@ -745,7 +745,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
           )}
 
           {visitedViews.includes('settings') && (
-            <div hidden={activeView !== 'settings'}><SettingsView user={currentUser} onSaved={() => { void refresh() }} /></div>
+            <div hidden={activeView !== 'settings'}><SettingsView user={currentUser} isAdmin={isAdmin} onSaved={() => { void refresh() }} /></div>
           )}
         </div>
       </main>
