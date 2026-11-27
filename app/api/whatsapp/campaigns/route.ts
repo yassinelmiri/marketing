@@ -112,7 +112,28 @@ export async function GET(request: NextRequest) {
     .limit(50)
 
   if (error) return NextResponse.json({ error: 'Chargement des campagnes impossible.' }, { status: 500 })
-  return NextResponse.json({ campaigns: campaigns ?? [] }, { headers: { 'Cache-Control': 'no-store' } })
+  const campaignIds = (campaigns ?? []).map((campaign) => Number(campaign.id))
+  const { data: recipientRows, error: recipientError } = campaignIds.length
+    ? await auth.admin.from('whatsapp_campaign_recipients')
+      .select('campaign_id,status').in('campaign_id', campaignIds)
+    : { data: [], error: null }
+  if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
+  const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
+  for (const row of recipientRows ?? []) {
+    const id = Number(row.campaign_id)
+    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
+    if (row.status === 'sent') counts.sent += 1
+    else if (row.status === 'failed') counts.failed += 1
+    else if (row.status === 'skipped') counts.skipped += 1
+    else counts.pending += 1
+    countsByCampaign.set(id, counts)
+  }
+  return NextResponse.json({
+    campaigns: (campaigns ?? []).map((campaign) => ({
+      ...campaign,
+      counts: countsByCampaign.get(Number(campaign.id)) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 },
+    })),
+  }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: NextRequest) {
