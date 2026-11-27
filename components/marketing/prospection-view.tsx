@@ -17,10 +17,8 @@ const aliases: Record<string, string[]> = {
   'Nom': ['name', 'nom', 'full_name', 'fullname'], 'Prénom': ['first_name', 'firstname', 'prenom'],
   'Entreprise': ['company', 'company_name', 'organisation', 'organization'],
 }
-const fieldLabel = (field: string) => {
-  const match = Object.entries(aliases).find(([, names]) => names.includes(field.toLowerCase()))
-  return match?.[0] ?? field.replace(/[._-]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
-}
+const aliasLabelByField = new Map(Object.entries(aliases).flatMap(([label, names]) => names.map(name => [name, label] as const)))
+const fieldLabel = (field: string) => aliasLabelByField.get(field.toLowerCase()) ?? field.replace(/[._-]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
 const readField = (record: Record<string, unknown>, field: string) => {
   const value = field.split('.').reduce<unknown>((current, key) => current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined, record)
   return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)
@@ -65,7 +63,8 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
       if (!response.ok) throw new Error(data.error || 'Impossible de découvrir les champs de cette API.')
       const detected = Array.isArray(data.fields) ? data.fields as string[] : []
       setFields(detected)
-      setMapping(current => Object.keys(current).length ? current : Object.fromEntries(canonicalFields.map(item => [item.key, detected.find(field => item.aliases.includes(field.toLowerCase())) ?? ''])))
+      const detectedByLowercase = new Map(detected.map(field => [field.toLowerCase(), field]))
+      setMapping(current => Object.keys(current).length ? current : Object.fromEntries(canonicalFields.map(item => [item.key, item.aliases.map(alias => detectedByLowercase.get(alias)).find(Boolean) ?? ''])))
       if (!detected.length) throw new Error('Aucun champ détecté. Vérifiez l’URL et le format JSON de l’API.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Erreur de connexion.') }
     finally { setLoadingFields(false) }
