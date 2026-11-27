@@ -996,3 +996,261 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* =========================================================
+   PREMIUM BLACK MIRROR GLASS — workspace theme refresh
+   Visual-only layer: no layout, data, or interaction changes.
+   ========================================================= */
+.workspace-root {
+  --workspace-bg: #08090c;
+  --workspace-surface: rgba(19, 21, 26, .68);
+  --workspace-surface-strong: rgba(24, 26, 32, .82);
+  --workspace-border: rgba(218, 226, 239, .14);
+  --workspace-text: #e8eaf0;
+  --workspace-muted: #969eac;
+  --workspace-input: rgba(8, 10, 14, .7);
+  background:
+    radial-gradient(ellipse at 78% 5%, rgba(133, 145, 164, .10), transparent 34%),
+    radial-gradient(ellipse at 12% 62%, rgba(232, 91, 42, .045), transparent 35%),
+    #08090c !important;
+  color: var(--workspace-text);
+}
+.workspace-root .workspace-sidebar {
+  background: linear-gradient(160deg, rgba(16,18,23,.96), rgba(8,9,12,.98)) !important;
+  border-right: 1px solid rgba(219,226,238,.10);
+  box-shadow: 12px 0 40px rgba(0,0,0,.24);
+}
+.workspace-root .workspace-main,
+.workspace-root .workspace-content {
+  background: transparent !important;
+}
+.workspace-root .workspace-topbar {
+  background: rgba(10,11,14,.72) !important;
+  border-bottom-color: rgba(220,226,236,.10) !important;
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+.workspace-root .workspace-topbar-left h1,
+.workspace-root h1,.workspace-root h2,.workspace-root h3,.workspace-root h4 {
+  color: #f1f3f7 !important;
+}
+.workspace-root .workspace-panel,
+.workspace-root [class*="metric-card"],
+.workspace-root [class*="stat-card"],
+.workspace-root [class*="dashboard-card"],
+.workspace-root [class*="chart-card"],
+.workspace-root [class*="summary-card"] {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.018) 30%, rgba(0,0,0,.18) 70%),
+    radial-gradient(ellipse at 12% 0%, rgba(255,255,255,.085), transparent 44%),
+    rgba(18,20,25,.72) !important;
+  border: 1px solid rgba(218,226,239,.15) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 0 0 1px rgba(255,255,255,.018),
+    0 18px 40px rgba(0,0,0,.34),
+    0 2px 6px rgba(0,0,0,.22) !important;
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  transition: transform .28s cubic-bezier(.2,.75,.25,1), border-color .28s ease, box-shadow .28s ease, background .28s ease;
+}
+.workspace-root .workspace-panel::before,
+.workspace-root [class*="metric-card"]::before,
+.workspace-root [class*="stat-card"]::before,
+.workspace-root [class*="dashboard-card"]::before,
+.workspace-root [class*="chart-card"]::before,
+.workspace-root [class*="summary-card"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(112deg, transparent 8%, rgba(255,255,255,.055) 22%, transparent 43%),
+    linear-gradient(180deg, rgba(255,255,255,.11), transparent 19%);
+  opacity: .72;
+}
+.workspace-root .workspace-panel:hover,
+.workspace-root [class*="metric-card"]:hover,
+.workspace-root [class*="stat-card"]:hover,
+.workspace-root [class*="dashboard-card"]:hover,
+.workspace-root [class*="chart-card"]:hover,
+.workspace-root [class*="summary-card"]:hover {
+  transform: translateY(-3px);
+  border-color: rgba(228,234,245,.26) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.23),
+    0 24px 54px rgba(0,0,0,.42),
+    0 0 24px rgba(210,220,235,.035) !important;
+}
+.workspace-root .workspace-panel-header h2 { color: #e9edf4 !important; }
+.workspace-root .workspace-panel-header span,
+.workspace-root p,
+.workspace-root small,
+.workspace-root label,
+.workspace-root .workspace-muted { color: #a1a8b5; }
+.workspace-root .workspace-nav-item { color: #a9b1bd; }
+.workspace-root .workspace-nav-item:hover { background: rgba(255,255,255,.055); color: #f6f7f9; }
+.workspace-root .workspace-nav-item.is-active {
+  background: linear-gradient(100deg, rgba(232,91,42,.17), rgba(255,255,255,.035)) !important;
+  color: #fff;
+}
+.workspace-root .workspace-nav-item.is-active::before { background: #e85b2a; box-shadow: 0 0 12px rgba(232,91,42,.42); }
+.workspace-root .workspace-user { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.075); }
+.workspace-root .workspace-primary {
+  background: linear-gradient(135deg,#ed6a3a,#d94b20) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  box-shadow: 0 6px 18px rgba(216,76,32,.2), inset 0 1px 0 rgba(255,255,255,.24);
+}
+.workspace-root .workspace-primary:hover { filter: brightness(1.08); }
+.workspace-root .workspace-secondary,
+.workspace-root .workspace-icon-button,
+.workspace-root .workspace-menu-toggle {
+  background: rgba(255,255,255,.055) !important;
+  border-color: rgba(220,226,236,.14) !important;
+  color: #d8dde6 !important;
+}
+.workspace-root .workspace-secondary:hover,
+.workspace-root .workspace-icon-button:hover { background: rgba(255,255,255,.09) !important; }
+.workspace-root input:not([type="checkbox"]):not([type="radio"]),
+.workspace-root textarea,
+.workspace-root select {
+  background: rgba(7,9,12,.72) !important;
+  color: #e8eaf0 !important;
+  border-color: rgba(216,225,238,.16) !important;
+}
+.workspace-root input::placeholder,
+.workspace-root textarea::placeholder { color: #7e8795 !important; }
+.workspace-root .campagne-table-wrap,
+.workspace-root .wa-table-wrap {
+  background: rgba(10,12,16,.58) !important;
+  border-color: rgba(218,226,239,.12) !important;
+}
+.workspace-root .campagne-table th,
+.workspace-root .campagne-table td,
+.workspace-root .wa-table th,
+.workspace-root .wa-table td {
+  background: transparent !important;
+  color: #cdd3dd !important;
+  border-color: rgba(218,226,239,.09) !important;
+}
+.workspace-root .campagne-table th,
+.workspace-root .wa-table th { color: #9da6b4 !important; }
+.workspace-root .campagne-table tbody tr:hover { background: rgba(255,255,255,.035) !important; }
+.workspace-root .workspace-modal,
+.workspace-root .workspace-modal footer {
+  background: rgba(17,19,24,.96) !important;
+  border-color: rgba(220,226,236,.12) !important;
+}
+.workspace-root .workspace-modal-backdrop { background: rgba(0,0,0,.64) !important; backdrop-filter: blur(10px); }
+.workspace-root .workspace-modal header,
+.workspace-root .workspace-modal footer { border-color: rgba(220,226,236,.1) !important; }
+.workspace-root .workspace-note { background: rgba(255,255,255,.045) !important; border-color: rgba(220,226,236,.12) !important; color: #b8c0cc !important; }
+@media (prefers-reduced-motion: reduce) {
+  .workspace-root .workspace-panel,
+  .workspace-root [class*="metric-card"],
+  .workspace-root [class*="stat-card"],
+  .workspace-root [class*="dashboard-card"],
+  .workspace-root [class*="chart-card"],
+  .workspace-root [class*="summary-card"] { transition: none !important; }
+}
+
+
+/* Black-mirror finish: richer reflective glass + subtle 3D hover */
+.workspace-root .workspace-panel,
+.workspace-root [class*="metric-card"],
+.workspace-root [class*="stat-card"],
+.workspace-root [class*="dashboard-card"],
+.workspace-root [class*="chart-card"],
+.workspace-root [class*="summary-card"] {
+  overflow: hidden;
+  transform-style: preserve-3d;
+  background:
+    linear-gradient(155deg, rgba(255,255,255,.105) 0%, rgba(255,255,255,.025) 16%, rgba(255,255,255,.012) 36%, rgba(0,0,0,.30) 76%),
+    radial-gradient(ellipse at 18% -8%, rgba(246,248,255,.16), transparent 42%),
+    radial-gradient(ellipse at 90% 110%, rgba(180,190,210,.045), transparent 48%),
+    linear-gradient(135deg, rgba(27,29,35,.94), rgba(8,9,12,.90)) !important;
+  border-color: rgba(230,236,246,.19) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.28),
+    inset 1px 0 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.45),
+    0 24px 50px rgba(0,0,0,.42),
+    0 5px 14px rgba(0,0,0,.30) !important;
+}
+.workspace-root .workspace-panel::before,
+.workspace-root [class*="metric-card"]::before,
+.workspace-root [class*="stat-card"]::before,
+.workspace-root [class*="dashboard-card"]::before,
+.workspace-root [class*="chart-card"]::before,
+.workspace-root [class*="summary-card"]::before {
+  z-index: 0;
+  background:
+    linear-gradient(118deg, transparent 0%, rgba(255,255,255,.015) 16%, rgba(255,255,255,.12) 25%, transparent 39%),
+    linear-gradient(180deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.045) 3%, transparent 22%),
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.07), transparent 58%) !important;
+  background-size: 220% 100%, 100% 100%, 100% 100% !important;
+  background-position: -140% 0, 0 0, 0 0 !important;
+  opacity: .74;
+  transition: opacity .35s ease, background-position .8s cubic-bezier(.2,.75,.25,1);
+}
+.workspace-root .workspace-panel::after,
+.workspace-root [class*="metric-card"]::after,
+.workspace-root [class*="stat-card"]::after,
+.workspace-root [class*="dashboard-card"]::after,
+.workspace-root [class*="chart-card"]::after,
+.workspace-root [class*="summary-card"]::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid rgba(255,255,255,.035);
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.035), transparent 28%, transparent 72%, rgba(255,255,255,.018));
+}
+.workspace-root .workspace-panel > *,
+.workspace-root [class*="metric-card"] > *,
+.workspace-root [class*="stat-card"] > *,
+.workspace-root [class*="dashboard-card"] > *,
+.workspace-root [class*="chart-card"] > *,
+.workspace-root [class*="summary-card"] > * {
+  position: relative;
+  z-index: 1;
+}
+.workspace-root .workspace-panel:hover,
+.workspace-root [class*="metric-card"]:hover,
+.workspace-root [class*="stat-card"]:hover,
+.workspace-root [class*="dashboard-card"]:hover,
+.workspace-root [class*="chart-card"]:hover,
+.workspace-root [class*="summary-card"]:hover {
+  transform: perspective(1000px) translateY(-4px) rotateX(1.15deg) !important;
+  border-color: rgba(242,246,255,.30) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.34),
+    inset 0 0 22px rgba(255,255,255,.018),
+    0 30px 64px rgba(0,0,0,.48),
+    0 0 28px rgba(220,230,245,.055) !important;
+}
+.workspace-root .workspace-panel:hover::before,
+.workspace-root [class*="metric-card"]:hover::before,
+.workspace-root [class*="stat-card"]:hover::before,
+.workspace-root [class*="dashboard-card"]:hover::before,
+.workspace-root [class*="chart-card"]:hover::before,
+.workspace-root [class*="summary-card"]:hover::before {
+  opacity: .98;
+  background-position: 140% 0, 0 0, 0 0 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-root .workspace-panel:hover,
+  .workspace-root [class*="metric-card"]:hover,
+  .workspace-root [class*="stat-card"]:hover,
+  .workspace-root [class*="dashboard-card"]:hover,
+  .workspace-root [class*="chart-card"]:hover,
+  .workspace-root [class*="summary-card"]:hover { transform: none !important; }
+}
