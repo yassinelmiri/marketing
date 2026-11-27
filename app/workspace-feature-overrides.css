@@ -385,3 +385,18 @@
 .prospection-api-settings .settings-api-clear{display:flex;align-items:center;gap:9px;margin-top:15px;color:#b45309;font-size:12px}
 .prospection-api-settings .settings-form-footer{margin-top:18px}
 .prospection-api-settings .settings-form-footer p{color:#64748b}
+
+
+/* Email campaign template personalization */
+.email-campaign-content{display:grid;gap:12px;min-width:0}
+.email-campaign-body{display:grid;gap:8px;padding:16px;border:1px solid #e5e7eb;border-radius:14px;background:#fbfaff}
+.email-campaign-body>span{font-size:13px;font-weight:700;color:#273449}
+.email-campaign-body textarea{width:100%;min-height:150px;resize:vertical;border:1px solid #d9dce7;border-radius:10px;padding:13px 14px;background:#fff;color:#172033;font:inherit;line-height:1.65;outline:none}
+.email-campaign-body textarea:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.12)}
+.email-campaign-body small{color:#64748b;font-size:12px}
+.email-campaign-preview{overflow:hidden;border:1px solid #e5e7eb;border-radius:14px;background:#fff}
+.email-campaign-preview-heading{display:flex;align-items:center;gap:8px;padding:12px 15px;border-bottom:1px solid #edf0f5;color:#475569;font-size:12px;font-weight:700;background:#f8fafc}
+.email-campaign-preview iframe{display:block;width:100%;height:420px;border:0;background:#fff}
+.email-templates-page .email-template-subtitle{max-width:760px;line-height:1.6}
+.email-template-code textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55}
+@media(max-width:680px){.email-campaign-body{padding:12px}.email-campaign-preview iframe{height:340px}}
