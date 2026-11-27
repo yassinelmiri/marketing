@@ -7640,3 +7640,28 @@ button {
   .dashboard-page .kpi-speed-chart-wrap { height: 150px; }
   .dashboard-page .kpi-speed-chart-wrap svg { height: 132px; max-height: 132px; }
 }
+
+
+/* Dashboard monitoring: three equal cards on desktop */
+.dashboard-page .kpi-system-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dashboard-page .kpi-system-speed {
+  grid-column: auto;
+}
+@media (max-width: 1050px) {
+  .dashboard-page .kpi-system-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-page .kpi-system-speed {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  .dashboard-page .kpi-system-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-page .kpi-system-speed {
+    grid-column: auto;
+  }
+}
