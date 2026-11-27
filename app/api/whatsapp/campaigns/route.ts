@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
   const campaignIds = (campaigns ?? []).map((campaign) => Number(campaign.id))
   const { data: recipientRows, error: recipientError } = campaignIds.length
     ? await auth.admin.from('whatsapp_campaign_recipients')
-      .select('campaign_id,status').in('campaign_id', campaignIds)
+      .select('campaign_id,status,updated_at').in('campaign_id', campaignIds)
     : { data: [], error: null }
   if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
   const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
@@ -134,11 +134,23 @@ export async function GET(request: NextRequest) {
     else counts.pending += 1
     countsByCampaign.set(id, counts)
   }
+  const now = new Date()
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).getTime()
+  const tomorrowStart = todayStart + 24 * 60 * 60 * 1000
+  const yesterdayStart = todayStart - 24 * 60 * 60 * 1000
+  const dailyStats = (recipientRows ?? []).reduce((totals, row) => {
+    if (row.status !== 'sent' || !row.updated_at) return totals
+    const sentAt = new Date(row.updated_at).getTime()
+    if (sentAt >= todayStart && sentAt < tomorrowStart) totals.today_sent += 1
+    else if (sentAt >= yesterdayStart && sentAt < todayStart) totals.yesterday_sent += 1
+    return totals
+  }, { today_sent: 0, yesterday_sent: 0 })
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((campaign) => ({
       ...campaign,
       counts: countsByCampaign.get(Number(campaign.id)) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 },
     })),
+    daily_stats: dailyStats,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
