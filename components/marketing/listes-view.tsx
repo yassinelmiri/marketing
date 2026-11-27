@@ -37,6 +37,7 @@ import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
 import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
 import { parseContactImportFile } from '@/lib/contacts/file-parser'
+import { getVisibleListes } from '@/lib/contacts/list-view-utils'
 
 interface ListesViewProps {
   user: User
@@ -124,38 +125,15 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   }, [listes, selectedListeId])
 
   const allCampagnes = campagnes
-  const visibleListes = useMemo(() => {
-    const query = listeSearch.trim().toLocaleLowerCase('fr')
-    const now = new Date()
-    const assignedCampaignIds = new Set(campagneMembres
-      .filter((assignment) => assignment.user_id === user.id)
-      .map((assignment) => assignment.campagne_id))
-    const assignedListeIds = new Set(campagneListes
-      .filter((link) => assignedCampaignIds.has(link.campagne_id))
-      .map((link) => link.liste_id))
-    const availableLists = Number(user.role_id) === 1
-      ? listes
-      : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.has(liste.id))
-    const filtered = availableLists.filter((liste) => {
-      const matchesText = !query || [liste.nom, liste.description, liste.cible]
-        .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
-      if (!matchesText) return false
-      if (listeDateFilter === 'all') return true
-      const createdAt = new Date(liste.date_creation)
-      if (Number.isNaN(createdAt.getTime())) return false
-      const start = new Date(now)
-      if (listeDateFilter === 'today') start.setHours(0, 0, 0, 0)
-      if (listeDateFilter === '7d') start.setDate(start.getDate() - 7)
-      if (listeDateFilter === '30d') start.setDate(start.getDate() - 30)
-      return createdAt >= start
-    })
-    return filtered.sort((a, b) => {
-      if (listeSort === 'name-asc') return a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' })
-      if (listeSort === 'name-desc') return b.nom.localeCompare(a.nom, 'fr', { sensitivity: 'base' })
-      const delta = new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime()
-      return listeSort === 'date-asc' ? delta : -delta
-    })
-  }, [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
+  const visibleListes = useMemo(() => getVisibleListes({
+    listes,
+    campagneListes,
+    campagneMembres,
+    user,
+    search: listeSearch,
+    dateFilter: listeDateFilter,
+    sort: listeSort,
+  }), [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
   const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
