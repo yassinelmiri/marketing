@@ -137,8 +137,15 @@ export function WhatsAppBotView() {
       if (!response.ok) throw new Error(data.error || 'Enregistrement du suivi impossible.')
       setContacts((items) => items.map((item, index) => index === activeIndex ? { ...item, status } : item))
       if (data.counts) setSavedCounts(data.counts)
-      const next = contacts.findIndex((item, index) => index > activeIndex && (item.status === 'pending' || item.status === 'opened'))
-      const nextIndex = next >= 0 ? next : activeIndex < contacts.length - 1 ? activeIndex + 1 : -1
+      let nextIndex = -1
+      for (let index = activeIndex + 1; index < contacts.length; index += 1) {
+        const statusAtIndex = contacts[index].status
+        if (statusAtIndex === 'pending' || statusAtIndex === 'opened') {
+          nextIndex = index
+          break
+        }
+      }
+      if (nextIndex < 0 && activeIndex < contacts.length - 1) nextIndex = activeIndex + 1
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
       if (nextIndex >= 0 || (savedPage < savedTotalPages && campaignId)) {
         setAdvanceCountdown(nextDelaySeconds > 0)
