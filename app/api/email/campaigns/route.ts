@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const smtpIds = Array.from(new Set((Array.isArray(body.smtp_account_ids) ? body.smtp_account_ids : [body.smtp_account_id]).map(Number).filter((id: number) => Number.isSafeInteger(id) && id > 0)))
-    const listeIds = Array.from(new Set((Array.isArray(body.liste_ids) ? body.liste_ids : [body.liste_id]).map(Number).filter((id: number) => Number.isSafeInteger(id) && id > 0)))
+    const smtpIdValues: unknown[] = Array.isArray(body.smtp_account_ids) ? body.smtp_account_ids : [body.smtp_account_id]
+    const listeIdValues: unknown[] = Array.isArray(body.liste_ids) ? body.liste_ids : [body.liste_id]
+    const smtpIds: number[] = Array.from(new Set<number>(
+      smtpIdValues.map(Number).filter((id): id is number => Number.isSafeInteger(id) && id > 0),
+    ))
+    const listeIds: number[] = Array.from(new Set<number>(
+      listeIdValues.map(Number).filter((id): id is number => Number.isSafeInteger(id) && id > 0),
+    ))
     const subject = String(body.subject ?? '').trim().slice(0, 250)
     const message = String(body.message ?? '').trim().slice(0, 50000)
     const replyTo = String(body.reply_to ?? '').trim().slice(0, 254)
