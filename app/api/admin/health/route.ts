@@ -65,7 +65,7 @@ async function saveAlerts(
   })))
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const session = await createClient()
   const { data: auth, error: authError } = await session.auth.getUser()
   if (authError || !auth.user) {
@@ -90,30 +90,7 @@ export async function GET(request: Request) {
   }
 
   const checkedAt = new Date().toISOString()
-  const [tables, website] = await Promise.all([
-    Promise.all(TABLES.map((name) => countTable(admin, name))),
-    (async () => {
-      const started = performance.now()
-      try {
-        const response = await fetch(new URL('/', request.url), {
-          method: 'GET',
-          cache: 'no-store',
-          redirect: 'follow',
-          signal: AbortSignal.timeout(8000),
-          headers: { 'x-health-check': '1' },
-        })
-        const responseMs = Math.round(performance.now() - started)
-        return {
-          responseMs,
-          status: !response.ok ? 'offline' as const : responseMs > 1500 ? 'slow' as const : 'online' as const,
-          httpStatus: response.status,
-          checkedAt,
-        }
-      } catch {
-        return { responseMs: null, status: 'offline' as const, httpStatus: null, checkedAt }
-      }
-    })(),
-  ])
+  const tables = await Promise.all(TABLES.map((name) => countTable(admin, name)))
 
   const totalRows = tables.reduce((sum, table) => sum + (table.rows ?? 0), 0)
   const [{ data: sizeResult, error: sizeError }] = await Promise.all([
@@ -129,12 +106,6 @@ export async function GET(request: Request) {
   const unavailableCritical = tables.filter((table) => criticalTables.has(table.name) && !table.available)
   const alerts: Alert[] = []
 
-  if (website.status === 'offline') {
-    alerts.push({ level: 'error', title: 'Site web inaccessible', detail: 'Le test de la page d’accueil a échoué. Vérifiez le déploiement et les logs serveur.' })
-  } else if (website.status === 'slow') {
-    alerts.push({ level: 'warning', title: 'Site web lent', detail: `Temps de réponse mesuré : ${website.responseMs} ms.` })
-  }
-
   if (unavailableCritical.length) {
     alerts.push({
       level: 'error',
@@ -147,7 +118,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     database: { totalRows, sizeBytes, limitBytes, usagePercent, tables, checkedAt },
-    website,
+    website: null,
     alerts,
   }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
 }
