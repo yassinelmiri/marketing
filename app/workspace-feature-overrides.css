@@ -743,3 +743,32 @@
   .workspace-root .kpi-module-card { min-height:0; padding:16px !important; }
   .workspace-root .kpi-module-value { font-size:30px !important; }
 }
+
+
+/* Final legibility pass for muted/help text across workspace modules. */
+.workspace-root :is(.text-muted,.muted,.helper-text,.form-hint,.field-hint,.description,.subtitle,.empty-description) {
+  color: #B0B0B0 !important;
+  opacity: 1 !important;
+}
+.workspace-root :is(.workspace-panel,.kpi-command-center,.email-suite,.wa-campaign,.taskz-page) :is(p,li,td,th,label) {
+  opacity: 1;
+}
+.workspace-root :is(.workspace-panel,.email-suite,.wa-campaign,.taskz-page) :is(small,.form-hint,.field-hint,.helper-text) {
+  color: #AFAFAF !important;
+  font-size: 11px;
+  line-height: 1.55;
+  opacity: 1 !important;
+}
+.workspace-root :is(.workspace-panel,.email-suite,.wa-campaign,.taskz-page) :is(input,select,textarea) {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+.workspace-root :is(.workspace-panel,.email-suite,.wa-campaign,.taskz-page) :is(label,.field-label) {
+  color: #E3E3E3 !important;
+  font-size: 12px !important;
+  font-weight: 650;
+}
+.workspace-root :is(.workspace-panel,.email-suite,.wa-campaign,.taskz-page) :is(h2,h3,h4) {
+  color: #F5F5F5 !important;
+  line-height: 1.35;
+}
