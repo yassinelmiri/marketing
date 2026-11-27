@@ -79,7 +79,7 @@ export function ProspectionView() {
               <td style={tdStyle}><span style={{display:'inline-flex',gap:7,alignItems:'center'}}><Mail size={14} color="#8b78c9"/>{p.email||'—'}</span></td>
               <td style={tdStyle}>{p.gender==='male'?'Homme':p.gender==='female'?'Femme':p.gender||'—'}</td>
               <td style={tdStyle}><span style={{padding:'4px 9px',borderRadius:20,fontSize:11,fontWeight:700,background:p.status==='active'?'#ecfdf3':'#f1f5f9',color:p.status==='active'?'#15803d':'#64748b'}}>{p.status==='active'?'Actif':p.status==='inactive'?'Inactif':p.status||'—'}</span></td>
-              <td style={tdStyle}><button type="button" disabled={saved||savingId===id} onClick={()=>void save(p)} style={{...secondaryButton,padding:'8px 10px',opacity:saved?.65:1}}>{savingId===id?<Loader2 size={14}/>:saved?<Database size={14}/>:<UserPlus size={14}/>} {saved?'Enregistré':'Enregistrer'}</button></td>
+              <td style={tdStyle}><button type="button" disabled={saved||savingId===id} onClick={()=>void save(p)} style={{...secondaryButton,padding:'8px 10px',opacity:saved ? 0.65 : 1}}>{savingId===id?<Loader2 size={14}/>:saved?<Database size={14}/>:<UserPlus size={14}/>} {saved?'Enregistré':'Enregistrer'}</button></td>
             </tr>})}
           </tbody>
         </table>
