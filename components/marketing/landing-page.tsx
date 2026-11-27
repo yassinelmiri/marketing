@@ -345,8 +345,8 @@ export function LandingPage() {
               <strong>Prêt à tester ?</strong>
               <span>Créez un compte gratuit et explorez toutes les fonctionnalités.</span>
             </div>
-            <Link className="landing-primary-link" href="/register">
-              Créer mon compte <ArrowRight aria-hidden="true" />
+            <Link className="landing-primary-link" href="/login">
+              Se connecter <ArrowRight aria-hidden="true" />
             </Link>
           </div>
         </section>
