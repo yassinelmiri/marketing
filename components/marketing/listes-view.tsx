@@ -134,9 +134,17 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
     dateFilter: listeDateFilter,
     sort: listeSort,
   }), [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
-  const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
+  const paginatedListes = useMemo(
+    () => visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize),
+    [visibleListes, listePage, listePageSize],
+  )
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
+  const selectedListeCampaignCount = useMemo(
+    () => selectedListe ? campagneListes.reduce((count, link) => count + (link.liste_id === selectedListe.id ? 1 : 0), 0) : 0,
+    [campagneListes, selectedListe],
+  )
   const listeContacts = contacts
+  const selectedContactIdSet = useMemo(() => new Set(selectedContactIds), [selectedContactIds])
   const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
   const contactListNamesByContactId = useMemo(
     () => buildContactListNamesByContactId(contactLinks, listes),
@@ -475,7 +483,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
           <article className="data-overview-card"><span>Listes enregistrées</span><strong>{listes.length}</strong><small>Audiences disponibles</small></article>
           <article className="data-overview-card"><span>Contacts au total</span><strong>{contactCount}</strong><small>Contacts centralisés</small></article>
           <article className="data-overview-card"><span>Contacts dans la liste</span><strong>{selectedListCount}</strong><small>{selectedListe?.nom || 'Aucune liste sélectionnée'}</small></article>
-          <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListe ? campagneListes.filter((link) => link.liste_id === selectedListe.id).length : 0}</strong><small>Campagnes liées à la sélection</small></article>
+          <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListeCampaignCount}</strong><small>Campagnes liées à la sélection</small></article>
         </div>
       <div className="bases-layout data-split-layout">
         {/* Colonne 1 : listes */}
@@ -629,7 +637,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                     const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
                       <tr key={c.id}>
-                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
+                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIdSet.has(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
                         <td>
                           <strong>{c.prenom} {c.nom}</strong>
                           {c.profile && (
