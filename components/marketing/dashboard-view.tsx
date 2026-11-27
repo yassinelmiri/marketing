@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
@@ -13,6 +13,12 @@ import {
   UsersRound,
   ContactRound,
   ListChecks,
+  Activity,
+  AlertTriangle,
+  TrendingUp,
+  MailCheck,
+  Target,
+  Sparkles,
 } from 'lucide-react'
 import {
   type Campagne,
@@ -57,6 +63,34 @@ export function DashboardView({
     () => campagnes.filter((campaign) => assignedCampaignIds.has(campaign.id)),
     [campagnes, assignedCampaignIds],
   )
+  const diagnostic = useMemo(() => {
+    const total = campagnes.length
+    const active = campagnes.filter((c) => c.status === 'en_cours').length
+    const completed = campagnes.filter((c) => c.status === 'terminee').length
+    const drafts = campagnes.filter((c) => c.status === 'brouillon').length
+    const archived = campagnes.filter((c) => c.status === 'archivee').length
+    const completionRate = total ? Math.round((completed / total) * 100) : 0
+    const activeRate = total ? Math.round((active / total) * 100) : 0
+    const commentsCount = commentaires.length
+    const recentCampaigns = campagnes.filter((c) => {
+      const date = new Date(c.date_modification).getTime()
+      return Number.isFinite(date) && Date.now() - date <= 30 * 24 * 60 * 60 * 1000
+    }).length
+    const health = total === 0 ? 0 : Math.min(100, Math.round(
+      (completionRate * 0.45) + (Math.min(recentCampaigns / total, 1) * 25) + (Math.min(commentsCount / total, 1) * 15) + (Math.min(stats.contacts / Math.max(stats.listes, 1) / 10, 1) * 15),
+    ))
+    const findings: { tone: 'good' | 'warn' | 'info'; title: string; detail: string }[] = []
+    if (!total) findings.push({ tone: 'info', title: 'Démarrage du projet', detail: 'Aucune campagne encore créée. Créez une campagne pour commencer à suivre les performances.' })
+    else if (drafts > active + completed) findings.push({ tone: 'warn', title: 'Beaucoup de campagnes en préparation', detail: `${drafts} brouillon(s) : pensez à les planifier ou à les lancer.` })
+    else findings.push({ tone: 'good', title: 'Pipeline de campagnes', detail: `${active} campagne(s) en cours et ${completed} terminée(s) sur ${total} au total.` })
+    if (stats.contacts === 0) findings.push({ tone: 'warn', title: 'Base de contacts vide', detail: 'Importez ou ajoutez des contacts pour alimenter les campagnes.' })
+    else if (stats.listes === 0) findings.push({ tone: 'warn', title: 'Aucune liste de contacts', detail: 'Créez des listes pour segmenter la base et associer les contacts aux campagnes.' })
+    else findings.push({ tone: 'good', title: 'Base de données marketing', detail: `${stats.contacts.toLocaleString('fr-FR')} contact(s) répartis sur ${stats.listes} liste(s).` })
+    if (commentsCount === 0 && total > 0) findings.push({ tone: 'info', title: 'Collaboration à renforcer', detail: 'Aucun commentaire : utilisez les commentaires de campagne pour centraliser les échanges.' })
+    else if (commentsCount > 0) findings.push({ tone: 'good', title: 'Suivi collaboratif', detail: `${commentsCount} commentaire(s) pour garder le contexte et les décisions.` })
+    return { total, active, completed, drafts, archived, completionRate, activeRate, recentCampaigns, health, findings }
+  }, [campagnes, commentaires, stats.contacts, stats.listes])
+
   const selectedComments = useMemo(
     () => commentaires.filter((comment) => comment.campagne_id === selectedCampagneId),
     [commentaires, selectedCampagneId],
@@ -127,6 +161,29 @@ export function DashboardView({
             })}
           </div>
         )}
+      </div>
+
+      <div className="dashboard-overview-grid">
+        <section className="dashboard-analytics-panel">
+          <header className="dashboard-analytics-heading"><div><span className="settings-eyebrow">ANALYSE DU PROJET</span><h2>Vue d’ensemble & performance</h2><p>Indicateurs calculés à partir des données présentes dans votre espace.</p></div><span className="dashboard-live-tag"><Activity size={14}/> Actualisé</span></header>
+          <div className="dashboard-health-row">
+            <div className="dashboard-health-score"><div className="dashboard-health-ring" style={{ '--health-score': diagnostic.health } as CSSProperties}><div><strong>{diagnostic.health}</strong><span>/100</span></div></div><span>Indice de suivi</span></div>
+            <div className="dashboard-health-summary"><strong>{diagnostic.health >= 70 ? 'Projet bien suivi' : diagnostic.health >= 40 ? 'Projet à optimiser' : 'Projet à structurer'}</strong><p>Indice indicatif basé sur l’avancement, l’activité récente, la collaboration et la base contacts. Ce n’est pas une mesure de délivrabilité ou de conversion.</p><div className="dashboard-health-progress"><span style={{width: `${diagnostic.health}%`}} /></div></div>
+          </div>
+          <div className="dashboard-status-breakdown">
+            {[
+              { label: 'En cours', value: diagnostic.active, color: 'progress' },
+              { label: 'Terminées', value: diagnostic.completed, color: 'done' },
+              { label: 'Brouillons', value: diagnostic.drafts, color: 'draft' },
+              { label: 'Archivées', value: diagnostic.archived, color: 'archived' },
+            ].map((item) => <div key={item.label} className="dashboard-status-stat"><span className={`dashboard-status-dot ${item.color}`}/><span>{item.label}</span><strong>{item.value}</strong></div>)}
+          </div>
+          <div className="dashboard-analytics-metrics"><div><TrendingUp/><span>Taux de finalisation</span><strong>{diagnostic.completionRate}%</strong></div><div><Clock/><span>Activité sur 30 jours</span><strong>{diagnostic.recentCampaigns} campagne(s)</strong></div><div><MessageCircle/><span>Engagement équipe</span><strong>{commentaires.length} commentaire(s)</strong></div><div><Target/><span>Contacts / liste</span><strong>{stats.listes ? Math.round(stats.contacts / stats.listes).toLocaleString('fr-FR') : '—'}</strong></div></div>
+        </section>
+        <section className="dashboard-diagnostic-panel">
+          <header className="dashboard-analytics-heading"><div><span className="settings-eyebrow">DIAGNOSTIC</span><h2>Recommandations</h2><p>Points d’attention pour améliorer votre organisation.</p></div><Sparkles size={19}/></header>
+          <div className="dashboard-findings">{diagnostic.findings.map((finding, i) => <article key={i} className={`dashboard-finding ${finding.tone}`}><span className="dashboard-finding-icon">{finding.tone === 'warn' ? <AlertTriangle/> : finding.tone === 'good' ? <CheckCircle2/> : <Activity/>}</span><div><strong>{finding.title}</strong><p>{finding.detail}</p></div></article>)}</div>
+        </section>
       </div>
 
       <div className="workspace-panels">
