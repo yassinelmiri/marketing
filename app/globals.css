@@ -7830,22 +7830,23 @@ button {
   pointer-events: none;
 }
 .workspace-root .contacts-table-progress {
-  position: sticky;
-  top: 10px;
-  z-index: 4;
+  position: relative;
+  z-index: 2;
   width: fit-content;
+  max-width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 9px;
-  margin: 10px auto -42px;
-  padding: 9px 14px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
+  margin: 0 auto 12px;
+  padding: 10px 16px;
+  border: 1px solid rgba(59, 130, 246, .38);
+  border-radius: 12px;
+  background: var(--surface-2);
   color: var(--text-strong);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .12);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 700;
 }
 .workspace-root .contacts-table-spinner {
   width: 15px;
