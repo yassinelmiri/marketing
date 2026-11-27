@@ -145,40 +145,45 @@ export function DashboardView({
     let active = true
     const loadHealth = async () => {
       setHealthLoading(true)
-      try {
-        const [healthResponse, pingResult] = await Promise.all([
-          fetch('/api/admin/health', { cache: 'no-store' }),
-          (async () => {
-            const started = performance.now()
-            try {
-              const response = await fetch('/api/health/ping', { cache: 'no-store' })
-              const responseMs = Math.round(performance.now() - started)
-              return { responseMs, status: !response.ok ? 'offline' as const : responseMs > 1500 ? 'slow' as const : 'online' as const, checkedAt: new Date().toISOString() }
-            } catch {
-              return { responseMs: null, status: 'offline' as const, checkedAt: new Date().toISOString() }
-            }
-          })(),
-        ])
-        const data = await healthResponse.json()
-        if (!healthResponse.ok) throw new Error(data.error || 'Diagnostic système indisponible')
-        data.website = pingResult
-        if (active) {
-          setSystemHealth(data)
-          if (typeof pingResult.responseMs === 'number') {
+      const loadDatabase = async () => {
+        try {
+          const response = await fetch('/api/admin/health', { cache: 'no-store' })
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Diagnostic système indisponible')
+          if (active) setSystemHealth((current) => ({ ...data, website: current.website }))
+        } catch (error) {
+          if (active) setSystemHealth((current) => ({
+            ...current,
+            alerts: [{ level: 'error', title: 'Diagnostic indisponible', detail: error instanceof Error ? error.message : 'Impossible de vérifier le système.' }],
+          }))
+        }
+      }
+      const loadWebsiteSpeed = async () => {
+        const started = performance.now()
+        try {
+          const response = await fetch('/api/health/ping', { cache: 'no-store' })
+          const responseMs = Math.round(performance.now() - started)
+          const website = {
+            responseMs,
+            status: !response.ok ? 'offline' as const : responseMs > 1500 ? 'slow' as const : 'online' as const,
+            checkedAt: new Date().toISOString(),
+          }
+          if (active) {
+            setSystemHealth((current) => ({ ...current, website }))
             setSpeedHistory((history) => [
               ...history,
-              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: pingResult.responseMs as number },
+              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: responseMs },
             ].slice(-30))
           }
+        } catch {
+          if (active) setSystemHealth((current) => ({
+            ...current,
+            website: { responseMs: null, status: 'offline', checkedAt: new Date().toISOString() },
+          }))
         }
-      } catch (error) {
-        if (active) setSystemHealth((current) => ({
-          ...current,
-          alerts: [{ level: 'error', title: 'Diagnostic indisponible', detail: error instanceof Error ? error.message : 'Impossible de vérifier le système.' }],
-        }))
-      } finally {
-        if (active) setHealthLoading(false)
       }
+      await Promise.all([loadDatabase(), loadWebsiteSpeed()])
+      if (active) setHealthLoading(false)
     }
     void loadHealth()
     const interval = window.setInterval(() => void loadHealth(), 60000)
