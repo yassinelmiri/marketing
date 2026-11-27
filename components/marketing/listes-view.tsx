@@ -396,11 +396,12 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   async function deleteContact(c: Contact) {
     await deleteContacts([c.id])
   }
-  const pageContactIds = listeContacts.map((contact) => contact.id)
-  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIds.includes(id))
+  const pageContactIds = useMemo(() => listeContacts.map((contact) => contact.id), [listeContacts])
+  const pageContactIdSet = useMemo(() => new Set(pageContactIds), [pageContactIds])
+  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIdSet.has(id))
   function togglePageContacts() {
     setSelectedContactIds((current) => allPageContactsSelected
-      ? current.filter((id) => !pageContactIds.includes(id))
+      ? current.filter((id) => !pageContactIdSet.has(id))
       : [...new Set([...current, ...pageContactIds])])
   }
   function toggleContactSelection(id: number) {
