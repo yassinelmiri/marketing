@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -13,7 +14,7 @@ async function authorize(){
  if(pError||!profile) return {response:NextResponse.json({error:'Profil non autorisé.'},{status:403})}
  try{return {admin:createAdminClient(),userId:Number(profile.id)} as const}catch{return {response:NextResponse.json({error:'Configuration serveur indisponible.'},{status:503})}}
 }
-function originCheck(req:NextRequest){const origin=req.headers.get('origin');if(!origin)return NextResponse.json({error:'Origin manquant.'},{status:403});try{if(new URL(origin).origin!==req.nextUrl.origin)return NextResponse.json({error:'Origin refusé.'},{status:403})}catch{return NextResponse.json({error:'Origin invalide.'},{status:403})}return null}
+
 export async function GET(){
  const auth=await authorize();if('response'in auth)return auth.response
  // Generate a one-time in-app reminder for assigned tasks due today or tomorrow when the member opens notifications.
@@ -36,7 +37,7 @@ export async function GET(){
  return NextResponse.json({notifications:data??[]},{headers:{'Cache-Control':'no-store'}})
 }
 export async function PATCH(req:NextRequest){
- const check=originCheck(req);if(check)return check
+ const check=sameOriginError(req, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' });if(check)return check
  const auth=await authorize();if('response'in auth)return auth.response
  let body:{id?:number;all?:boolean};try{body=await req.json()}catch{return NextResponse.json({error:'Requête invalide.'},{status:400})}
  let query=auth.admin.from('notifications').update({is_read:true}).eq('user_id',auth.userId).eq('is_read',false)
