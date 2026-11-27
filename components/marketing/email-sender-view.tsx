@@ -20,10 +20,12 @@ function escapeTemplateText(value:string){
  return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char))
 }
 function composeTemplateHtml(templateHtml:string,body:string){
- const safeBody=escapeTemplateText(body).replace(/\\n/g,'<br/>')
- if(templateHtml.includes('{{message}}'))return templateHtml.replace(/{{\\s*message\\s*}}/gi,safeBody)
- const block='<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#334155;padding:20px 24px;">'+safeBody+'</div>'
- return /<\\/body>/i.test(templateHtml)?templateHtml.replace(/<\\/body>/i,block+'</body>'):templateHtml+block
+ const safeBody=escapeTemplateText(body).replace(/\r?\n/g,'<br/>')
+ if(templateHtml.includes('{{message}}'))return templateHtml.split('{{message}}').join(safeBody)
+ const contentBlock='<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#334155;padding:20px 24px;">'+safeBody+'</div>'
+ const closingBody='</body>'
+ const closingIndex=templateHtml.toLowerCase().lastIndexOf(closingBody)
+ return closingIndex>=0?templateHtml.slice(0,closingIndex)+contentBlock+templateHtml.slice(closingIndex):templateHtml+contentBlock
 }
 
 export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:ListeContact[];contactListCounts:Record<number,number>;isAdmin:boolean}){
@@ -158,7 +160,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  <small>Les comptes sélectionnés seront utilisés à tour de rôle pour répartir les envois.</small>
 </div>
  <label className="form-grid-full"><span>Objet de l’e-mail</span><input value={subject} onChange={e=>setSubject(e.target.value)} /></label>
- <label><span>Template</span><select value={template} onChange={e=>{const id=e.target.value?Number(e.target.value):'';setTemplate(id);const t=templates.find(x=>x.id===id);if(t){setSubject(t.subject);setMessage(t.html_content);const marker=t.html_content?.match(/{{\\s*message\\s*}}/i);setCampaignBody(marker?marker[0].replace(/{{|}}/g,'').trim():'')}}}><option value="">Aucun</option>{templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+ <label><span>Template</span><select value={template} onChange={e=>{const id=e.target.value?Number(e.target.value):'';setTemplate(id);const t=templates.find(x=>x.id===id);if(t){setSubject(t.subject);setMessage(t.html_content);setCampaignBody('')}}}><option value="">Aucun</option>{templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
  <label><span>Reply-To</span><input type="email" value={replyTo} onChange={e=>setReplyTo(e.target.value)} placeholder="reponse@domaine.fr"/></label><label><span>Date et heure de lancement (Maroc)</span><input type="datetime-local" value={launchAt} min={campaignDateToInput(new Date().toISOString())} onChange={e=>setLaunchAt(e.target.value)}/><small>Fuseau horaire : Africa/Casablanca (heure du Maroc). Laisser vide pour lancer dès que possible.</small></label>
  <div className="form-grid-full email-campaign-content"><div className="email-field-heading"><span>Contenu de l’e-mail</span><small>{selectedTemplate?'Le design du template est protégé. Modifiez uniquement le texte de votre message.':'Rédigez le contenu de votre e-mail.'}</small></div>{selectedTemplate?<><label className="email-campaign-body"><span>Votre message / description</span><textarea rows={6} value={campaignBody} onChange={e=>setCampaignBody(e.target.value)} placeholder="Écrivez ici le texte personnalisé de votre campagne…"/><small>Le texte sera intégré automatiquement dans le template sélectionné.</small></label><div className="email-campaign-preview"><div className="email-campaign-preview-heading"><Eye size={15}/> Aperçu final de l’e-mail</div><iframe title="Aperçu de l’e-mail avec template" sandbox="" referrerPolicy="no-referrer" srcDoc={composeTemplateHtml(selectedTemplate.html_content||'',campaignBody)}/></div></>:<textarea rows={9} value={message} onChange={e=>setMessage(e.target.value)}/>}</div></div>
  <div className="email-options"><strong>Options de tracking</strong><label><input type="checkbox" checked={opens} onChange={e=>setOpens(e.target.checked)}/> Tracking des ouvertures</label><label><input type="checkbox" checked={clicks} onChange={e=>setClicks(e.target.checked)}/> Tracking des clics et redirections</label><p className="form-hint">Les campagnes tournent en arrière-plan. Le worker Vercel vérifie la file chaque minute : le lancement planifié et les délais entre lots peuvent donc avoir jusqu’à environ 60 secondes de décalage.</p></div>
