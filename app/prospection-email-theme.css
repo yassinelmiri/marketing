@@ -77,53 +77,27 @@
 .workspace-root .email-suite .email-suite-stat { text-align:left; }
 @media(max-width:640px){.workspace-root .prospection-page .prospection-result-stats{grid-template-columns:1fr !important}.workspace-root .prospection-page .prospection-save-grid{grid-template-columns:1fr !important}.workspace-root .prospection-page .prospection-header{align-items:flex-start !important}}
 
-/* Prepare campaign form: distinct elevated surface and clear section hierarchy. */
-.workspace-root .email-suite .email-campaign-form-panel { padding:clamp(16px,2vw,25px) !important; border-radius:22px !important; background:linear-gradient(145deg,rgba(39,40,41,.97),rgba(21,22,23,.98)) !important; border-color:rgba(232,91,42,.25) !important; box-shadow:0 16px 45px rgba(0,0,0,.23),inset 0 1px rgba(255,255,255,.035) !important; }
-.workspace-root .email-suite .email-campaign-form-header { align-items:center; gap:12px; padding:0 0 18px !important; margin:0 0 18px !important; border-bottom:1px solid var(--ui-border) !important; }
-.workspace-root .email-suite .email-campaign-form-header h2 { display:flex; align-items:center; gap:10px; font-size:clamp(19px,2vw,24px) !important; }
-.workspace-root .email-suite .email-campaign-form-header h2 svg { color:var(--ui-accent-strong) !important; }
-.workspace-root .email-suite .email-campaign-form-header > span { padding:6px 10px; border:1px solid var(--ui-accent-border); border-radius:999px; background:var(--ui-accent-soft); color:var(--ui-accent-strong) !important; font-size:11px; font-weight:700; }
-.workspace-root .email-suite .email-campaign-form-panel .form-grid { gap:15px !important; }
-.workspace-root .email-suite .email-campaign-form-panel .form-grid > label,.workspace-root .email-suite .email-campaign-form-panel .email-campaign-body { padding:13px 14px; border:1px solid var(--ui-border); border-radius:13px; background:rgba(255,255,255,.025); gap:8px; }
-.workspace-root .email-suite .email-campaign-form-panel .form-grid > label > span,.workspace-root .email-suite .email-campaign-form-panel .email-campaign-body > span { font-size:12px; letter-spacing:.01em; }
-.workspace-root .email-suite .email-campaign-form-panel .email-recipient-field { padding:15px; border:1px solid var(--ui-border); border-radius:15px; background:rgba(255,255,255,.022); }
-.workspace-root .email-suite .email-campaign-form-panel .email-field-heading { margin-bottom:11px; }
-.workspace-root .email-suite .email-campaign-form-panel .email-picker-trigger { min-height:58px; transition:border-color .18s ease,background .18s ease; }
-.workspace-root .email-suite .email-campaign-form-panel .email-picker[open] .email-picker-trigger { border-color:var(--ui-accent-border) !important; background:rgba(232,91,42,.045) !important; }
-.workspace-root .email-suite .email-campaign-form-panel .email-selected-chips { margin-top:10px; }
-.workspace-root .email-suite .email-campaign-form-panel .email-campaign-content { padding:15px; border:1px solid var(--ui-border); border-radius:15px; background:rgba(255,255,255,.022); }
-.workspace-root .email-suite .email-campaign-form-panel .email-campaign-preview { overflow:hidden; border:1px solid var(--ui-border); border-radius:13px; background:#fff; }
-.workspace-root .email-suite .email-campaign-form-panel .email-options { display:grid; gap:10px; padding:15px; margin-top:16px; border:1px solid var(--ui-accent-border); border-radius:15px; background:rgba(232,91,42,.045); }
-.workspace-root .email-suite .email-campaign-form-panel .email-options strong { color:var(--ui-accent-strong) !important; }
-.workspace-root .email-suite .email-campaign-form-panel .email-options label { display:flex; align-items:center; gap:9px; color:var(--ui-text) !important; }
-.workspace-root .email-suite .email-campaign-form-panel .email-options input[type=checkbox] { min-height:auto; accent-color:var(--ui-accent); }
-.workspace-root .email-suite .email-campaign-form-panel .email-batch-grid { gap:12px; margin-top:14px; }
-.workspace-root .email-suite .email-campaign-form-panel .email-batch-grid label { padding:13px; border:1px solid var(--ui-border); border-radius:13px; background:rgba(255,255,255,.025); }
-.workspace-root .email-suite .email-campaign-form-panel .workspace-note { margin-top:14px; }
-.workspace-root .email-suite .email-campaign-form-panel .workspace-import-actions { display:flex; flex-wrap:wrap; gap:10px; padding-top:16px; border-top:1px solid var(--ui-border); margin-top:17px; }
-.workspace-root .email-suite .email-campaign-form-panel .workspace-import-actions button { min-height:42px; padding-inline:15px !important; border-radius:11px !important; }
-.workspace-root .email-suite .email-campaign-form-panel .workspace-primary { font-weight:750; }
-.workspace-root .email-suite .email-campaign-form-panel .workspace-panel { margin-top:20px; padding:16px !important; background:rgba(255,255,255,.018) !important; box-shadow:none !important; }
-@media(max-width:700px){.workspace-root .email-suite .email-campaign-form-header{align-items:flex-start;flex-direction:column}.workspace-root .email-suite .email-campaign-form-panel .email-batch-grid{grid-template-columns:1fr 1fr !important}.workspace-root .email-suite .email-campaign-form-panel .email-recipient-field{padding:12px}.workspace-root .email-suite .email-campaign-form-panel .form-grid>label{padding:11px}}
-
-/* Campaign template library: visual selection, connected to the existing template records. */
-.workspace-root .email-suite .email-template-library-picker { display:grid; gap:12px; padding:15px; border:1px solid var(--ui-accent-border); border-radius:16px; background:rgba(232,91,42,.035); }
-.workspace-root .email-suite .email-template-picker-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; }
-.workspace-root .email-suite .email-template-picker-card { display:flex; flex-direction:column; min-width:0; overflow:hidden; padding:0; border:1px solid var(--ui-border) !important; border-radius:14px !important; background:rgba(255,255,255,.025) !important; color:var(--ui-text) !important; text-align:left; transition:border-color .18s,transform .18s,box-shadow .18s; }
-.workspace-root .email-suite .email-template-picker-card:hover { transform:translateY(-2px); border-color:var(--ui-accent-border) !important; box-shadow:var(--ui-shadow-hover); }
-.workspace-root .email-suite .email-template-picker-card.selected { border:2px solid var(--ui-accent) !important; background:rgba(232,91,42,.075) !important; box-shadow:0 0 0 3px var(--ui-focus); }
-.workspace-root .email-suite .email-template-picker-preview { height:160px; overflow:hidden; background:#fff; pointer-events:none; }
-.workspace-root .email-suite .email-template-picker-preview iframe { width:100%; height:520px; border:0; transform:scale(.42); transform-origin:top left; width:238%; }
-.workspace-root .email-suite .email-template-picker-card-content { display:grid; gap:5px; padding:12px 13px 8px; }
-.workspace-root .email-suite .email-template-picker-card-content strong { color:var(--ui-text-strong) !important; font-size:13px; }
-.workspace-root .email-suite .email-template-picker-card-content small { color:var(--ui-muted) !important; overflow-wrap:anywhere; }
-.workspace-root .email-suite .email-template-picker-card-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px 12px; margin-top:auto; }
-.workspace-root .email-suite .email-template-picker-card-footer button { min-height:34px; padding:7px 10px !important; font-size:12px; }
-.workspace-root .email-suite .email-template-picker-none { min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; color:var(--ui-muted); }
-.workspace-root .email-suite .email-template-picker-none strong { color:var(--ui-text-strong) !important; }
-.workspace-root .email-suite .email-template-picker-none small { color:var(--ui-muted) !important; }
-.workspace-root .email-suite .email-template-picker-empty { padding:18px; border:1px dashed var(--ui-border-strong); border-radius:12px; color:var(--ui-muted); text-align:center; }
-.workspace-root .email-suite .email-selected-chips { display:flex; flex-wrap:wrap; gap:7px; }
-.workspace-root .email-suite .email-selected-chips span { max-width:100%; overflow-wrap:anywhere; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:650; }
-@media(max-width:900px){.workspace-root .email-suite .email-template-picker-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:580px){.workspace-root .email-suite .email-template-picker-grid{grid-template-columns:1fr}.workspace-root .email-suite .email-template-picker-preview{height:145px}.workspace-root .email-suite .email-template-picker-card-footer{align-items:stretch}.workspace-root .email-suite .email-template-picker-card-footer button{flex:1}}
+/* Keep the original campaign form appearance; improve only recipient-list and sender selection UX. */
+.workspace-root .email-suite .email-recipient-field { display:grid; gap:9px; padding:0 !important; border:0 !important; background:transparent !important; }
+.workspace-root .email-suite .email-recipient-field .email-field-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:5px 12px; margin-bottom:3px; }
+.workspace-root .email-suite .email-recipient-field .email-field-heading > span { font-weight:700; color:var(--ui-text-strong) !important; }
+.workspace-root .email-suite .email-recipient-field .email-field-heading small { color:var(--ui-muted) !important; }
+.workspace-root .email-suite .email-picker { position:relative; }
+.workspace-root .email-suite .email-picker-trigger { min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 14px; cursor:pointer; }
+.workspace-root .email-suite .email-picker-trigger-copy { display:grid; gap:4px; min-width:0; }
+.workspace-root .email-suite .email-picker-trigger-copy strong { color:var(--ui-text-strong) !important; }
+.workspace-root .email-suite .email-picker-trigger-copy small { color:var(--ui-muted) !important; overflow-wrap:anywhere; }
+.workspace-root .email-suite .email-picker-trigger-meta { display:flex; align-items:center; gap:7px; white-space:nowrap; color:var(--ui-accent-strong) !important; font-size:12px; font-weight:700; }
+.workspace-root .email-suite .email-picker-popover { margin-top:7px; padding:10px; }
+.workspace-root .email-suite .email-picker-options { max-height:260px; overflow:auto; display:grid; gap:4px; padding-block:6px; }
+.workspace-root .email-suite .email-picker-option { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid transparent; border-radius:9px; cursor:pointer; }
+.workspace-root .email-suite .email-picker-option:hover { border-color:var(--ui-accent-border); background:rgba(232,91,42,.055) !important; }
+.workspace-root .email-suite .email-picker-option input[type=checkbox] { width:16px; min-height:16px; accent-color:var(--ui-accent); }
+.workspace-root .email-suite .email-picker-option > span { display:grid; gap:3px; min-width:0; }
+.workspace-root .email-suite .email-picker-option strong { color:var(--ui-text-strong) !important; overflow-wrap:anywhere; }
+.workspace-root .email-suite .email-picker-option small { color:var(--ui-muted) !important; overflow-wrap:anywhere; }
+.workspace-root .email-suite .email-picker-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--ui-border); padding-top:9px; font-size:11px; color:var(--ui-muted) !important; }
+.workspace-root .email-suite .email-picker-footer button { background:transparent; border:0; color:var(--ui-accent-strong) !important; cursor:pointer; font-size:11px; }
+.workspace-root .email-suite .email-selected-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+.workspace-root .email-suite .email-selected-chips span { display:inline-flex; max-width:100%; overflow-wrap:anywhere; padding:5px 9px; border-radius:999px; background:var(--ui-accent-soft) !important; border:1px solid var(--ui-accent-border) !important; color:var(--ui-accent-strong) !important; font-size:11px; font-weight:650; }
+@media(max-width:600px){.workspace-root .email-suite .email-picker-trigger{align-items:flex-start;flex-direction:column}.workspace-root .email-suite .email-picker-trigger-meta{white-space:normal}.workspace-root .email-suite .email-picker-footer{align-items:flex-start;flex-direction:column}}
