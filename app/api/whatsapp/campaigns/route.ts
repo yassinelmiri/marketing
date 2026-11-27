@@ -296,12 +296,14 @@ export async function PATCH(request: NextRequest) {
     ])
     if (pendingError || statusCounts.some((item) => item.error)) return NextResponse.json({ error: 'Actualisation du suivi impossible.' }, { status: 500 })
     const allDone = Number(pendingCount ?? 0) === 0
-    const counts = {
-      total: Number(statusCounts.reduce((sum, item) => sum + Number(item.count ?? 0), 0)),
-      sent: Number(statusCounts[0].count ?? 0),
-      failed: Number(statusCounts[1].count ?? 0),
-      skipped: Number(statusCounts[2].count ?? 0),
-      pending: Number(statusCounts[3].count ?? 0) + Number(statusCounts[4].count ?? 0),
+    const counts = { total: 0, sent: 0, failed: 0, skipped: 0, pending: 0 }
+    for (let index = 0; index < statusCounts.length; index++) {
+      const count = Number(statusCounts[index].count ?? 0)
+      counts.total += count
+      if (index === 0) counts.sent = count
+      else if (index === 1) counts.failed = count
+      else if (index === 2) counts.skipped = count
+      else counts.pending += count
     }
     const nextStatus: CampaignStatus = allDone ? 'completed' : 'in_progress'
     await auth.admin.from('whatsapp_campaigns').update({ status: nextStatus, updated_at: now }).eq('id', campaignId).eq('user_id', auth.userId)
