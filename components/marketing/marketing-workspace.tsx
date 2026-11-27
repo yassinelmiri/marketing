@@ -16,6 +16,7 @@ import { SmsSenderView } from './sms-sender-view'
 import { SettingsView } from './settings-view'
 import { NotificationBell } from './notification-bell'
 import { TasksView } from './tasks-view'
+import { ProspectionView } from './prospection-view'
 
 import {
   type Campagne,
@@ -673,6 +674,10 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               onAddComment={handleAddComment}
             />
             </div>
+          )}
+
+          {visitedViews.includes('prospection') && (
+            <div hidden={activeView !== 'prospection'}><ProspectionView /></div>
           )}
 
           {visitedViews.includes('campagnes') && (
