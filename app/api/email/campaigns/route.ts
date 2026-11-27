@@ -31,21 +31,35 @@ export async function POST(request: NextRequest) {
     if (scheduledAt.getTime() < Date.now() - 60000) return NextResponse.json({ error: 'La date de lancement doit être dans le futur ou maintenant.' }, { status: 400 })
 
     const admin = createAdminClient()
-    const { data: smtpAccounts, error: smtpError } = await admin.from('smtp_accounts').select('id,name,email,from_name,is_active').in('id', smtpIds).eq('is_active', true)
+    const [
+      { data: smtpAccounts, error: smtpError },
+      { data: lists, error: listsError },
+      { data: links, error: linksError },
+    ] = await Promise.all([
+      admin.from('smtp_accounts').select('id,name,email,from_name,is_active').in('id', smtpIds).eq('is_active', true),
+      admin.from('listes').select('id,nom').in('id', listeIds),
+      admin.from('liste_contacts').select('contact_id').in('liste_id', listeIds),
+    ])
     if (smtpError || (smtpAccounts ?? []).length !== smtpIds.length) return NextResponse.json({ error: 'Un ou plusieurs comptes expéditeurs sont introuvables ou désactivés.' }, { status: 404 })
-    const orderedSmtp = smtpIds.map(id => smtpAccounts!.find(account => Number(account.id) === id)!).filter(Boolean)
-    const primarySmtp = orderedSmtp[0]
-    const { data: lists, error: listsError } = await admin.from('listes').select('id,nom').in('id', listeIds)
     if (listsError || (lists ?? []).length !== listeIds.length) return NextResponse.json({ error: 'Une ou plusieurs listes sont introuvables.' }, { status: 404 })
-    const { data: links, error: linksError } = await admin.from('liste_contacts').select('contact_id').in('liste_id', listeIds)
     if (linksError) throw linksError
+
+    const smtpById = new Map((smtpAccounts ?? []).map((account) => [Number(account.id), account]))
+    const primarySmtp = smtpIds.map((id) => smtpById.get(id)).find(Boolean)
+    if (!primarySmtp) return NextResponse.json({ error: 'Un ou plusieurs comptes expéditeurs sont introuvables ou désactivés.' }, { status: 404 })
+
     const contactIds = Array.from(new Set((links ?? []).map((x) => Number(x.contact_id)).filter(Number.isSafeInteger)))
     if (!contactIds.length) return NextResponse.json({ error: 'Les listes sélectionnées ne contiennent aucun contact.' }, { status: 400 })
-    const { data: contacts, error: contactsError } = await admin.from('contacts').select('email').in('id', contactIds)
+    const [
+      { data: contacts, error: contactsError },
+      { data: suppressed, error: suppressedError },
+    ] = await Promise.all([
+      admin.from('contacts').select('email').in('id', contactIds),
+      admin.from('email_unsubscribes').select('email'),
+    ])
     if (contactsError) throw contactsError
-    let recipients = Array.from(new Set((contacts ?? []).map((x) => String(x.email ?? '').trim().toLowerCase()).filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))
-    const { data: suppressed, error: suppressedError } = await admin.from('email_unsubscribes').select('email')
     if (suppressedError) throw suppressedError
+    let recipients = Array.from(new Set((contacts ?? []).map((x) => String(x.email ?? '').trim().toLowerCase()).filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))
     const excluded = new Set((suppressed ?? []).map((x) => String(x.email).toLowerCase()))
     recipients = recipients.filter((email) => !excluded.has(email))
     if (!recipients.length) return NextResponse.json({ error: 'Aucun destinataire valide après exclusion des désabonnements.' }, { status: 400 })
