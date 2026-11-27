@@ -37,7 +37,7 @@ import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
 import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
 import { parseContactImportFile } from '@/lib/contacts/file-parser'
-import { getVisibleListes } from '@/lib/contacts/list-view-utils'
+import { getVisibleListes, buildContactListNamesByContactId } from '@/lib/contacts/list-view-utils'
 
 interface ListesViewProps {
   user: User
@@ -138,18 +138,10 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
   const listeContacts = contacts
   const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
-  const contactListNamesByContactId = useMemo(() => {
-    const listsById = new Map(listes.map((liste) => [liste.id, liste.nom]))
-    const namesByContactId = new Map<number, string[]>()
-    for (const link of contactLinks) {
-      const listName = listsById.get(link.liste_id)
-      if (!listName) continue
-      const names = namesByContactId.get(link.contact_id) ?? []
-      names.push(listName)
-      namesByContactId.set(link.contact_id, names)
-    }
-    return namesByContactId
-  }, [contactLinks, listes])
+  const contactListNamesByContactId = useMemo(
+    () => buildContactListNamesByContactId(contactLinks, listes),
+    [contactLinks, listes],
+  )
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedContactSearch(contactSearch.trim()), 300)
