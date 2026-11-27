@@ -607,8 +607,8 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         </nav>
 
         <div className="workspace-sidebar-footer">
-          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(15, 118, 110, 0.10)', border: '1px solid rgba(15, 118, 110, 0.20)' }}>
-            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#0F766E', background: 'rgba(15, 118, 110, 0.14)' }}>
+          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(139, 92, 246, 0.09)', border: '1px solid rgba(139, 92, 246, 0.16)' }}>
+            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.15)' }}>
               <Clock3 size={18} aria-hidden="true" />
             </span>
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -717,10 +717,10 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
           {visitedViews.includes('scraping') && (
             <div hidden={activeView !== 'scraping'}>
               <section className="workspace-section" style={{ padding: 28, background: '#fff', border: '1px solid #e8eaf0', borderRadius: 18, textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, margin: '8px auto 18px', display: 'grid', placeItems: 'center', borderRadius: 18, background: '#EAFBF4', color: '#239B80', fontSize: 28 }}>⌕</div>
+                <div style={{ width: 64, height: 64, margin: '8px auto 18px', display: 'grid', placeItems: 'center', borderRadius: 18, background: '#f1edff', color: '#7655d9', fontSize: 28 }}>⌕</div>
                 <h2 style={{ margin: '0 0 10px', color: '#172033' }}>Module Scrapping</h2>
                 <p style={{ maxWidth: 520, margin: '0 auto', color: '#687386', lineHeight: 1.7 }}>Cette fonctionnalité est en cours de préparation. Elle sera bientôt disponible.</p>
-                <span style={{ display: 'inline-flex', marginTop: 18, padding: '7px 13px', borderRadius: 999, background: '#EAFBF4', color: '#239B80', fontSize: 12, fontWeight: 700 }}>COMING SOON</span>
+                <span style={{ display: 'inline-flex', marginTop: 18, padding: '7px 13px', borderRadius: 999, background: '#f3efff', color: '#7655d9', fontSize: 12, fontWeight: 700 }}>COMING SOON</span>
               </section>
             </div>
           )}
