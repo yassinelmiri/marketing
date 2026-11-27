@@ -38,3 +38,10 @@ export function displayValue(value:unknown,fallback='—'):string{
  if(typeof value==='object'&&'message' in value)return displayValue((value as {message?:unknown}).message,fallback)
  try{return JSON.stringify(value)??fallback}catch{return fallback}
 }
+
+export function formatDateValue(value: unknown): string {
+  const normalized = normalizeText(value)
+  if (!normalized) return '—'
+  const date = new Date(normalized)
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('fr-FR')
+}
