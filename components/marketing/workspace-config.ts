@@ -9,6 +9,7 @@ import {
   Users,
   UsersRound,
   ListTodo,
+  Search,
 } from 'lucide-react'
 
 import type { ViewKey } from '@/lib/permissions'
@@ -23,6 +24,7 @@ type NavigationItem = {
 export const NAV_ITEMS: NavigationItem[] = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
+  { key: 'prospection', label: 'Prospection', icon: Search },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
   { key: 'equipe', label: 'Équipe', icon: UsersRound },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
@@ -37,6 +39,10 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
   dashboard: {
     title: 'Tableau de bord',
     subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
+  },
+  prospection: {
+    title: 'Prospection',
+    subtitle: 'Recherchez des prospects, créez des listes ciblées et suivez vos actions de contact.',
   },
   campagnes: {
     title: 'Campagnes',
