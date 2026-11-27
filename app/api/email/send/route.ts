@@ -1,52 +1,118 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import nodemailer from 'nodemailer'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sameOriginError } from '@/lib/api/request-security'
+import { authorizeEmailAccess } from '@/lib/api/email-auth'
 import { decryptSmtpPassword } from '@/lib/supabase/smtp-crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function originError(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origine manquante.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 })
-  } catch { return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 }) }
-  return null
+function getCasablancaDayStart(date: Date) {
+  const timeZone = 'Africa/Casablanca'
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '0'
+  const wallClockUtc = Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day')))
+  const offsetLabel = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date).find((item) => item.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const match = offsetLabel.match(/GMT([+-])(\d{2}):(\d{2})/)
+  const offsetMinutes = match ? (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0
+  return new Date(wallClockUtc - offsetMinutes * 60 * 1000)
 }
 
-async function authorizedSession() {
-  const session = await createClient()
-  const { data: auth, error: authError } = await session.auth.getUser()
-  if (authError || !auth.user) return { error: NextResponse.json({ error: 'Authentification requise.' }, { status: 401 }) }
-  const { data: profile, error: profileError } = await session.from('user_profiles')
-    .select('id, role_id').eq('auth_user_id', auth.user.id).maybeSingle()
-  if (profileError || !profile) return { error: NextResponse.json({ error: 'Profil utilisateur introuvable.' }, { status: 403 }) }
-  const isAdmin = Number(profile.role_id) === 1
-  const { data: allowed, error: permissionError } = await session.rpc('has_permission', { permission_code: 'email.access' })
-  if (permissionError || (!isAdmin && !allowed)) return { error: NextResponse.json({ error: 'Vous ne disposez pas de l’autorisation d’accès au module e-mail.' }, { status: 403 }) }
-  return { session, profile, user: auth.user }
+
+
+function getPublicOrigin(request: NextRequest) {
+  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
+  const vercelHost = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : ''
+  const candidate = (configured || vercelHost || request.nextUrl.origin).replace(/\/+$/, '')
+  try {
+    const parsed = new URL(candidate)
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.origin
+  } catch {}
+  return request.nextUrl.origin
 }
+
 
 export async function GET(request: NextRequest) {
-  const auth = await authorizedSession()
-  if ('error' in auth) return auth.error
+  const auth = await authorizeEmailAccess()
+  if ('response' in auth) return auth.response
   try {
     const admin = createAdminClient()
     let query = admin.from('email_campaigns')
-      .select('id, smtp_account_id, liste_id, created_by, sender_email, sender_name, liste_nom, subject, message, recipients, failed_recipients, total_recipients, sent_count, failed_count, status, sent_at, created_at')
+      .select('id, smtp_account_id, liste_id, created_by, created_by_name, sender_email, sender_name, liste_nom, subject, message, reply_to, batch_size, batch_delay_seconds, total_recipients, sent_count, failed_count, recipient_offset, scheduled_at, next_batch_at, status, sent_at, created_at')
       .order('created_at', { ascending: false }).limit(100)
     if (Number(auth.profile.role_id) !== 1) query = query.eq('created_by', auth.profile.id)
     const { data, error } = await query
     if (error) throw error
     const ids = (data ?? []).map((item) => Number(item.id))
-    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,event_type').in('campaign_id', ids) : { data: [], error: null }
+    const { data: events, error: eventsError } = ids.length ? await admin.from('email_campaign_events').select('campaign_id,recipient_email,event_type,target_url').in('campaign_id', ids).limit(5000) : { data: [], error: null }
     if (eventsError) throw eventsError
-    const counts = new Map<number, { opens: number; clicks: number }>()
-    for (const event of events ?? []) { const id = Number(event.campaign_id); const value = counts.get(id) ?? { opens: 0, clicks: 0 }; if (event.event_type === 'open') value.opens += 1; if (event.event_type === 'click') value.clicks += 1; counts.set(id, value) }
-    return NextResponse.json({ campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens ?? 0, click_count: counts.get(Number(item.id))?.clicks ?? 0 })) })
+
+    if (request.nextUrl.searchParams.get('details') === '1') {
+      const kind = request.nextUrl.searchParams.get('kind') || 'open'
+      const campaignById = new Map((data ?? []).map((item) => [Number(item.id), item]))
+      if (kind === 'open' || kind === 'click') {
+        const unique = new Map<string, { campaign_id: number; campaign_subject: string; recipient_email: string; event_type: string; target_url: string | null; created_at: null }>()
+        for (const event of (events ?? []).filter((item) => item.event_type === kind && campaignById.has(Number(item.campaign_id)))) {
+          const campaignId = Number(event.campaign_id)
+          const email = String(event.recipient_email ?? '')
+          const targetUrl = event.target_url ?? null
+          const key = campaignId + ':' + email.toLowerCase() + (kind === 'click' ? ':' + String(targetUrl ?? '') : '')
+          if (!unique.has(key)) unique.set(key, {
+            campaign_id: campaignId, campaign_subject: campaignById.get(campaignId)?.subject ?? '',
+            recipient_email: email, event_type: event.event_type,
+            target_url: targetUrl, created_at: null,
+          })
+        }
+        return NextResponse.json({ details: Array.from(unique.values()), kind }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+      }
+      if (kind === 'sent' || kind === 'failed' || kind === 'unread') {
+        const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
+        const pageSize = Math.min(200, Math.max(25, Number(request.nextUrl.searchParams.get('pageSize')) || 100))
+        const statuses = kind === 'failed' ? ['failed'] : ['sent']
+        const { data: recipientRows, count: total, error: recipientError } = await admin
+          .from('email_campaign_recipients')
+          .select('campaign_id,email,status,processed_at', { count: 'exact' })
+          .in('campaign_id', ids).in('status', statuses)
+          .order('id', { ascending: true })
+          .range((page - 1) * pageSize, page * pageSize - 1)
+        if (recipientError) throw recipientError
+        const openedRecipients = new Set((events ?? []).filter((event) => event.event_type === 'open').map((event) => Number(event.campaign_id) + ':' + String(event.recipient_email ?? '').toLowerCase()))
+        const details = (recipientRows ?? []).filter((row) =>
+          kind !== 'unread' || !openedRecipients.has(Number(row.campaign_id) + ':' + String(row.email).toLowerCase())
+        ).map((row) => ({
+          campaign_id: Number(row.campaign_id),
+          campaign_subject: campaignById.get(Number(row.campaign_id))?.subject ?? '',
+          recipient_email: String(row.email), event_type: kind, target_url: null,
+          created_at: row.processed_at ?? campaignById.get(Number(row.campaign_id))?.sent_at ?? null,
+        }))
+        return NextResponse.json({ details, kind, total: Number(total ?? 0), page, pageSize, totalPages: Math.max(1, Math.ceil(Number(total ?? 0) / pageSize)) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+      }
+      return NextResponse.json({ details: [], kind }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+    }
+    const counts = new Map<number, { opens: Set<string>; clicks: Set<string> }>()
+    for (const event of events ?? []) {
+      const id = Number(event.campaign_id)
+      const value = counts.get(id) ?? { opens: new Set<string>(), clicks: new Set<string>() }
+      const recipient = String(event.recipient_email ?? '').toLowerCase()
+      if (recipient && event.event_type === 'open') value.opens.add(recipient)
+      if (recipient && event.event_type === 'click') value.clicks.add(recipient)
+      counts.set(id, value)
+    }
+    const now = new Date()
+    const todayStart = getCasablancaDayStart(now).toISOString()
+    const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).toISOString()
+    const yesterdayStart = getCasablancaDayStart(new Date(now.getTime() - 24 * 60 * 60 * 1000)).toISOString()
+    const [todaySentResult, yesterdaySentResult] = ids.length ? await Promise.all([
+      admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', todayStart).lt('processed_at', tomorrowStart),
+      admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', yesterdayStart).lt('processed_at', todayStart),
+    ]) : [{ count: 0, error: null }, { count: 0, error: null }]
+    if (todaySentResult.error || yesterdaySentResult.error) throw todaySentResult.error || yesterdaySentResult.error
+    return NextResponse.json({
+      campaigns: (data ?? []).map((item) => ({ ...item, open_count: counts.get(Number(item.id))?.opens.size ?? 0, click_count: counts.get(Number(item.id))?.clicks.size ?? 0 })),
+      daily_stats: { today_sent: Number(todaySentResult.count ?? 0), yesterday_sent: Number(yesterdaySentResult.count ?? 0) },
+    }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {
     console.error('[email/history] failed:', error)
     return NextResponse.json({ error: 'Impossible de charger l’historique des e-mails.' }, { status: 500 })
@@ -54,16 +120,18 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originError(request)
+  const origin = sameOriginError(request)
   if (origin) return origin
 
   let campaignId: number | null = null
-  const admin = createAdminClient()
+  let admin: ReturnType<typeof createAdminClient> | null = null
   try {
-    const auth = await authorizedSession()
-    if ('error' in auth) return auth.error
+    const auth = await authorizeEmailAccess()
+    if ('response' in auth) return auth.response
 
+    admin = createAdminClient()
     const body = await request.json()
+    const publicOrigin = getPublicOrigin(request)
     const smtpId = Number(body.smtp_account_id)
     const listeId = Number(body.liste_id)
     const subject = String(body.subject ?? '').trim().slice(0, 250)
@@ -111,6 +179,7 @@ export async function POST(request: NextRequest) {
       smtp_account_id: smtp.id,
       liste_id: liste.id,
       created_by: auth.profile.id,
+      created_by_name: String((auth.profile as Record<string, unknown>).full_name || (auth.profile as Record<string, unknown>).name || (auth.profile as Record<string, unknown>).nom_complet || [(auth.profile as Record<string, unknown>).prenom, (auth.profile as Record<string, unknown>).nom].filter(Boolean).join(' ') || auth.user.user_metadata?.full_name || auth.user.user_metadata?.name || auth.user.email || 'Utilisateur'),
       sender_email: smtp.email,
       sender_name: smtp.from_name || smtp.name,
       liste_nom: liste.nom,
@@ -147,13 +216,25 @@ export async function POST(request: NextRequest) {
         const batch = recipients.slice(offset, offset + batchSize)
         for (const recipient of batch) {
           try {
-            const pixel = trackingOpens ? '<img src="' + request.nextUrl.origin + '/api/email/track/open?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />' : ''
+            const pixel = trackingOpens ? '<img src="' + publicOrigin + '/api/email/track/open?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '" width="1" height="1" alt="" style="display:none" />' : ''
             const { data: unsubscribeToken, error: tokenError } = await admin.from('email_unsubscribe_tokens').upsert({ email: recipient, campaign_id: campaignId }, { onConflict: 'email,campaign_id' }).select('token').single()
             if (tokenError) throw tokenError
-            const unsubscribeLink = request.nextUrl.origin + '/api/email/unsubscribe/' + unsubscribeToken.token
+            const unsubscribeLink = publicOrigin + '/api/email/unsubscribe/' + unsubscribeToken.token
             let html = /<[a-z][\s\S]*?>/i.test(message) ? message : message.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch)).replace(/\n/g, '<br>')
-            if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + request.nextUrl.origin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
-            await transporter.sendMail({ from: { name: smtp.from_name || smtp.name, address: smtp.email }, to: recipient, ...(replyTo ? { replyTo } : {}), subject, html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel, text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink })
+            if (trackingClicks) html = html.replace(/href=[\"'](https?:\/\/[^\"']+)[\"']/gi, (_match, url) => 'href="' + publicOrigin + '/api/email/track/click?campaign=' + campaignId + '&email=' + encodeURIComponent(recipient) + '&url=' + encodeURIComponent(url) + '"')
+            const mailOptions = {
+              from: { name: smtp.from_name || smtp.name, address: smtp.email },
+              to: recipient,
+              ...(replyTo ? { replyTo } : {}),
+              subject,
+              headers: {
+                'List-Unsubscribe': '<' + unsubscribeLink + '>',
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+              },
+              html: '<div>' + html + '</div>' + '<p style="font-size:12px;color:#666;margin-top:24px"><a href="' + unsubscribeLink + '">Se désabonner</a></p>' + pixel,
+              text: message.replace(/<[^>]*>/g, ' ') + '\n\nSe désabonner : ' + unsubscribeLink,
+            }
+            await transporter.sendMail(mailOptions)
             sent += 1
           } catch (error) { console.error('[email/send] delivery failed:', error); failures.push(recipient) }
         }
@@ -169,6 +250,7 @@ export async function POST(request: NextRequest) {
       failed_count: failures.length,
       failed_recipients: failures,
       status,
+      sent_at: new Date().toISOString(),
     }).eq('id', campaignId)
     if (updateError) throw updateError
 
@@ -184,7 +266,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[email/send] failed:', error)
-    if (campaignId !== null) {
+    if (campaignId !== null && admin) {
       await admin.from('email_campaigns').update({ status: 'failed' }).eq('id', campaignId)
     }
     const message = error instanceof Error ? error.message : ''

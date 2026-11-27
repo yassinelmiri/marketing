@@ -1,29 +1,13 @@
 
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  BarChart3,
-  ChevronDown,
-  LayoutDashboard,
-  LogOut,
-  MessageCircle,
-  Mail,
-  Settings,
-  ShieldCheck,
-  Smartphone,
-  Users,
-  UsersRound,
-  ListTodo,
-  Sun,
-  Moon,
-} from 'lucide-react'
+import { ChevronDown, Clock3, LayoutDashboard, LogOut } from 'lucide-react'
 
 import { DashboardView } from './dashboard-view'
 import { CampagnesView } from './campagnes-view'
 import { ListesView } from './listes-view'
-import { EquipeView } from './equipe-view'
 import { AdminUsersView } from './admin-users-view'
 import { WhatsAppBotView } from './whatsapp-bot-view'
 import { EmailSenderView } from './email-sender-view'
@@ -31,15 +15,14 @@ import { SmsSenderView } from './sms-sender-view'
 import { SettingsView } from './settings-view'
 import { NotificationBell } from './notification-bell'
 import { TasksView } from './tasks-view'
+import { ProspectionView } from './prospection-view'
 
 import {
   type Campagne,
   type Commentaire,
-  type Contact,
   type ListeContact,
   type TypeCampagne,
   type Role,
-  type ListeContactContact,
   type User,
 } from '@/lib/storage'
 import {
@@ -48,23 +31,17 @@ import {
   updateCampagne,
   deleteCampagne,
   setCampagneListes,
+  setCampagneMembres,
   addCampagneComment,
 } from '@/lib/supabase/marketing-data'
 
-import {
-  GRANTABLE_PAGES,
-  type ViewKey,
-} from '@/lib/permissions'
+import { type ViewKey } from '@/lib/permissions'
+import { resolveWorkspacePermissions } from '@/lib/permissions/workspace'
+import { NAV_ITEMS, PAGE_TITLES } from './workspace-config'
 
 import { createClient } from '@/lib/supabase/client'
+import { loadWorkspaceTeamData } from '@/lib/supabase/workspace-team-data'
 import { useToast } from '@/components/ui/toast'
-
-type NavigationItem = {
-  key: ViewKey | 'listes'
-  label: string
-  icon: typeof LayoutDashboard
-  adminOnly?: boolean
-}
 
 type WorkspaceProfile = {
   id: number | string
@@ -76,70 +53,14 @@ type WorkspaceProfile = {
   role_id: number | string
 }
 
-const NAV_ITEMS: NavigationItem[] = [
-  { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
-  { key: 'listes', label: 'Listes & contacts', icon: Users },
-  { key: 'equipe', label: 'Équipe', icon: UsersRound },
-  { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
-  { key: 'whatsapp', label: 'Bot WhatsApp', icon: MessageCircle },
-  { key: 'email', label: 'E-mail', icon: Mail },
-  { key: 'sms', label: 'SMS', icon: Smartphone },
-  { key: 'admin-users', label: 'Administration', icon: ShieldCheck, adminOnly: true },
-  { key: 'settings', label: 'Paramètres', icon: Settings },
-]
-
-const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  dashboard: {
-    title: 'Tableau de bord',
-    subtitle: 'Retrouvez en un coup d’œil vos campagnes, vos contacts et l’activité de votre équipe.',
-  },
-  campagnes: {
-    title: 'Campagnes',
-    subtitle: 'Créez vos campagnes, associez vos listes de contacts et suivez leur avancement.',
-  },
-  listes: {
-    title: 'Listes & contacts',
-    subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
-  },
-  equipe: {
-    title: 'Équipe',
-    subtitle: 'Consultez les membres de l’équipe et identifiez clairement leur rôle.',
-  },
-  tasks: {
-    title: 'Gestion des tâches',
-    subtitle: 'Créez des tâches, attribuez un responsable et suivez chaque étape jusqu’à la réalisation.',
-  },
-  whatsapp: {
-    title: 'Bot WhatsApp',
-    subtitle: 'Accédez à l’espace de gestion des envois WhatsApp.',
-  },
-  email: {
-    title: 'Envoi e-mail',
-    subtitle: 'Configurez vos expéditeurs, choisissez une liste et consultez l’historique des envois.',
-  },
-  sms: {
-    title: 'Envoi SMS',
-    subtitle: 'Accédez à l’espace de préparation et de gestion des campagnes SMS.',
-  },
-  'admin-users': {
-    title: 'Administration',
-    subtitle: 'Gérez les comptes utilisateurs, attribuez les rôles et contrôlez les accès à chaque module.',
-  },
-  settings: {
-    title: 'Paramètres',
-    subtitle: 'Mettez à jour votre profil et modifiez votre mot de passe en toute sécurité.',
-  },
-}
-
-export function MarketingWorkspace() {
+export function MarketingWorkspace({ initialData = null }: { initialData?: Awaited<ReturnType<typeof import('@/lib/supabase/workspace-initial-data').loadWorkspaceInitialData>> | null }) {
   const router = useRouter()
   const toast = useToast()
 
   const supabase = useMemo(() => createClient(), [])
 
   const [mounted, setMounted] = useState(false)
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -147,14 +68,18 @@ export function MarketingWorkspace() {
   const [roleName, setRoleName] = useState('Membre')
 
   const [activeView, setActiveView] = useState<string>('dashboard')
+  // Conserver les écrans déjà ouverts montés pour préserver leur état lors de la navigation.
+  const [visitedViews, setVisitedViews] = useState<string[]>(['dashboard'])
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [campagnes, setCampagnes] = useState<Campagne[]>([])
-  const [commentaires, setCommentaires] = useState<Commentaire[]>([])
-  const [listes, setListes] = useState<ListeContact[]>([])
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>([])
-  const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>([])
-  const [listeContacts, setListeContacts] = useState<ListeContactContact[]>([])
+  const initialDataHydrated = useRef(false)
+  const [campagnes, setCampagnes] = useState<Campagne[]>(initialData?.campagnes ?? [])
+  const [commentaires, setCommentaires] = useState<Commentaire[]>(initialData?.commentaires ?? [])
+  const [listes, setListes] = useState<ListeContact[]>(initialData?.listes ?? [])
+  const [contactsCount, setContactsCount] = useState(0)
+  const [contactListCounts, setContactListCounts] = useState<Record<number, number>>({})
+  const [typesCampagnes, setTypesCampagnes] = useState<TypeCampagne[]>(initialData?.typesCampagnes ?? [])
+  const [campagneListes, setCampagneListesState] = useState<{ id: number; campagne_id: number; liste_id: number; date_ajout: string }[]>(initialData?.campagneListes ?? [])
+  const [campagneMembres, setCampagneMembresState] = useState<{ id: number; campagne_id: number; user_id: number }[]>(initialData?.campagneMembres ?? [])
   const [teamRoles, setTeamRoles] = useState<Role[]>([])
   const [teamUsers, setTeamUsers] = useState<User[]>([])
 
@@ -164,27 +89,10 @@ export function MarketingWorkspace() {
 
   useEffect(() => {
     setMounted(true)
-    try {
-      const savedTheme = window.localStorage.getItem('anntel-workspace-theme')
-      if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme)
-    } catch {
-      // Le thème reste utilisable même si le stockage local est indisponible.
-    }
+    setCurrentTime(new Date())
+    const clockInterval = window.setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => window.clearInterval(clockInterval)
   }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-    document.documentElement.dataset.workspaceTheme = theme
-    try {
-      window.localStorage.setItem('anntel-workspace-theme', theme)
-    } catch {
-      // Le changement de thème reste actif pour la session courante.
-    }
-  }, [theme, mounted])
-
-  function toggleTheme() {
-    setTheme((current) => current === 'dark' ? 'light' : 'dark')
-  }
 
   // ============================================================
   // SUPABASE AUTH + USER PROFILE
@@ -248,56 +156,24 @@ export function MarketingWorkspace() {
           ...(userLinks ?? []).map((item) => Number(item.permission_id)),
         ]))
 
-        let effectivePermissionCodes: string[] = []
-
+        let permissions: { id: number; code: string }[] = []
         if (permissionIds.length > 0) {
-          const { data: permissions, error: permissionsError } = await supabase
+          const { data, error } = await supabase
             .from('permissions')
             .select('id, code')
             .in('id', permissionIds)
-
-          if (permissionsError) throw permissionsError
-
-          const inheritedIds = new Set((roleLinks ?? []).map((item) => Number(item.permission_id)))
-          const overrides = new Map((userLinks ?? []).map((item) => [Number(item.permission_id), Boolean(item.granted)]))
-          effectivePermissionCodes = (permissions ?? [])
-            .filter((permission) => {
-              const permissionId = Number(permission.id)
-              return overrides.has(permissionId)
-                ? overrides.get(permissionId) === true
-                : inheritedIds.has(permissionId)
-            })
-            .map((permission) => permission.code)
+          if (error) throw error
+          permissions = data ?? []
         }
 
         if (!active) return
 
-        // 4. Transformer les codes DB en pages accessibles.
-        const isAdmin = roleId === 1
-        const permissionToPage: Record<string, ViewKey> = {
-          'campagne.read': 'campagnes',
-          'listes.read': 'listes',
-          'equipe.read': 'equipe',
-          'whatsapp.access': 'whatsapp',
-          'email.access': 'email',
-          'sms.access': 'sms',
-        }
-
-        // Aucun accès métier par défaut : seuls les modules explicitement autorisés sont affichés.
-        const pagePermissions = new Set<ViewKey>(
-          isAdmin ? GRANTABLE_PAGES.map((page) => page.key) : ['dashboard'],
+        const resolvedPermissions = resolveWorkspacePermissions(
+          roleId,
+          roleLinks ?? [],
+          userLinks ?? [],
+          permissions,
         )
-
-        if (!isAdmin) {
-          for (const code of effectivePermissionCodes) {
-            const page = permissionToPage[code]
-            if (page) pagePermissions.add(page)
-          }
-        }
-
-        // Le tableau de bord et les paramètres personnels restent accessibles à tout compte connecté.
-        pagePermissions.add('dashboard')
-        pagePermissions.add('settings')
 
         // 5. Construire le User attendu par les composants existants.
         // Le mot de passe n'est jamais récupéré depuis Supabase.
@@ -312,7 +188,7 @@ export function MarketingWorkspace() {
           date_creation: new Date().toISOString(),
           date_dernier_login: null,
           ip_address: null,
-          permissions: Array.from(new Set([...pagePermissions, 'tasks'] as ViewKey[])),
+          permissions: resolvedPermissions,
         }
 
         setCurrentUser(workspaceUser)
@@ -367,13 +243,11 @@ export function MarketingWorkspace() {
         return
       }
 
-      if (
-        event === 'SIGNED_IN' ||
-        event === 'TOKEN_REFRESHED' ||
-        event === 'USER_UPDATED'
-      ) {
-        setAuthLoading(true)
-
+      // Un rafraîchissement du token ne change ni le profil ni les permissions.
+      // Recharger le Workspace ici faisait réapparaître l'écran de chargement
+      // pendant la navigation, alors que la session était toujours valide.
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Garder l'espace visible pendant une simple actualisation du profil.
         void loadWorkspaceUser({
           id: session.user.id,
           email: session.user.email,
@@ -393,47 +267,47 @@ export function MarketingWorkspace() {
 
   async function refresh() {
     if (!currentUser) return
-    try {
-      const result = await loadMarketingData()
-      setCampagnes(Array.isArray(result.campagnes) ? result.campagnes : [])
-      setCommentaires(Array.isArray(result.commentaires) ? result.commentaires : [])
-      setListes(Array.isArray(result.listes) ? result.listes : [])
-      setContacts(Array.isArray(result.contacts) ? result.contacts : [])
-      setTypesCampagnes(Array.isArray(result.typesCampagnes) ? result.typesCampagnes : [])
-      setCampagneListesState(Array.isArray(result.campagneListes) ? result.campagneListes : [])
-      setListeContacts(Array.isArray(result.listeContacts) ? result.listeContacts : [])
-      const { data: roles, error: rolesError } = await supabase.from('roles').select('id, nom, description')
-      if (rolesError) throw rolesError
-      setTeamRoles((roles ?? []).map((role) => ({ id: Number(role.id), nom: role.nom, description: role.description ?? '' })))
 
-      // Les membres ne voient que leur propre profil; seul l'admin charge toute l'équipe.
-      let membersQuery = supabase
-        .from('user_profiles')
-        .select('id, prenom, nom, email, telephone, address, role_id, date_creation')
-        .order('date_creation', { ascending: false })
-      if (currentUser.role_id !== 1) {
-        const { data: authData, error: authError } = await supabase.auth.getUser()
-        if (authError || !authData.user) throw authError ?? new Error('Session expirée.')
-        membersQuery = membersQuery.eq('auth_user_id', authData.user.id)
+    const useInitialData = Boolean(initialData) && !initialDataHydrated.current
+    if (useInitialData) initialDataHydrated.current = true
+
+    const marketingPromise = useInitialData ? Promise.resolve(null) : loadMarketingData()
+    const contactsCountPromise = fetch('/api/contacts?counts=1', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error ?? 'Statistiques des contacts indisponibles.')
+        return data as { total?: number; listCounts?: Record<number, number> }
+      })
+      .catch((error) => {
+        console.error('[Workspace] Erreur pendant le chargement des statistiques des contacts:', error)
+        return null
+      })
+
+    try {
+      const [marketingData, countData, teamData] = await Promise.all([
+        marketingPromise,
+        contactsCountPromise,
+        loadWorkspaceTeamData(supabase, currentUser),
+      ])
+
+      if (marketingData) {
+        setCampagnes(Array.isArray(marketingData.campagnes) ? marketingData.campagnes : [])
+        setCommentaires(Array.isArray(marketingData.commentaires) ? marketingData.commentaires : [])
+        setListes(Array.isArray(marketingData.listes) ? marketingData.listes : [])
+        setTypesCampagnes(Array.isArray(marketingData.typesCampagnes) ? marketingData.typesCampagnes : [])
+        setCampagneListesState(Array.isArray(marketingData.campagneListes) ? marketingData.campagneListes : [])
+        setCampagneMembresState(Array.isArray(marketingData.campagneMembres) ? marketingData.campagneMembres : [])
       }
-      const { data: members, error } = await membersQuery
-      if (error) throw error
-      setTeamUsers((members ?? []).map((member) => ({
-        id: Number(member.id),
-        prenom: member.prenom ?? '',
-        nom: member.nom ?? '',
-        email: member.email ?? '',
-        telephone: member.telephone ?? '',
-        address: member.address ?? '',
-        role_id: Number(member.role_id ?? 3),
-        date_creation: member.date_creation,
-        date_dernier_login: null,
-        ip_address: null,
-        permissions: [],
-      })))
+
+      if (countData) {
+        setContactsCount(Number(countData.total ?? 0))
+        setContactListCounts(countData.listCounts ?? {})
+      }
+
+      setTeamRoles(teamData.roles)
+      setTeamUsers(teamData.users)
     } catch (error) {
       toast.error('Erreur de chargement', error instanceof Error ? error.message : 'Impossible de charger les données.')
-    } finally {
     }
   }
 
@@ -458,8 +332,8 @@ export function MarketingWorkspace() {
       (campagne) => campagne.status === 'brouillon',
     ).length
 
-    return { total, enCours, terminees, brouillons, listes: listes.length, contacts: contacts.length, membres: teamUsers.length }
-  }, [campagnes, listes.length, contacts.length, teamUsers.length])
+    return { total, enCours, terminees, brouillons, listes: listes.length, contacts: contactsCount, membres: teamUsers.length }
+  }, [campagnes, listes.length, contactsCount, teamUsers.length])
 
   // ============================================================
   // NAVIGATION & PERMISSIONS
@@ -474,6 +348,7 @@ export function MarketingWorkspace() {
       if (isAdmin) return true
 
       if (item.adminOnly) return false
+      if (item.key === 'prospection') return true
 
       return currentUser.permissions.includes(item.key as ViewKey)
     })
@@ -537,12 +412,22 @@ export function MarketingWorkspace() {
     }
   }
 
+  async function handleSetCampagneMembres(campagneId: number, userIds: number[]) {
+    try {
+      await setCampagneMembres(campagneId, userIds)
+      await refresh()
+    } catch (error) {
+      toast.error('Affectation des membres impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    }
+  }
+
   async function handleSetCampagneListes(campagneId: number, listeIds: number[]) {
     try {
       await setCampagneListes(campagneId, listeIds)
       await refresh()
     } catch (error) {
       toast.error('Affectation impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+      throw error
     }
   }
 
@@ -686,11 +571,6 @@ export function MarketingWorkspace() {
         </div>
 
         <div className="workspace-user">
-          <span className="workspace-user-avatar">
-            {currentUser.prenom?.charAt(0).toUpperCase() ?? '?'}
-            {currentUser.nom?.charAt(0).toUpperCase() ?? ''}
-          </span>
-
           <div>
             <strong>{userName}</strong>
             <span>{roleName}</span>
@@ -714,6 +594,7 @@ export function MarketingWorkspace() {
                 className={`workspace-nav-item${active ? ' is-active' : ''}`}
                 onClick={() => {
                   setActiveView(item.key)
+                  setVisitedViews((current) => current.includes(item.key) ? current : [...current, item.key])
                   setMobileNavOpen(false)
                 }}
                 aria-current={active ? 'page' : undefined}
@@ -726,6 +607,20 @@ export function MarketingWorkspace() {
         </nav>
 
         <div className="workspace-sidebar-footer">
+          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(139, 92, 246, 0.09)', border: '1px solid rgba(139, 92, 246, 0.16)' }}>
+            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.15)' }}>
+              <Clock3 size={18} aria-hidden="true" />
+            </span>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-foreground, #94a3b8)' }}>Heure actuelle</span>
+              <strong style={{ fontSize: '20px', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', color: 'var(--foreground, #f8fafc)' }}>
+                {currentTime ? currentTime.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Casablanca', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </strong>
+              <span style={{ fontSize: '11px', textTransform: 'capitalize', color: 'var(--muted-foreground, #94a3b8)' }}>
+                {currentTime ? currentTime.toLocaleDateString('fr-FR', { timeZone: 'Africa/Casablanca', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : 'Chargement…'}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             className="workspace-logout"
@@ -755,84 +650,109 @@ export function MarketingWorkspace() {
             </div>
           </div>
           <div className="workspace-topbar-actions">
-            <button
-              type="button"
-              className="workspace-theme-toggle"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-              title={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
-            >
-              {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-              <span>{theme === 'dark' ? 'Clair' : 'Sombre'}</span>
-            </button>
             <NotificationBell userId={currentUser.id} />
             <div className="workspace-topbar-user"><span>{userName}</span><small>{roleName}</small></div>
           </div>
         </header>
 
         <div className="workspace-content">
-          {activeView === 'dashboard' && (
+          {visitedViews.includes('dashboard') && (
+            <div hidden={activeView !== 'dashboard'}>
             <DashboardView
               user={currentUser}
               typesCampagnes={typesCampagnes}
               teamUsers={teamUsers}
+              teamRoles={teamRoles}
               stats={stats}
               campagnes={campagnes}
+              campagneMembres={campagneMembres}
               commentaires={commentaires}
               onAddComment={handleAddComment}
             />
+            </div>
           )}
 
-          {activeView === 'campagnes' && (
+          {visitedViews.includes('prospection') && (
+            <div hidden={activeView !== 'prospection'}><ProspectionView onSaved={refresh} /></div>
+          )}
+
+          {visitedViews.includes('campagnes') && (
+            <div hidden={activeView !== 'campagnes'}>
             <CampagnesView
               user={currentUser}
               campagnes={campagnes}
               listes={listes}
-              contacts={contacts}
               typesCampagnes={typesCampagnes}
               campagneListes={campagneListes}
-              listeContacts={listeContacts}
+              teamUsers={teamUsers}
+              campagneMembres={campagneMembres}
+              onSetMembres={handleSetCampagneMembres}
               onCreate={handleCreateCampagne}
               onUpdate={handleUpdateCampagne}
               onDelete={handleDeleteCampagne}
-              onSetListes={handleSetCampagneListes}
-              onOpenListes={() => setActiveView('listes')}
+              onOpenListes={() => {
+                setActiveView('listes')
+                setVisitedViews((current) => current.includes('listes') ? current : [...current, 'listes'])
+              }}
             />
+            </div>
           )}
 
-          {activeView === 'listes' && (
+          {visitedViews.includes('listes') && (
+            <div hidden={activeView !== 'listes'}>
             <ListesView
               user={currentUser}
               listes={listes}
-              contacts={contacts}
               campagnes={campagnes}
               campagneListes={campagneListes}
-              listeContacts={listeContacts}
+              campagneMembres={campagneMembres}
+              contactCount={contactsCount}
+              contactListCounts={contactListCounts}
               teamUsers={teamUsers}
               onRefresh={refresh}
             />
+            </div>
           )}
 
-          {activeView === 'equipe' && (
-            <EquipeView user={currentUser} team={teamUsers} roles={teamRoles} />
+          {visitedViews.includes('scraping') && (
+            <div hidden={activeView !== 'scraping'}>
+              <section className="workspace-section" style={{ padding: 28, background: 'var(--workspace-panel, var(--surface, #fff))', border: '1px solid var(--workspace-border, var(--border, #e2e8f0))', borderRadius: 18, textAlign: 'center', color: 'var(--workspace-text, var(--text, #334155))', boxShadow: '0 10px 28px rgba(15, 23, 42, 0.06)' }}>
+                <div style={{ width: 64, height: 64, margin: '8px auto 18px', display: 'grid', placeItems: 'center', borderRadius: 18, background: 'color-mix(in srgb, var(--blue, #f59e0b) 12%, var(--workspace-panel, #fff))', color: 'var(--blue, #f59e0b)', fontSize: 28 }}>⌕</div>
+                <h2 style={{ margin: '0 0 10px', color: 'var(--workspace-text, var(--text-strong, #172033))' }}>Module Scrapping</h2>
+                <p style={{ maxWidth: 520, margin: '0 auto', color: 'var(--workspace-muted, var(--muted, #64748b))', lineHeight: 1.7 }}>Cette fonctionnalité est en cours de préparation. Elle sera bientôt disponible.</p>
+                <span style={{ display: 'inline-flex', marginTop: 18, padding: '7px 13px', borderRadius: 999, background: 'color-mix(in srgb, var(--blue, #f59e0b) 12%, var(--workspace-panel, #fff))', color: 'var(--blue, #f59e0b)', fontSize: 12, fontWeight: 700 }}>COMING SOON</span>
+              </section>
+            </div>
           )}
 
-          {activeView === 'tasks' && <TasksView user={currentUser} isAdmin={isAdmin} />}
+          {visitedViews.includes('tasks') && (
+            <div hidden={activeView !== 'tasks'}><TasksView user={currentUser} isAdmin={isAdmin} /></div>
+          )}
 
-          {activeView === 'whatsapp' && <WhatsAppBotView listes={listes} listeContacts={listeContacts} />}
+          {visitedViews.includes('whatsapp') && (
+            <div hidden={activeView !== 'whatsapp'}><WhatsAppBotView /></div>
+          )}
 
-          {activeView === 'email' && <EmailSenderView listes={listes} listeContacts={listeContacts} isAdmin={currentUser.role_id === 1} />}
+          {visitedViews.includes('email') && (
+            <div hidden={activeView !== 'email'}><EmailSenderView listes={listes} contactListCounts={contactListCounts} isAdmin={currentUser.role_id === 1} /></div>
+          )}
 
-          {activeView === 'sms' && <SmsSenderView listes={listes} listeContacts={listeContacts} />}
+          {visitedViews.includes('sms') && (
+            <div hidden={activeView !== 'sms'}><SmsSenderView listes={listes} contactListCounts={contactListCounts} /></div>
+          )}
 
-          {activeView === 'admin-users' && (
+          {visitedViews.includes('admin-users') && (
+            <div hidden={activeView !== 'admin-users'}>
             <AdminUsersView
               currentUser={currentUser}
               onChange={refresh}
             />
+            </div>
           )}
 
-          {activeView === 'settings' && <SettingsView user={currentUser} onSaved={() => window.location.reload()} />}
+          {visitedViews.includes('settings') && (
+            <div hidden={activeView !== 'settings'}><SettingsView user={currentUser} isAdmin={isAdmin} onSaved={() => { void refresh() }} /></div>
+          )}
         </div>
       </main>
     </div>

@@ -4,7 +4,7 @@
 Anntel Marketing est une application web conçue pour centraliser les opérations marketing et commerciales dans un seul espace. Elle permet de gérer les campagnes, les contacts, les équipes, les tâches et les communications, tout en organisant les accès selon les responsabilités de chaque utilisateur.
 
 **Dépôt du projet :** https://github.com/yassinelmiri/marketing  
-**Branche de développement :** `supabase-migration`
+**Branche de développement :** `chatgpt`
 
 ---
 
@@ -69,13 +69,16 @@ Ses principaux objectifs :
 
 **Important :** dans la version actuelle du dépôt, l'envoi SMS est une simulation côté interface. Un fournisseur SMS et son intégration backend doivent être configurés pour effectuer de véritables envois.
 
-### Bot WhatsApp
-- Interface de préparation des messages WhatsApp.
-- Choix d'une catégorie cible et d'une liste de contacts.
-- Affichage du nombre de contacts ciblés.
-- Historique de simulation dans l'interface.
+### Campagnes WhatsApp
+- Import des contacts depuis les fichiers XLSX, XLS et CSV.
+- Détection de la colonne téléphone, normalisation des numéros marocains et internationaux, suppression des doublons et comptage des numéros invalides.
+- Préparation d'un message avec les variables `{nom}` et `{tel}`.
+- Ouverture de WhatsApp Web dans un onglet séparé pour scanner le QR code si nécessaire.
+- Ouverture successive de chaque conversation avec le texte prérempli ; l'utilisateur vérifie le destinataire et clique lui-même sur Envoyer.
+- Après confirmation manuelle d'un contact, passage automatique au contact suivant après un délai réglable (0 à 120 secondes) ; la pause/reprise conserve le suivi et l'avancement.
+- Suivi manuel des contacts confirmés, en échec ou ignorés, avec pause/reprise et export XLSX du résultat.
 
-**Important :** dans la version actuelle du dépôt, l'envoi WhatsApp affiché dans cette page est une simulation. Une intégration réelle via WhatsApp Business Platform / Cloud API ou un fournisseur officiellement compatible, avec backend sécurisé, reste nécessaire. La page ne doit pas être présentée comme un service d'envoi WhatsApp opérationnel tant que cette connexion n'est pas réalisée.
+**Limites importantes :** il s'agit d'un mode assisté, pas d'un robot d'envoi automatique. L'application ne peut pas vérifier qu'un message a réellement été envoyé : le statut « confirmé » dépend de l'action manuelle de l'utilisateur. Les campagnes et le suivi des destinataires sont sauvegardés dans Supabase après application de la migration WhatsApp. Utilisez uniquement des contacts ayant donné leur accord et respectez les demandes de désinscription. WhatsApp Web reste un service tiers susceptible de modifier son interface ou ses conditions d'utilisation.
 
 ### Administration
 - Gestion des comptes utilisateurs.
@@ -157,7 +160,7 @@ La sécurité finale dépend également de la bonne configuration des politiques
 ```bash
 git clone https://github.com/yassinelmiri/marketing.git
 cd marketing
-git checkout supabase-migration
+git checkout chatgpt
 pnpm install
 ```
 
@@ -221,7 +224,7 @@ pnpm start
 | Notifications | Présent |
 | Envoi e-mail SMTP | Intégré, nécessite des comptes SMTP valides et la configuration serveur |
 | SMS | Interface de simulation ; fournisseur et backend réels à intégrer |
-| WhatsApp | Interface de simulation ; intégration officielle et backend réels à réaliser |
+| WhatsApp Web | Mode assisté intégré avec sauvegarde Supabase, ouverture des conversations et progression automatique de la file après confirmation manuelle ; aucun envoi automatique |
 
 Ce tableau distingue volontairement les interfaces disponibles des intégrations externes réellement opérationnelles. Les fonctionnalités doivent être validées dans l'environnement de déploiement avant toute présentation comme service en production.
 
@@ -235,12 +238,39 @@ Ce tableau distingue volontairement les interfaces disponibles des intégrations
 - **Évolutivité :** l'architecture permet d'ajouter progressivement de nouveaux services et intégrations.
 - **Personnalisation :** les modules et les autorisations peuvent être adaptés aux besoins de l'organisation.
 
-## 11. Contact et informations
+## 11. File d'envoi des campagnes e-mail (branche chatgpt)
+
+- Les campagnes peuvent cibler plusieurs listes ; les doublons d'adresses sont supprimés avant l'ajout à la file.
+- Une campagne peut être lancée immédiatement ou planifiée à une date/heure donnée.
+- Plusieurs comptes SMTP actifs peuvent être sélectionnés pour une campagne ; le worker distribue les destinataires à tour de rôle entre les expéditeurs sélectionnés.
+- Le traitement s'effectue côté serveur par lots, sans garder l'écran de préparation ouvert. Jusqu'à trois campagnes peuvent être traitées simultanément par le worker.
+- Le worker Vercel est appelé chaque minute (`vercel.json`). Les lots traités dans une même exécution respectent le délai configuré ; si la campagne dépasse la durée d'une exécution, la reprise dépend du prochain passage du cron et peut donc ajouter jusqu'à environ une minute de décalage.
+
+### Configuration nécessaire
+
+1. Appliquer les nouvelles migrations `20261124180000_email_campaign_queue.sql` et `20261124181000_email_campaign_sent_timestamp.sql` dans Supabase, après les migrations e-mail précédentes.
+2. Appliquer aussi la migration `20261124183000_email_campaign_multiple_senders.sql` pour activer la sélection de plusieurs comptes SMTP.
+3. Ajouter une variable d'environnement Vercel `CRON_SECRET` contenant une valeur aléatoire longue et privée. Ne jamais la committer dans Git.
+4. Redéployer le projet pour activer le cron `/api/cron/email-campaigns`.
+5. Vérifier le premier lancement avec une petite campagne de test et un compte SMTP valide.
+
+Le code de cette évolution est sur la branche `chatgpt` ; il n'est pas fusionné dans `main`.
+
+## 12. Contact et informations
 
 - **Nom du projet :** Anntel Marketing
 - **Dépôt GitHub :** https://github.com/yassinelmiri/marketing
-- **Branche documentée :** `supabase-migration`
+- **Branche de travail e-mail :** `chatgpt`
 
 ---
 
 *Document de présentation fonctionnelle et technique. Les fonctionnalités dépendant de services externes (SMTP, SMS, WhatsApp, hébergement et Supabase) doivent être configurées et testées dans l'environnement cible avant leur mise en production.*
+
+
+### Persistance des campagnes WhatsApp
+- Les campagnes WhatsApp assistées et leurs destinataires sont enregistrés dans Supabase.
+- Une campagne peut être rechargée après fermeture ou actualisation de la page, avec le statut de chaque destinataire et le dernier contact à traiter.
+- Le message, la pause/reprise et les statuts des destinataires sont sauvegardés via une API serveur authentifiée.
+- Les tables sont protégées par RLS sans accès direct depuis le navigateur ; l'API vérifie l'utilisateur et la permission `whatsapp.access`.
+- Migration à appliquer : `supabase/migrations/20261124190000_whatsapp_campaign_persistence.sql`.
+- Les statuts « Envoyé » restent des confirmations manuelles de l'utilisateur ; l'application ne lit pas les confirmations WhatsApp et n'envoie aucun message automatiquement. Le délai de passage au contact suivant est réglable dans l'interface ; l'utilisateur garde le contrôle de chaque clic sur Envoyer.

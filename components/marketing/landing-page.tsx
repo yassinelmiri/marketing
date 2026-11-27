@@ -26,132 +26,28 @@ import {
 
 function HeroIllustration() {
   return (
-    <svg
-      className="hero-illustration"
-      viewBox="0 0 560 520"
-      role="img"
-      aria-label="Illustration 3D de l’espace de travail Anntel Marketing"
-    >
-      <defs>
-        <linearGradient id="g-navy" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1e3a8a" />
-          <stop offset="100%" stopColor="#172554" />
-        </linearGradient>
-        <linearGradient id="g-blue" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#2563eb" />
-        </linearGradient>
-        <linearGradient id="g-teal" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#5eead4" />
-          <stop offset="100%" stopColor="#0d9488" />
-        </linearGradient>
-        <linearGradient id="g-white" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#f1f5f9" />
-        </linearGradient>
-        <filter id="shadow-soft" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="10" stdDeviation="18" floodColor="#172554" floodOpacity="0.15" />
-        </filter>
-        <filter id="shadow-strong" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="14" stdDeviation="24" floodColor="#172554" floodOpacity="0.25" />
-        </filter>
-      </defs>
-
-      {/* Halo de fond */}
-      <circle cx="280" cy="260" r="200" fill="#eff6ff" opacity="0.5" />
-      <circle cx="280" cy="260" r="140" fill="#f0fdfa" opacity="0.6" />
-
-      {/* Carte principale (dashboard) — pseudo 3D en perspective */}
-      <g transform="translate(80, 120)" filter="url(#shadow-strong)" className="float-slow">
-        <rect x="0" y="0" width="400" height="260" rx="18" fill="url(#g-white)" />
-        {/* Header de carte */}
-        <rect x="24" y="24" width="80" height="8" rx="4" fill="#cbd5e1" />
-        <rect x="24" y="40" width="140" height="12" rx="6" fill="#172554" />
-        <rect x="320" y="24" width="56" height="20" rx="10" fill="#fef3c7" />
-        <circle cx="332" cy="34" r="3" fill="#f59e0b" />
-        <rect x="340" y="31" width="28" height="6" rx="3" fill="#b45309" opacity="0.6" />
-
-        {/* Barres de stats */}
-        <g transform="translate(24, 80)">
-          <rect x="0" y="0" width="108" height="60" rx="10" fill="#eff6ff" />
-          <rect x="12" y="12" width="42" height="6" rx="3" fill="#93c5fd" />
-          <rect x="12" y="26" width="56" height="14" rx="4" fill="#2563eb" />
-        </g>
-        <g transform="translate(144, 80)">
-          <rect x="0" y="0" width="108" height="60" rx="10" fill="#f0fdfa" />
-          <rect x="12" y="12" width="42" height="6" rx="3" fill="#5eead4" />
-          <rect x="12" y="26" width="56" height="14" rx="4" fill="#0d9488" />
-        </g>
-        <g transform="translate(264, 80)">
-          <rect x="0" y="0" width="108" height="60" rx="10" fill="#fffbeb" />
-          <rect x="12" y="12" width="42" height="6" rx="3" fill="#fde68a" />
-          <rect x="12" y="26" width="56" height="14" rx="4" fill="#f59e0b" />
-        </g>
-
-        {/* Graphique */}
-        <g transform="translate(24, 160)">
-          <rect x="0" y="0" width="348" height="80" rx="10" fill="#f8fafc" stroke="#e2e8f0" />
-          {/* Barres */}
-          <rect x="20" y="40" width="14" height="30" rx="3" fill="#bfdbfe" />
-          <rect x="44" y="30" width="14" height="40" rx="3" fill="#93c5fd" />
-          <rect x="68" y="20" width="14" height="50" rx="3" fill="#60a5fa" />
-          <rect x="92" y="35" width="14" height="35" rx="3" fill="#93c5fd" />
-          <rect x="116" y="15" width="14" height="55" rx="3" fill="#3b82f6" />
-          <rect x="140" y="25" width="14" height="45" rx="3" fill="#60a5fa" />
-          <rect x="164" y="10" width="14" height="60" rx="3" fill="#2563eb" />
-          <rect x="188" y="28" width="14" height="42" rx="3" fill="#60a5fa" />
-          <rect x="212" y="18" width="14" height="52" rx="3" fill="#3b82f6" />
-          <rect x="236" y="8" width="14" height="62" rx="3" fill="#2563eb" />
-          <rect x="260" y="22" width="14" height="48" rx="3" fill="#60a5fa" />
-          <rect x="284" y="12" width="14" height="58" rx="3" fill="#3b82f6" />
-          <rect x="308" y="5" width="14" height="65" rx="3" fill="#2563eb" />
-        </g>
-      </g>
-
-      {/* Petite carte flottante "E-mail" */}
-      <g transform="translate(20, 60)" filter="url(#shadow-soft)" className="float-medium">
-        <rect x="0" y="0" width="120" height="70" rx="12" fill="url(#g-white)" />
-        <circle cx="28" cy="26" r="12" fill="#dbeafe" />
-        <path d="M22 26 L28 21 L34 26 L34 32 L22 32 Z" fill="#2563eb" />
-        <rect x="46" y="20" width="60" height="6" rx="3" fill="#172554" />
-        <rect x="46" y="32" width="42" height="5" rx="2.5" fill="#cbd5e1" />
-        <rect x="18" y="48" width="84" height="6" rx="3" fill="#e2e8f0" />
-      </g>
-
-      {/* Petite carte flottante "WhatsApp" */}
-      <g transform="translate(420, 40)" filter="url(#shadow-soft)" className="float-fast">
-        <rect x="0" y="0" width="120" height="70" rx="12" fill="url(#g-white)" />
-        <circle cx="28" cy="26" r="12" fill="#dcfce7" />
-        <path d="M22 28 Q22 22 28 22 Q34 22 34 28 Q34 32 30 33 L30 35 L26 33 Q22 32 22 28 Z M25 26 Q25 30 29 30" stroke="#16a34a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <rect x="46" y="20" width="60" height="6" rx="3" fill="#172554" />
-        <rect x="46" y="32" width="42" height="5" rx="2.5" fill="#cbd5e1" />
-        <rect x="18" y="48" width="84" height="6" rx="3" fill="#e2e8f0" />
-      </g>
-
-      {/* Petite carte flottante "SMS" */}
-      <g transform="translate(380, 380)" filter="url(#shadow-soft)" className="float-medium">
-        <rect x="0" y="0" width="140" height="80" rx="12" fill="url(#g-white)" />
-        <circle cx="30" cy="30" r="12" fill="#fef3c7" />
-        <rect x="26" y="24" width="8" height="12" rx="2" fill="#f59e0b" />
-        <rect x="46" y="22" width="70" height="6" rx="3" fill="#172554" />
-        <rect x="46" y="34" width="50" height="5" rx="2.5" fill="#cbd5e1" />
-        <rect x="18" y="54" width="104" height="6" rx="3" fill="#e2e8f0" />
-      </g>
-
-      {/* Badge "Succès" */}
-      <g transform="translate(60, 400)" filter="url(#shadow-soft)" className="float-fast">
-        <circle cx="30" cy="30" r="30" fill="url(#g-teal)" />
-        <path d="M18 30 L27 39 L42 22" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-
-      {/* Barre de progression 3D */}
-      <g transform="translate(440, 260)" filter="url(#shadow-soft)" className="float-slow">
-        <rect x="0" y="0" width="80" height="140" rx="12" fill="url(#g-white)" />
-        <rect x="16" y="120" width="12" height="10" rx="2" fill="#dbeafe" />
-        <rect x="34" y="100" width="12" height="30" rx="2" fill="#93c5fd" />
-        <rect x="52" y="70" width="12" height="60" rx="2" fill="#2563eb" />
-      </g>
-    </svg>
+    <div className="hero-photo-composition">
+      <div className="hero-photo-main">
+        <img
+          src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1400&q=90"
+          alt="Équipe marketing en pleine collaboration dans un bureau moderne"
+          fetchPriority="high"
+        />
+        <div className="hero-photo-caption">
+          <span className="hero-photo-live-dot" />
+          <span>Une équipe. Tous vos canaux.</span>
+        </div>
+      </div>
+      <div className="hero-photo-float hero-photo-float-top">
+        <span className="hero-photo-float-icon"><Mail /></span>
+        <span><strong>Campagnes e-mail</strong><small>Centralisées et suivies</small></span>
+      </div>
+      <div className="hero-photo-float hero-photo-float-bottom">
+        <span className="hero-photo-float-icon is-green"><MessageCircle /></span>
+        <span><strong>WhatsApp & SMS</strong><small>Communication simplifiée</small></span>
+      </div>
+      <div className="hero-photo-orbit" aria-hidden="true" />
+    </div>
   )
 }
 
@@ -335,7 +231,6 @@ export function LandingPage() {
         <div className="landing-auth-actions">
           <div className="landing-auth-buttons">
             <Link className="landing-auth-login" href="/login">Se connecter</Link>
-            <Link className="landing-signup-button" href="/register">Créer un compte</Link>
           </div>
         </div>
       </header>
@@ -449,8 +344,8 @@ export function LandingPage() {
               <strong>Prêt à tester ?</strong>
               <span>Créez un compte gratuit et explorez toutes les fonctionnalités.</span>
             </div>
-            <Link className="landing-primary-link" href="/register">
-              Créer mon compte <ArrowRight aria-hidden="true" />
+            <Link className="landing-primary-link" href="/login">
+              Se connecter <ArrowRight aria-hidden="true" />
             </Link>
           </div>
         </section>

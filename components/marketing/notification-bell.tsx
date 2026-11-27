@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CheckCheck, ClipboardList, X } from 'lucide-react'
+import { AlertTriangle, Bell, CheckCheck, ClipboardList, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 type NotificationItem = {
@@ -92,7 +92,7 @@ export function NotificationBell({ userId }: { userId: number }) {
                 onClick={() => !item.is_read && void markRead(item.id)}
               >
                 <span className="global-notification-item-icon">
-                  <ClipboardList size={16} />
+                  {item.type === 'system_alert' ? <AlertTriangle size={16} /> : <ClipboardList size={16} />}
                 </span>
                 <span className="global-notification-item-copy">
                   <strong>{item.title}</strong>

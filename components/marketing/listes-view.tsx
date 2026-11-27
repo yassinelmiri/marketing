@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import {
   CONTACT_IMPORT_COLUMNS,
-  parseCsv,
   type Contact,
   type ListeContact,
   type User,
@@ -29,23 +28,26 @@ import {
   deleteListe as deleteListeInDb,
   createContact,
   updateContact,
-  deleteContact as deleteContactInDb,
   setContactListes,
   setCampagneListes,
+  setListeCampagnes,
   importContactsToListe,
 } from '@/lib/supabase/marketing-data'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
+import { IMPORT_FIELD_OPTIONS, buildImportMapping } from '@/lib/contacts/import-mapping'
+import { parseContactImportFile } from '@/lib/contacts/file-parser'
 
 interface ListesViewProps {
   user: User
   listes: ListeContact[]
-  contacts: Contact[]
   campagnes: Campagne[]
   campagneListes: CampagneListe[]
-  listeContacts: ListeContactContact[]
+  campagneMembres: { id: number; campagne_id: number; user_id: number }[]
   teamUsers: User[]
   onRefresh: () => void
+  contactCount: number
+  contactListCounts: Record<number, number>
 }
 
 const emptyContactForm = {
@@ -69,28 +71,48 @@ const emptyListeForm = {
   note: '',
   ajoute_par_nom: '',
   date_creation: '',
-  campagne_ids: [] as number[],
 }
 
-export function ListesView({ user, listes, contacts, campagnes, campagneListes, listeContacts: contactLinks, teamUsers, onRefresh }: ListesViewProps) {
+export function ListesView({ user, listes, campagnes, campagneListes, campagneMembres, contactCount, contactListCounts, teamUsers, onRefresh }: ListesViewProps) {
   const toast = useToast()
 
   const [selectedListeId, setSelectedListeId] = useState<number | null>(listes[0]?.id ?? null)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [contactLinks, setContactLinks] = useState<ListeContactContact[]>([])
+  const [contactPage, setContactPage] = useState(1)
+  const [contactPageSize, setContactPageSize] = useState(25)
+  const [listePage, setListePage] = useState(1)
+  const [listePageSize, setListePageSize] = useState(25)
+  const [contactTotal, setContactTotal] = useState(0)
+  const [selectedListCount, setSelectedListCount] = useState(0)
+  const [contactSearch, setContactSearch] = useState('')
+  const [contactDateFrom, setContactDateFrom] = useState('')
+  const [contactDateTo, setContactDateTo] = useState('')
+  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [debouncedContactSearch, setDebouncedContactSearch] = useState('')
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [contactsReloadKey, setContactsReloadKey] = useState(0)
 
   const [showListeForm, setShowListeForm] = useState(false)
+  const [savingListe, setSavingListe] = useState(false)
   const [editingListe, setEditingListe] = useState<ListeContact | null>(null)
   const [listeForm, setListeForm] = useState(emptyListeForm)
+  const [listeCampagneIds, setListeCampagneIds] = useState<number[]>([])
   const [listeSearch, setListeSearch] = useState('')
   const [listeDateFilter, setListeDateFilter] = useState('all')
   const [listeSort, setListeSort] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc')
 
   const [showContactForm, setShowContactForm] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [contactForm, setContactForm] = useState(emptyContactForm)
   const [contactListeIds, setContactListeIds] = useState<number[]>([])
 
   const [showImport, setShowImport] = useState(false)
   const [importRows, setImportRows] = useState<Record<string, string>[]>([])
+  const [importHeaders, setImportHeaders] = useState<string[]>([])
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({})
   const [importFileName, setImportFileName] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -105,7 +127,16 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
   const visibleListes = useMemo(() => {
     const query = listeSearch.trim().toLocaleLowerCase('fr')
     const now = new Date()
-    const filtered = listes.filter((liste) => {
+    const assignedCampaignIds = new Set(campagneMembres
+      .filter((assignment) => assignment.user_id === user.id)
+      .map((assignment) => assignment.campagne_id))
+    const assignedListeIds = new Set(campagneListes
+      .filter((link) => assignedCampaignIds.has(link.campagne_id))
+      .map((link) => link.liste_id))
+    const availableLists = Number(user.role_id) === 1
+      ? listes
+      : listes.filter((liste) => liste.created_by === user.id || assignedListeIds.has(liste.id))
+    const filtered = availableLists.filter((liste) => {
       const matchesText = !query || [liste.nom, liste.description, liste.cible]
         .some((value) => (value ?? '').toLocaleLowerCase('fr').includes(query))
       if (!matchesText) return false
@@ -124,17 +155,93 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       const delta = new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime()
       return listeSort === 'date-asc' ? delta : -delta
     })
-  }, [listes, listeSearch, listeDateFilter, listeSort])
+  }, [listes, campagneListes, campagneMembres, user.id, user.role_id, listeSearch, listeDateFilter, listeSort])
+  const paginatedListes = visibleListes.slice((listePage - 1) * listePageSize, listePage * listePageSize)
   const selectedListe = listes.find((l) => l.id === selectedListeId) ?? null
-  const listeContacts = useMemo(() => {
-    if (!selectedListe) return []
-    const ids = new Set(contactLinks.filter((link) => link.liste_id === selectedListe.id).map((link) => link.contact_id))
-    return contacts.filter((c) => ids.has(c.id))
-  }, [contacts, selectedListe, contactLinks])
+  const listeContacts = contacts
+  const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
+  const contactListNamesByContactId = useMemo(() => {
+    const listsById = new Map(listes.map((liste) => [liste.id, liste.nom]))
+    const namesByContactId = new Map<number, string[]>()
+    for (const link of contactLinks) {
+      const listName = listsById.get(link.liste_id)
+      if (!listName) continue
+      const names = namesByContactId.get(link.contact_id) ?? []
+      names.push(listName)
+      namesByContactId.set(link.contact_id, names)
+    }
+    return namesByContactId
+  }, [contactLinks, listes])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedContactSearch(contactSearch.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [contactSearch])
+
+  useEffect(() => {
+    let active = true
+    setSelectedContactIds([])
+
+    async function loadContactPage() {
+      const loadingStartedAt = Date.now()
+      if (!selectedListeId) {
+        setContacts([])
+        setContactLinks([])
+        setContactTotal(0)
+        setSelectedListCount(0)
+        setContactsLoading(false)
+        return
+      }
+
+      setContactsLoading(true)
+      try {
+        const params = new URLSearchParams({ listId: String(selectedListeId), page: String(contactPage), pageSize: String(contactPageSize) })
+        if (debouncedContactSearch) params.set('q', debouncedContactSearch)
+        if (contactDateFrom) params.set('dateFrom', contactDateFrom)
+        if (contactDateTo) params.set('dateTo', contactDateTo)
+
+        // Let the request finish; the active flag below prevents stale responses
+        // from updating state after filters change or the component unmounts.
+        const response = await fetch('/api/contacts?' + params.toString(), { cache: 'no-store' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Chargement des contacts impossible.')
+        if (!active) return
+
+        setContacts(data.contacts ?? [])
+        setContactLinks(data.links ?? [])
+        setContactTotal(Number(data.total ?? 0))
+        setSelectedListCount(Number(data.listCount ?? 0))
+      } catch (error) {
+        // Ignore failures from an effect that has already been replaced or unmounted.
+        // DOMException is not guaranteed to extend Error in every browser/runtime.
+        const isAbortError = typeof error === 'object'
+          && error !== null
+          && 'name' in error
+          && error.name === 'AbortError'
+        if (!active || isAbortError) return
+        toast.error('Contacts indisponibles', error instanceof Error ? error.message : 'Erreur de chargement.')
+      } finally {
+        // Keep the indicator visible long enough to be noticed, even for fast API responses.
+        const remainingLoadingTime = Math.max(0, 450 - (Date.now() - loadingStartedAt))
+        if (active) {
+          if (remainingLoadingTime > 0) {
+            await new Promise((resolve) => setTimeout(resolve, remainingLoadingTime))
+          }
+          setContactsLoading(false)
+        }
+      }
+    }
+
+    void loadContactPage()
+    return () => {
+      active = false
+    }
+  }, [selectedListeId, contactPage, contactPageSize, debouncedContactSearch, contactDateFrom, contactDateTo, contactsReloadKey, toast.error])
 
   // ── Handlers liste ───────────────────────────────────
   function openCreateListe() {
     setEditingListe(null)
+    setListeCampagneIds([])
     const me = user
     setListeForm({
       nom: '',
@@ -143,15 +250,12 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       note: '',
       ajoute_par_nom: `${me.prenom} ${me.nom}`.trim(),
       date_creation: '',
-      campagne_ids: [],
     })
     setShowListeForm(true)
   }
   function openEditListe(l: ListeContact) {
     setEditingListe(l)
-    const linkedCampagnes = campagneListes
-      .filter((link) => link.liste_id === l.id)
-      .map((link) => link.campagne_id)
+    setListeCampagneIds(campagneListes.filter((link) => link.liste_id === l.id).map((link) => link.campagne_id))
     setListeForm({
       nom: l.nom,
       description: l.description,
@@ -159,26 +263,18 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       note: l.note ?? '',
       ajoute_par_nom: l.ajoute_par_nom ?? '',
       date_creation: (l.date_creation ?? new Date().toISOString()).slice(0, 16),
-      campagne_ids: linkedCampagnes,
     })
     setShowListeForm(true)
   }
-  function toggleCampagneInListe(campagneId: number) {
-    setListeForm((f) => ({
-      ...f,
-      campagne_ids: f.campagne_ids.includes(campagneId)
-        ? f.campagne_ids.filter((id) => id !== campagneId)
-        : [...f.campagne_ids, campagneId],
-    }))
-  }
   async function submitListe() {
+    if (savingListe) return
     if (!listeForm.nom.trim()) {
       toast.error('Nom requis', 'Donnez un nom à la liste.')
       return
     }
 
+    setSavingListe(true)
     try {
-      let listeId: number
       if (editingListe) {
         await updateListe(editingListe.id, {
           nom: listeForm.nom.trim(),
@@ -187,7 +283,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
           note: listeForm.note,
           ajoute_par_nom: listeForm.ajoute_par_nom,
         })
-        listeId = editingListe.id
+        await setListeCampagnes(editingListe.id, listeCampagneIds)
       } else {
         const created = await createListe({
           nom: listeForm.nom.trim(),
@@ -197,24 +293,25 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
           ajoute_par_nom: `${user.prenom} ${user.nom}`.trim(),
           created_by: user.id,
         })
-        listeId = created.id
-        setSelectedListeId(created.id)
-      }
-
-      for (const campaign of campagnes) {
-        const linked = campagneListes.some((link) => link.campagne_id === campaign.id && link.liste_id === listeId)
-        const shouldLink = listeForm.campagne_ids.includes(campaign.id)
-        if (linked !== shouldLink) {
-          const currentIds = campagneListes.filter((link) => link.campagne_id === campaign.id).map((link) => link.liste_id)
-          await setCampagneListes(campaign.id, shouldLink ? [...currentIds, listeId] : currentIds.filter((id) => id !== listeId))
+        if (listeCampagneIds.length > 0) {
+          try {
+            await setListeCampagnes(created.id, listeCampagneIds)
+          } catch (error) {
+            await deleteListeInDb(created.id)
+            throw error
+          }
         }
+        setSelectedListeId(created.id)
       }
 
       toast.success(editingListe ? 'Liste mise à jour' : 'Liste créée')
       setShowListeForm(false)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    } finally {
+      setSavingListe(false)
     }
   }
   async function deleteListe(l: ListeContact) {
@@ -223,6 +320,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       await deleteListeInDb(l.id)
       if (selectedListeId === l.id) setSelectedListeId(null)
       toast.success('Liste supprimée', `« ${l.nom} » retirée.`)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
@@ -261,6 +359,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
     )
   }
   async function submitContact() {
+    if (savingContact) return
     if (!contactForm.nom.trim() && !contactForm.email.trim()) {
       toast.error('Champs requis', 'Nom ou e-mail obligatoire.')
       return
@@ -269,6 +368,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       toast.error('Liste requise', 'Sélectionnez au moins une liste pour ce contact.')
       return
     }
+    setSavingContact(true)
     try {
       if (editingContact) {
         await updateContact(editingContact.id, contactForm)
@@ -281,56 +381,67 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       }
       setShowContactForm(false)
       setEditingContact(null)
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
+    } finally {
+      setSavingContact(false)
+    }
+  }
+  async function deleteContacts(ids: number[]) {
+    const uniqueIds = [...new Set(ids)].filter((id) => Number.isSafeInteger(id) && id > 0)
+    if (!uniqueIds.length || bulkDeleting) return
+    const message = uniqueIds.length === 1
+      ? 'Supprimer définitivement ce contact ?'
+      : `Supprimer définitivement les ${uniqueIds.length} contacts sélectionnés ?`
+    if (!confirm(message)) return
+    setBulkDeleting(true)
+    try {
+      const response = await fetch('/api/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: uniqueIds }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Suppression impossible.')
+      setSelectedContactIds([])
+      toast.success('Suppression terminée', `${Number(data.deleted ?? uniqueIds.length)} contact(s) supprimé(s).`)
+      setContactsReloadKey((key) => key + 1)
+      await onRefresh()
+    } catch (error) {
+      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur serveur.')
+    } finally {
+      setBulkDeleting(false)
     }
   }
   async function deleteContact(c: Contact) {
-    if (!confirm(`Supprimer ${c.prenom} ${c.nom} ?`)) return
-    try {
-      await deleteContactInDb(c.id)
-      toast.success('Contact supprimé', 'Retiré.')
-      await onRefresh()
-    } catch (error) {
-      toast.error('Suppression impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
-    }
+    await deleteContacts([c.id])
+  }
+  const pageContactIds = listeContacts.map((contact) => contact.id)
+  const allPageContactsSelected = pageContactIds.length > 0 && pageContactIds.every((id) => selectedContactIds.includes(id))
+  function togglePageContacts() {
+    setSelectedContactIds((current) => allPageContactsSelected
+      ? current.filter((id) => !pageContactIds.includes(id))
+      : [...new Set([...current, ...pageContactIds])])
+  }
+  function toggleContactSelection(id: number) {
+    setSelectedContactIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
   }
 
   // ── Import CSV ───────────────────────────────────────
   async function handleFile(file: File) {
     setImportFileName(file.name)
-    const lower = file.name.toLowerCase()
-    if (lower.endsWith('.csv')) {
-      const text = await file.text()
-      const { rows } = parseCsv(text)
+    try {
+      const { headers, rows } = await parseContactImportFile(file)
+      setImportHeaders(headers)
+      setImportMapping(buildImportMapping(headers))
       setImportRows(rows)
-      toast.success('CSV analysé', `${rows.length} ligne(s) détectée(s).`)
-      return
+      toast.success('Fichier analysé', `${rows.length} ligne(s) détectée(s).`)
+    } catch (error) {
+      console.error('[contacts] import file parsing failed:', error)
+      toast.error('Import impossible', error instanceof Error ? error.message : 'Impossible de lire ce fichier.')
     }
-    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
-      try {
-        const XLSX = await import('xlsx')
-        const buffer = await file.arrayBuffer()
-        const wb = XLSX.read(buffer, { type: 'array' })
-        const sheet = wb.Sheets[wb.SheetNames[0]]
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
-        const rows = json.map((row) => {
-          const obj: Record<string, string> = {}
-          Object.entries(row).forEach(([k, v]) => {
-            obj[String(k).trim()] = v == null ? '' : String(v)
-          })
-          return obj
-        })
-        setImportRows(rows)
-        toast.success('XLSX analysé', `${rows.length} ligne(s) détectée(s).`)
-      } catch (e) {
-        console.error(e)
-        toast.error('Erreur XLSX', 'Installez « xlsx » (npm i xlsx) ou convertissez en CSV.')
-      }
-      return
-    }
-    toast.error('Format non supporté', 'Choisissez un fichier .csv ou .xlsx.')
   }
   async function confirmImport() {
     if (!selectedListe) return
@@ -338,13 +449,23 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       toast.error('Aucune donnée', 'Aucune ligne à importer.')
       return
     }
+    const mappedRows = importRows.map((row) => {
+      const mapped: Record<string, string> = {}
+      Object.entries(importMapping).forEach(([header, field]) => {
+        if (field && row[header] != null) mapped[field] = row[header]
+      })
+      return mapped
+    })
     try {
-      const res = await importContactsToListe(selectedListe.id, user.id, importRows)
+      const res = await importContactsToListe(selectedListe.id, user.id, mappedRows)
       if (res.created > 0) toast.success('Import terminé', `${res.created} contact(s) créé(s).`)
       if (res.errors.length > 0) toast.error('Import partiel', `${res.errors.length} erreur(s).`)
       setShowImport(false)
       setImportRows([])
+      setImportHeaders([])
+      setImportMapping({})
       setImportFileName('')
+      setContactsReloadKey((key) => key + 1)
       await onRefresh()
     } catch (error) {
       toast.error('Import impossible', error instanceof Error ? error.message : 'Erreur Supabase.')
@@ -380,8 +501,8 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
         </header>
         <div className="data-overview-grid">
           <article className="data-overview-card"><span>Listes enregistrées</span><strong>{listes.length}</strong><small>Audiences disponibles</small></article>
-          <article className="data-overview-card"><span>Contacts au total</span><strong>{contacts.length}</strong><small>Contacts centralisés</small></article>
-          <article className="data-overview-card"><span>Contacts dans la liste</span><strong>{listeContacts.length}</strong><small>{selectedListe?.nom || 'Aucune liste sélectionnée'}</small></article>
+          <article className="data-overview-card"><span>Contacts au total</span><strong>{contactCount}</strong><small>Contacts centralisés</small></article>
+          <article className="data-overview-card"><span>Contacts dans la liste</span><strong>{selectedListCount}</strong><small>{selectedListe?.nom || 'Aucune liste sélectionnée'}</small></article>
           <article className="data-overview-card"><span>Campagnes associées</span><strong>{selectedListe ? campagneListes.filter((link) => link.liste_id === selectedListe.id).length : 0}</strong><small>Campagnes liées à la sélection</small></article>
         </div>
       <div className="bases-layout data-split-layout">
@@ -394,15 +515,15 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
           <div className="workspace-toolbar data-list-toolbar">
             <label className="data-search-field">
               <Search aria-hidden="true" />
-              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => setListeSearch(e.target.value)} placeholder="Rechercher une liste…" />
+              <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => { setListeSearch(e.target.value); setListePage(1) }} placeholder="Rechercher une liste…" />
             </label>
-            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => setListeDateFilter(e.target.value)} className="workspace-select">
+            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => { setListeDateFilter(e.target.value); setListePage(1) }} className="workspace-select">
               <option value="all">Toutes les dates</option>
               <option value="today">Aujourd’hui</option>
               <option value="7d">7 derniers jours</option>
               <option value="30d">30 derniers jours</option>
             </select>
-            <select aria-label="Trier les listes" value={listeSort} onChange={(e) => setListeSort(e.target.value as typeof listeSort)} className="workspace-select">
+            <select aria-label="Trier les listes" value={listeSort} onChange={(e) => { setListeSort(e.target.value as typeof listeSort); setListePage(1) }} className="workspace-select">
               <option value="date-desc">Plus récentes</option>
               <option value="date-asc">Plus anciennes</option>
               <option value="name-asc">Nom A → Z</option>
@@ -416,18 +537,19 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
               <span>Créez votre première liste pour organiser vos contacts.</span>
             </div>
           ) : (
+            <>
             <ul className="bases-list">
-              {visibleListes.map((l) => (
+              {paginatedListes.map((l) => (
                 <li key={l.id}>
                   <button
                     type="button"
                     className={`liste-item${selectedListeId === l.id ? ' is-active' : ''}`}
-                    onClick={() => setSelectedListeId(l.id)}
+                    onClick={() => { setSelectedListeId(l.id); setContactPage(1); setContactSearch('') }}
                   >
                     <div>
                       <strong>{l.nom}</strong>
                       <span>
-                        {contactLinks.filter((link) => link.liste_id === l.id).length} contact(s) · {l.cible || 'Sans cible'}
+                        {contactListCounts[l.id] ?? 0} contact(s) · {l.cible || 'Sans cible'}
                       </span>
                     </div>
                   </button>
@@ -447,6 +569,25 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                 </li>
               )}
             </ul>
+            {visibleListes.length > 0 && (
+              <div className="pagination-toolbar">
+                <label>
+                  Afficher{' '}
+                  <select value={listePageSize} onChange={(e) => { setListePageSize(Number(e.target.value)); setListePage(1) }}>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>{' '}
+                  par page
+                </label>
+                <span>{visibleListes.length} listes · page {listePage}/{Math.max(1, Math.ceil(visibleListes.length / listePageSize))}</span>
+                <div>
+                  <button disabled={listePage <= 1} onClick={() => setListePage((p) => p - 1)}>Précédent</button>
+                  <button disabled={listePage >= Math.ceil(visibleListes.length / listePageSize)} onClick={() => setListePage((p) => p + 1)}>Suivant</button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
 
@@ -470,22 +611,34 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
               )}
             </div>
           </div>
+          {selectedListe && <div className="contacts-filter-toolbar">
+            <label className="data-search-field"><Search aria-hidden="true" /><input aria-label="Rechercher un contact" value={contactSearch} onChange={(e) => { setContactSearch(e.target.value); setContactPage(1) }} placeholder="Rechercher par nom, e-mail, téléphone ou ville…" /></label>
+            <label><span>Ajouté à partir du</span><input type="date" aria-label="Date d'ajout début" value={contactDateFrom} max={contactDateTo || undefined} onChange={(e) => { setContactDateFrom(e.target.value); setContactPage(1) }}/></label>
+            <label><span>Jusqu'au</span><input type="date" aria-label="Date d'ajout fin" value={contactDateTo} min={contactDateFrom || undefined} onChange={(e) => { setContactDateTo(e.target.value); setContactPage(1) }}/></label>
+            {(contactDateFrom || contactDateTo) && <button type="button" className="workspace-secondary" onClick={() => { setContactDateFrom(''); setContactDateTo(''); setContactPage(1) }}>Réinitialiser</button>}
+          </div>}
+          {selectedListe && selectedContactIds.length > 0 && <div className="contacts-bulk-toolbar">
+            <span><strong>{selectedContactIds.length}</strong> contact(s) sélectionné(s) sur cette page</span>
+            <button type="button" className="workspace-danger" disabled={bulkDeleting} onClick={() => void deleteContacts(selectedContactIds)}><Trash2 aria-hidden="true" />{bulkDeleting ? 'Suppression…' : `Supprimer (${selectedContactIds.length})`}</button>
+          </div>}
           {!selectedListe ? (
             <div className="workspace-empty">
               <Users aria-hidden="true" />
               <p>Sélectionnez une liste.</p>
             </div>
-          ) : listeContacts.length === 0 ? (
+          ) : listeContacts.length === 0 && !contactsLoading ? (
             <div className="workspace-empty">
               <Users aria-hidden="true" />
               <p>Aucun contact dans cette liste.</p>
               <span>Ajoutez un contact ou importez un CSV/XLSX.</span>
             </div>
           ) : (
-            <div className="campagne-table-wrap">
+            <div className={`campagne-table-wrap contacts-table-loading${contactsLoading ? ' is-loading' : ''}`} aria-busy={contactsLoading}>
+              {contactsLoading && <div className="contacts-table-progress"><span className="contacts-table-spinner" />Mise à jour des contacts…</div>}
               <table className="campagne-table">
                 <thead>
                   <tr>
+                    <th className="contacts-select-column"><input type="checkbox" aria-label="Sélectionner tous les contacts de cette page" checked={allPageContactsSelected} onChange={togglePageContacts}/></th>
                     <th>Nom</th>
                     <th>Contact</th>
                     <th>Ville</th>
@@ -495,11 +648,16 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   </tr>
                 </thead>
                 <tbody>
-                  {listeContacts.map((c) => {
-                    const author = teamUsers.find((member) => member.id === c.created_by)
-                    const contactListes = contactLinks.filter((link) => link.contact_id === c.id).map((link) => listes.find((liste) => liste.id === link.liste_id)).filter((liste): liste is ListeContact => Boolean(liste))
+                  {listeContacts.length === 0 && contactsLoading ? Array.from({ length: 5 }, (_, index) => (
+                    <tr className="contacts-skeleton-row" key={`loading-${index}`} aria-hidden="true">
+                      <td /><td><span /><span /></td><td><span /><span /></td><td><span /></td><td><span /></td><td><span /></td><td />
+                    </tr>
+                  )) : listeContacts.map((c) => {
+                    const author = teamUsersById.get(c.created_by)
+                    const contactListNames = contactListNamesByContactId.get(c.id) ?? []
                     return (
                       <tr key={c.id}>
+                        <td className="contacts-select-column"><input type="checkbox" aria-label={`Sélectionner ${c.prenom} ${c.nom}`} checked={selectedContactIds.includes(c.id)} onChange={() => toggleContactSelection(c.id)}/></td>
                         <td>
                           <strong>{c.prenom} {c.nom}</strong>
                           {c.profile && (
@@ -516,7 +674,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                           {c.ville || '—'}
                           <span className="campagne-table-desc">{c.code_postal}</span>
                         </td>
-                        <td>{contactListes.map((l) => l.nom).join(', ') || '—'}</td>
+                        <td>{contactListNames.join(', ') || '—'}</td>
                         <td>
                           {formatDate(c.date_creation)}
                           <span className="campagne-table-desc">
@@ -527,7 +685,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                           <button type="button" onClick={() => openEditContact(c)} aria-label="Modifier">
                             <Pencil aria-hidden="true" />
                           </button>
-                          <button type="button" className="danger" onClick={() => void deleteContact(c)} aria-label="Supprimer">
+                          <button type="button" className="danger" onClick={() => void deleteContact(c)} aria-label="Supprimer" disabled={bulkDeleting}>
                             <Trash2 aria-hidden="true" />
                           </button>
                         </td>
@@ -538,6 +696,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
               </table>
             </div>
           )}
+          {selectedListe && contactTotal > 0 && <div className="workspace-toolbar" style={{ justifyContent: 'space-between', marginTop: 12 }}><span>{contactTotal} contact(s) · page {contactPage} / {Math.max(1, Math.ceil(contactTotal / contactPageSize))}</span><label>Afficher <select value={contactPageSize} onChange={e=>{setContactPageSize(Number(e.target.value));setContactPage(1)}}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select></label><div className="workspace-toolbar"><button type="button" className="workspace-secondary" disabled={contactPage <= 1 || contactsLoading} onClick={() => setContactPage(page => page - 1)}>Précédent</button><button type="button" className="workspace-secondary" disabled={contactPage >= Math.ceil(contactTotal / contactPageSize) || contactsLoading} onClick={() => setContactPage(page => page + 1)}>Suivant</button></div></div>}
         </div>
       </div>
       </div>
@@ -545,7 +704,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       {/* Modal liste */}
       {showListeForm && (
         <div className="workspace-modal-backdrop" onClick={() => setShowListeForm(false)}>
-          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="workspace-modal data-entry-modal data-list-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <header>
               <h3>{editingListe ? 'Modifier la liste' : 'Nouvelle liste'}</h3>
               <button type="button" className="workspace-icon-button" onClick={() => setShowListeForm(false)} aria-label="Fermer">
@@ -558,6 +717,23 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   <span>Nom de la liste</span>
                   <input value={listeForm.nom} onChange={(e) => setListeForm({ ...listeForm, nom: e.target.value })} placeholder="Prospects Q1" />
                 </label>
+                <div className="form-grid-full liste-campaign-field">
+                  <span className="form-label">Campagnes associées (facultatif)</span>
+                  <p className="form-hint">Sélectionnez une ou plusieurs campagnes pour cette liste.</p>
+                  {allCampagnes.length === 0 ? <p className="form-hint">Aucune campagne disponible.</p> : (
+                    <div className="liste-campaign-options">
+                      {allCampagnes.map((campagne) => {
+                        const checked = listeCampagneIds.includes(campagne.id)
+                        return (
+                          <label key={campagne.id} className={`liste-campaign-option${checked ? ' is-selected' : ''}`}>
+                            <input type="checkbox" checked={checked} onChange={() => setListeCampagneIds((current) => checked ? current.filter((id) => id !== campagne.id) : [...current, campagne.id])} />
+                            <span>{campagne.titre}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
                 <label className="form-grid-full">
                   <span>Cible</span>
                   <input value={listeForm.cible} onChange={(e) => setListeForm({ ...listeForm, cible: e.target.value })} placeholder="Prospects, clients VIP, secteur retail…" />
@@ -570,35 +746,14 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   <span>Note</span>
                   <textarea rows={2} value={listeForm.note} onChange={(e) => setListeForm({ ...listeForm, note: e.target.value })} placeholder="Détails internes, contexte…" />
                 </label>
-                <div className="form-grid-full">
-                  <span className="form-label">Campagnes associées</span>
-                  {allCampagnes.length === 0 ? (
-                    <p className="form-hint">Aucune campagne disponible. Créez d’abord une campagne.</p>
-                  ) : (
-                    <div className="checkbox-grid">
-                      {allCampagnes.map((c) => {
-                        const checked = listeForm.campagne_ids.includes(c.id)
-                        return (
-                          <label key={c.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleCampagneInListe(c.id)} />
-                            <div>
-                              <strong>{c.titre}</strong>
-                              <span>{c.cible || 'Sans cible'}</span>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
             <footer>
               <button type="button" className="workspace-secondary" onClick={() => setShowListeForm(false)}>
                 Annuler
               </button>
-              <button type="button" className="workspace-primary" onClick={() => void submitListe()}>
-                {editingListe ? 'Enregistrer' : 'Créer la liste'}
+              <button type="button" className="workspace-primary" onClick={() => void submitListe()} disabled={savingListe}>
+                {savingListe ? 'Enregistrement…' : editingListe ? 'Enregistrer les modifications' : 'Créer la liste'}
               </button>
             </footer>
           </div>
@@ -608,7 +763,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
       {/* Modal contact */}
       {showContactForm && (
         <div className="workspace-modal-backdrop" onClick={() => setShowContactForm(false)}>
-          <div className="workspace-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="workspace-modal data-entry-modal data-contact-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <header>
               <h3>{editingContact ? 'Modifier le contact' : 'Nouveau contact'}</h3>
               <button type="button" className="workspace-icon-button" onClick={() => setShowContactForm(false)} aria-label="Fermer">
@@ -691,8 +846,8 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
               <button type="button" className="workspace-secondary" onClick={() => setShowContactForm(false)}>
                 Annuler
               </button>
-              <button type="button" className="workspace-primary" onClick={() => void submitContact()}>
-                {editingContact ? 'Enregistrer' : 'Ajouter le contact'}
+              <button type="button" className="workspace-primary" onClick={() => void submitContact()} disabled={savingContact}>
+                {savingContact ? 'Ajout en cours…' : editingContact ? 'Enregistrer les modifications' : 'Ajouter le contact'}
               </button>
             </footer>
           </div>
@@ -711,7 +866,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
             </header>
             <div className="workspace-modal-body">
               <p className="workspace-import-hint">
-                Colonnes&nbsp;: <code>{CONTACT_IMPORT_COLUMNS.join(', ')}</code>. Nom ou e-mail obligatoire.
+                Importez un fichier CSV ou Excel, puis associez les colonnes de votre fichier aux champs du site. Leurs ordres peuvent être différents.
               </p>
               <div className="workspace-import-actions">
                 <button type="button" className="workspace-secondary" onClick={downloadTemplate}>
@@ -737,6 +892,31 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                   Fichier&nbsp;: <strong>{importFileName}</strong> — {importRows.length} ligne(s)
                 </p>
               )}
+              {importHeaders.length > 0 && (
+                <div className="import-column-mapping">
+                  <h4>Associer les colonnes</h4>
+                  <p className="form-hint">Choisissez le champ du site pour chaque colonne. « Ignorer » permet de ne pas importer une colonne.</p>
+                  <div className="import-mapping-grid">
+                    {importHeaders.map((header) => (
+                      <label className="import-mapping-row" key={header}>
+                        <span title={header}>{header}</span>
+                        <select value={importMapping[header] ?? ''} onChange={(event) => setImportMapping((current) => ({ ...current, [header]: event.target.value }))}>
+                          <option value="">Ignorer cette colonne</option>
+                          {IMPORT_FIELD_OPTIONS.map((option) => <option key={option.value} value={option.value} disabled={Object.entries(importMapping).some(([other, value]) => other !== header && value === option.value)}>{option.label}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <h4>Aperçu des données (5 premières lignes)</h4>
+                  <div className="import-preview-wrap">
+                    <table className="import-preview-table">
+                      <thead><tr>{importHeaders.map((header) => <th key={header}>{header}<small>{IMPORT_FIELD_OPTIONS.find((option) => option.value === importMapping[header])?.label ?? 'Ignorée'}</small></th>)}</tr></thead>
+                      <tbody>{importRows.slice(0, 5).map((row, index) => <tr key={index}>{importHeaders.map((header) => <td key={header}>{row[header] || '—'}</td>)}</tr>)}</tbody>
+                    </table>
+                  </div>
+                  {!Object.values(importMapping).includes('nom') && !Object.values(importMapping).includes('email') && <p className="form-error">Associez au moins la colonne Nom ou E-mail pour importer.</p>}
+                </div>
+              )}
             </div>
             <footer>
               <button type="button" className="workspace-secondary" onClick={() => setShowImport(false)}>
@@ -746,7 +926,7 @@ export function ListesView({ user, listes, contacts, campagnes, campagneListes, 
                 type="button"
                 className="workspace-primary"
                 onClick={() => void confirmImport()}
-                disabled={importRows.length === 0}
+                disabled={importRows.length === 0 || (!Object.values(importMapping).includes('nom') && !Object.values(importMapping).includes('email'))}
               >
                 Importer {importRows.length > 0 ? `(${importRows.length})` : ''}
               </button>
