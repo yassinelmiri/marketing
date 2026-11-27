@@ -156,7 +156,6 @@ export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<vo
         <label style={modeLabel}>Format des filtres API<select style={control} value={filterMode} onChange={event=>setFilterMode(event.target.value)}><option value="query">field=value</option><option value="filter">filter[field]=value</option><option value="filters">filters[field]=value</option><option value="none">Filtrage local uniquement</option></select></label>
         <label style={modeLabel}>Pagination API<select style={control} value={paginationMode} onChange={event=>setPaginationMode(event.target.value)}><option value="page">page + per_page</option><option value="pageSize">page + pageSize</option><option value="offset">limit + offset</option><option value="none">Sans pagination API</option></select></label>
       </div>
-      {suggested.length > 0 && <div style={chips}>{suggested.map(field=><span key={field} style={chip}>{fieldLabel(field)}</span>)}</div>}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin:'18px 0 10px', gap:10 }}><strong style={{fontSize:14,color:'#344054'}}>Filtres de recherche</strong><button type="button" style={secondary} disabled={!fields.length || filters.length>=15} onClick={addFilter}><Plus size={15}/> Ajouter un critère</button></div>
       {filters.length === 0 ? <div style={emptyFilter}>Aucun critère ajouté. Vous pouvez lancer une recherche sans filtre ou ajouter des caractéristiques.</div> : <div style={{display:'grid',gap:10}}>
         {filters.map(filter=><div key={filter.id} style={filterRow}>
@@ -222,7 +221,7 @@ const infoBar:CSSProperties={display:'flex',alignItems:'center',gap:9,padding:'1
 const apiModes:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:12}
 const modeLabel:CSSProperties={display:'flex',flexDirection:'column',gap:6,color:'#536075',fontSize:12,fontWeight:650}
 const chips:CSSProperties={display:'flex',gap:7,flexWrap:'wrap',marginTop:12}
-const chip:CSSProperties={fontSize:11,padding:'5px 9px',borderRadius:20,background:'#f2efff',color:'#674ac5'}
+const chip:CSSProperties={fontSize:11,padding:'5px 9px',borderRadius:20,background:'#f59e0b',color:'#674ac5'}
 const emptyFilter:CSSProperties={padding:18,border:'1px dashed #d8dce6',borderRadius:10,color:'#8791a2',fontSize:13,textAlign:'center'}
 const filterRow:CSSProperties={display:'grid',gridTemplateColumns:'minmax(150px,1.1fr) minmax(145px,.8fr) minmax(160px,1fr) 38px',gap:9,alignItems:'center'}
 const control:CSSProperties={width:'100%',minHeight:40,border:'1px solid #dfe3ec',borderRadius:9,padding:'8px 10px',color:'#202a3d',background:'#fff',fontSize:13}
