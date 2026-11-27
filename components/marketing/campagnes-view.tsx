@@ -73,6 +73,7 @@ export function CampagnesView({
   const types = useMemo(() => localTypes.filter((type) => type.actif), [localTypes])
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
   const typeNameById = useMemo(() => new Map(localTypes.map((type) => [type.id, type.nom])), [localTypes])
+  const listNameById = useMemo(() => new Map(localListes.map((list) => [list.id, list.nom])), [localListes])
   const linkedListNamesByCampaignId = useMemo(
     () => buildCampaignListNameIndex(campaignListLinks, localListes),
     [campaignListLinks, localListes],
@@ -80,14 +81,14 @@ export function CampagnesView({
   const listNamesByCampaignId = useMemo(() => {
     const names = new Map<number, string[]>()
     for (const link of campaignListLinks) {
-      const name = localListes.find((list) => list.id === link.liste_id)?.nom
+      const name = listNameById.get(link.liste_id)
       if (!name) continue
       const current = names.get(link.campagne_id)
       if (current) current.push(name)
       else names.set(link.campagne_id, [name])
     }
     return names
-  }, [campaignListLinks, localListes])
+  }, [campaignListLinks, listNameById])
   const teamUserById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
   const memberNamesByCampaignId = useMemo(() => {
     const names = new Map<number, string[]>()
