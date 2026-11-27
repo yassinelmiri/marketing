@@ -7575,3 +7575,68 @@ button {
 .kpi-speed-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #94a3b8; font-size: 12px; text-align: center; }
 @media (max-width: 1050px) { .kpi-system-grid { grid-template-columns: 1fr; } .kpi-system-speed { grid-column: auto; } }
 @media (max-width: 640px) { .kpi-speed-chart-summary { gap: 14px 22px; } .kpi-speed-chart-summary .kpi-system-status { margin-left: 0; width: 100%; } .kpi-speed-chart-wrap { min-height: 160px; padding: 8px 4px 0; } }
+
+
+/* Dashboard monitoring — compact cards, aligned with the workspace theme */
+.dashboard-page .kpi-system-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  margin: 20px 0 0;
+}
+.dashboard-page .kpi-system-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border-strong, #e2e8f0);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
+  color: var(--text, #334155);
+}
+.dashboard-page .kpi-system-card .kpi-panel-title strong {
+  color: var(--text-strong, #172033);
+}
+.dashboard-page .kpi-system-card .kpi-panel-title span,
+.dashboard-page .kpi-system-card .kpi-system-note {
+  color: var(--muted, #64748b);
+}
+.dashboard-page .kpi-system-main > strong,
+.dashboard-page .kpi-speed-chart-summary strong {
+  color: var(--text-strong, #172033);
+}
+.dashboard-page .kpi-system-table-list {
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.dashboard-page .kpi-system-table-list > div {
+  border-color: var(--border, #e2e8f0);
+}
+.dashboard-page .kpi-system-table-list > div strong {
+  color: var(--text-strong, #334155);
+}
+.dashboard-page .kpi-speed-chart-wrap {
+  min-height: 0;
+  height: 178px;
+  padding: 8px 10px 2px;
+  background: var(--surface-2, #f8fafc);
+  border-color: var(--border, #e2e8f0);
+}
+.dashboard-page .kpi-speed-chart-wrap svg {
+  width: 100%;
+  height: 158px;
+  max-height: 158px;
+}
+.dashboard-page .kpi-speed-empty {
+  min-height: 150px;
+}
+@media (max-width: 1050px) {
+  .dashboard-page .kpi-system-grid { grid-template-columns: 1fr; }
+  .dashboard-page .kpi-system-speed { grid-column: auto; }
+}
+@media (max-width: 640px) {
+  .dashboard-page .kpi-system-grid { gap: 12px; }
+  .dashboard-page .kpi-system-card { padding: 15px; }
+  .dashboard-page .kpi-speed-chart-wrap { height: 150px; }
+  .dashboard-page .kpi-speed-chart-wrap svg { height: 132px; max-height: 132px; }
+}
