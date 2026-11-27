@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCasablancaDayStart } from '@/lib/dates/casablanca'
+import { sameOriginError } from '@/lib/api/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,18 +44,7 @@ async function authorize() {
   }
 }
 
-function originCheck(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin) return NextResponse.json({ error: 'Origin manquant.' }, { status: 403 })
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origin refusé.' }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'Origin invalide.' }, { status: 403 })
-  }
-  return null
-}
+
 
 function cleanText(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -157,7 +147,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const origin = originCheck(request)
+  const origin = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (origin) return origin
   const auth = await authorize()
   if ('response' in auth) return auth.response
@@ -230,7 +220,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const origin = originCheck(request)
+  const origin = sameOriginError(request, { missing: 'Origin manquant.', forbidden: 'Origin refusé.' })
   if (origin) return origin
   const auth = await authorize()
   if ('response' in auth) return auth.response
