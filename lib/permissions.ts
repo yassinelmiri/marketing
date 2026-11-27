@@ -10,7 +10,6 @@ export type ViewKey =
   | 'prospection'
   | 'listes'
   | 'equipe'
-  | 'scraping'
   | 'tasks'
   | 'whatsapp'
   | 'email'
@@ -27,7 +26,6 @@ export const GRANTABLE_PAGES: Array<{ key: ViewKey; label: string }> = [
   { key: 'campagnes', label: 'Campagnes' },
   { key: 'prospection', label: 'Prospection' },
   { key: 'listes', label: 'Listes & contacts' },
-  { key: 'scraping', label: 'Scrapping' },
   { key: 'whatsapp', label: 'Campagnes WhatsApp' },
   { key: 'email', label: 'E-mail' },
   { key: 'sms', label: 'SMS' },
