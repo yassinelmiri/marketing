@@ -230,7 +230,9 @@ const iconButton:CSSProperties={width:38,height:38,display:'grid',placeItems:'ce
 const primary:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 15px',border:0,borderRadius:9,background:'#7655d9',color:'#fff',fontWeight:650,cursor:'pointer',fontSize:13}
 const secondary:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'9px 12px',border:'1px solid #dfe3ec',borderRadius:9,background:'#fff',color:'#465268',fontWeight:600,cursor:'pointer',fontSize:12}
 const divider:CSSProperties={height:1,background:'#e9ecf2',margin:'26px 0'}
-const progressPanel:CSSProperties={display:'flex',alignItems:'center',gap:16,marginTop:18,padding:16,border:'1px solid #e7e2f8',borderRadius:14,background:'linear-gradient(110deg,#fbfaff,#fff)'}\nconst progressCircleWrap:CSSProperties={width:76,height:76,flex:'0 0 76px',display:'grid',placeItems:'center'}\nconst resultStats:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10}
+const progressPanel:CSSProperties={display:'flex',alignItems:'center',gap:16,marginTop:18,padding:16,border:'1px solid #e7e2f8',borderRadius:14,background:'linear-gradient(110deg,#fbfaff,#fff)'}
+const progressCircleWrap:CSSProperties={width:76,height:76,flex:'0 0 76px',display:'grid',placeItems:'center'}
+const resultStats:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10}
 const mappingPanel:CSSProperties={marginTop:16,padding:16,border:'1px solid #e8eaf0',borderRadius:12,background:'#fbfcfe'}
 const mappingGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:12}
 const th:CSSProperties={padding:'12px 13px',color:'#667085',fontSize:11,fontWeight:700,textTransform:'uppercase'}
