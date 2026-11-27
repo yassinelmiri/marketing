@@ -1,4 +1,4 @@
-import type { Task, TaskMember } from '@/hooks/use-tasks-data'
+import type { Task, TaskMember } from './types'
 
 export type TaskDraft = {
   title: string
