@@ -8,6 +8,17 @@ export const dynamic = 'force-dynamic'
 type CampaignStatus = 'draft' | 'in_progress' | 'paused' | 'completed'
 type RecipientStatus = 'pending' | 'opened' | 'sent' | 'failed' | 'skipped'
 
+function getCasablancaDayStart(date: Date) {
+  const timeZone = 'Africa/Casablanca'
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '0'
+  const wallClockUtc = Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day')))
+  const offsetLabel = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date).find((item) => item.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const match = offsetLabel.match(/GMT([+-])(\d{2}):(\d{2})/)
+  const offsetMinutes = match ? (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0
+  return new Date(wallClockUtc - offsetMinutes * 60 * 1000)
+}
+
 async function authorize() {
   const session = await createClient()
   const { data: auth, error: authError } = await session.auth.getUser()
@@ -121,7 +132,7 @@ export async function GET(request: NextRequest) {
   const campaignIds = (campaigns ?? []).map((campaign) => Number(campaign.id))
   const { data: recipientRows, error: recipientError } = campaignIds.length
     ? await auth.admin.from('whatsapp_campaign_recipients')
-      .select('campaign_id,status').in('campaign_id', campaignIds)
+      .select('campaign_id,status,updated_at').in('campaign_id', campaignIds)
     : { data: [], error: null }
   if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
   const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
@@ -134,11 +145,23 @@ export async function GET(request: NextRequest) {
     else counts.pending += 1
     countsByCampaign.set(id, counts)
   }
+  const now = new Date()
+  const todayStart = getCasablancaDayStart(now).getTime()
+  const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).getTime()
+  const yesterdayStart = getCasablancaDayStart(new Date(now.getTime() - 24 * 60 * 60 * 1000)).getTime()
+  const dailyStats = (recipientRows ?? []).reduce((totals, row) => {
+    if (row.status !== 'sent' || !row.updated_at) return totals
+    const sentAt = new Date(row.updated_at).getTime()
+    if (sentAt >= todayStart && sentAt < tomorrowStart) totals.today_sent += 1
+    else if (sentAt >= yesterdayStart && sentAt < todayStart) totals.yesterday_sent += 1
+    return totals
+  }, { today_sent: 0, yesterday_sent: 0 })
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((campaign) => ({
       ...campaign,
       counts: countsByCampaign.get(Number(campaign.id)) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 },
     })),
+    daily_stats: dailyStats,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
