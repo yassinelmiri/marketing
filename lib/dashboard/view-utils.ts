@@ -1,3 +1,5 @@
+import type { Campagne } from '@/lib/storage'
+
 export type DashboardModuleStats = {
   email: { campaigns: number; sent: number; failed: number; opened: number; clicked: number; running: number; todaySent: number; yesterdaySent: number; loaded: boolean }
   whatsapp: { campaigns: number; recipients: number; sent: number; failed: number; running: number; todaySent: number; yesterdaySent: number; loaded: boolean }
@@ -62,8 +64,6 @@ export function buildDashboardModuleStats(data: {
   }
 }
 
-
-import type { Campagne } from '@/lib/storage'
 
 export type CampaignDiagnostic = {
   total: number
