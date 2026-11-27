@@ -169,12 +169,6 @@ export function DashboardView({
     else if (campaign.status === 'archivee') counts.archived++
     return counts
   }, { inProgress: 0, completed: 0, drafts: 0, archived: 0 }), [campagnes])
-  const dashboardStatusCounts = useMemo(() => dashboardCampaigns.reduce((counts, campaign) => {
-    if (campaign.status === 'en_cours') counts.inProgress++
-    else if (campaign.status === 'terminee') counts.completed++
-    else if (campaign.status === 'brouillon') counts.drafts++
-    return counts
-  }, { inProgress: 0, completed: 0, drafts: 0 }), [dashboardCampaigns])
   const teamPerformance = useMemo(() => {
     const performance = new Map<number, { owned: number; assigned: number; inProgress: number; completed: number }>()
     for (const member of teamUsers) performance.set(member.id, { owned: 0, assigned: 0, inProgress: 0, completed: 0 })
@@ -204,6 +198,12 @@ export function DashboardView({
     () => isAdmin ? campagnes : campagnes.filter((campaign) => campaign.user_id === user.id || assignedCampaignIds.has(campaign.id)),
     [campagnes, isAdmin, user.id, assignedCampaignIds],
   )
+  const dashboardStatusCounts = useMemo(() => dashboardCampaigns.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'terminee') counts.completed++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    return counts
+  }, { inProgress: 0, completed: 0, drafts: 0 }), [dashboardCampaigns])
 
   const selectedComments = useMemo(
     () => commentaires.filter((comment) => comment.campagne_id === selectedCampagneId),
