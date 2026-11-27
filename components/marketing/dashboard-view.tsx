@@ -25,6 +25,7 @@ import {
   type Campagne,
   type Commentaire,
   type User,
+  type Role,
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
@@ -37,6 +38,7 @@ interface DashboardViewProps {
   commentaires: Commentaire[]
   typesCampagnes: TypeCampagne[]
   teamUsers: User[]
+  teamRoles: Role[]
   onAddComment: (campagneId: number, contenu: string) => void
 }
 
@@ -48,6 +50,7 @@ export function DashboardView({
   commentaires,
   typesCampagnes,
   teamUsers,
+  teamRoles,
   onAddComment,
 }: DashboardViewProps) {
   const toast = useToast()
@@ -237,7 +240,7 @@ export function DashboardView({
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
         <section className="workspace-panel dashboard-team-overview">
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
-          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong><span>{member.email}</span></td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
+          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong><span>{member.email}</span></td><td>{teamRoles.find((role) => role.id === member.role_id)?.nom ?? '—'}</td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
         </section>
       </section> : <section className="dashboard-member-overview">
         <div className="dashboard-member-card"><span>Mes campagnes</span><strong>{dashboardCampaigns.length}</strong><small>Créées ou affectées à votre compte</small></div>
