@@ -141,7 +141,6 @@ export function DashboardView({
     const drafts = campagnes.filter((c) => c.status === 'brouillon').length
     const archived = campagnes.filter((c) => c.status === 'archivee').length
     const completionRate = total ? Math.round((completed / total) * 100) : 0
-    const activeRate = total ? Math.round((active / total) * 100) : 0
     const commentsCount = commentaires.length
     const recentCampaigns = campagnes.filter((c) => {
       const date = new Date(c.date_modification).getTime()
