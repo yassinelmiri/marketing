@@ -4,7 +4,8 @@ import { AlertCircle,ChevronDown,BarChart3,Ban,CheckCircle2,Code2,Copy,Download,
 import type { ListeContact } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setSelectedSenderIds, setSelectedListIds } from '@/store/email-campaign-slice'
-import { composeTemplateHtml, normalizeTemplate, normalizeText, displayMessage, displayValue, formatDateValue } from '@/lib/email/view-utils'
+import { composeTemplateHtml, normalizeText, displayMessage, displayValue, formatDateValue } from '@/lib/email/view-utils'
+import { loadEmailSenderData } from '@/lib/email/data-loader'
 import {
  EMPTY_SMTP_FORM,
  campaignDateToInput,
@@ -45,21 +46,17 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
   const requestId=++refreshRequestId.current
   if(showLoading)setLoading(true)
   try{
-   const endpoints=['/api/email/smtp-accounts','/api/email/send','/api/email/templates','/api/email/unsubscribes']
-   const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store'})))
-   const data=await Promise.all(responses.map(response=>response.json()))
-   const failedIndex=responses.findIndex(response=>!response.ok)
-   if(failedIndex>=0)throw new Error(data[failedIndex].error||'Erreur de chargement des données e-mail.')
+   const data=await loadEmailSenderData()
    // Ignore stale refreshes; a newer refresh or unmount supersedes this one.
    if(requestId!==refreshRequestId.current)return
-   setAccounts(data[0].accounts||[])
-   setCampaigns(data[1].campaigns||[])
-   setTemplates(Array.isArray(data[2].templates)?data[2].templates.map(normalizeTemplate):[])
-   setUnsubs(data[3].unsubscribes||[])
+   setAccounts(data.accounts)
+   setCampaigns(data.campaigns)
+   setTemplates(data.templates)
+   setUnsubs(data.unsubscribes)
    if(!senderInitializationDone.current){
     senderInitializationDone.current=true
-    if(!smtpIds.length&&data[0].accounts?.length){
-     const first=data[0].accounts.find((account:SMTP)=>account.is_active)
+    if(!smtpIds.length&&data.accounts.length){
+     const first=data.accounts.find(account=>account.is_active)
      if(first)setSmtpIds([first.id])
     }
    }
