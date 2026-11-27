@@ -349,6 +349,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
       if (isAdmin) return true
 
       if (item.adminOnly) return false
+      if (item.key === 'prospection') return true
 
       return currentUser.permissions.includes(item.key as ViewKey)
     })
