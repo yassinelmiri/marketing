@@ -25,6 +25,7 @@ import {
   type Campagne,
   type Commentaire,
   type User,
+  type Role,
   type TypeCampagne,
 } from '@/lib/storage'
 import { formatDate, STATUS_COLORS, STATUS_LABELS } from './shared'
@@ -37,6 +38,7 @@ interface DashboardViewProps {
   commentaires: Commentaire[]
   typesCampagnes: TypeCampagne[]
   teamUsers: User[]
+  teamRoles: Role[]
   onAddComment: (campagneId: number, contenu: string) => void
 }
 
@@ -48,9 +50,11 @@ export function DashboardView({
   commentaires,
   typesCampagnes,
   teamUsers,
+  teamRoles,
   onAddComment,
 }: DashboardViewProps) {
   const toast = useToast()
+  const isAdmin = Number(user.role_id) === 1
   const [selectedCampagneId, setSelectedCampagneId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [moduleStats, setModuleStats] = useState<{
@@ -66,6 +70,7 @@ export function DashboardView({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   useEffect(() => {
+    if (!isAdmin) return
     let active = true
     const loadModules = async () => {
       const [emailResult, whatsappResult, tasksResult] = await Promise.allSettled([
@@ -122,7 +127,7 @@ export function DashboardView({
     void loadModules()
     const interval = window.setInterval(() => void loadModules(), 60000)
     return () => { active = false; window.clearInterval(interval) }
-  }, [])
+  }, [isAdmin])
 
   const selectedCampagne = campagnes.find((c) => c.id === selectedCampagneId) ?? null
   const assignedCampaignIds = useMemo(
@@ -162,6 +167,11 @@ export function DashboardView({
     return { total, active, completed, drafts, archived, completionRate, activeRate, recentCampaigns, health, findings }
   }, [campagnes, commentaires, stats.contacts, stats.listes])
 
+  const dashboardCampaigns = useMemo(
+    () => isAdmin ? campagnes : campagnes.filter((campaign) => campaign.user_id === user.id || assignedCampaignIds.has(campaign.id)),
+    [campagnes, isAdmin, user.id, assignedCampaignIds],
+  )
+
   const selectedComments = useMemo(
     () => commentaires.filter((comment) => comment.campagne_id === selectedCampagneId),
     [commentaires, selectedCampagneId],
@@ -169,10 +179,10 @@ export function DashboardView({
 
   const recent = useMemo(
     () =>
-      [...campagnes]
+      [...dashboardCampaigns]
         .sort((a, b) => (a.date_modification < b.date_modification ? 1 : -1))
         .slice(0, 5),
-    [campagnes],
+    [dashboardCampaigns],
   )
 
   return (
@@ -181,12 +191,12 @@ export function DashboardView({
         <div>
           <span className="settings-eyebrow">VOTRE ESPACE DE PILOTAGE</span>
           <h2>Bonjour {user.prenom} 👋</h2>
-          <p>Voici un aperçu de votre activité et de vos dernières opérations.</p>
+          <p>{isAdmin ? 'Vue d’ensemble de toutes les équipes et de tous les canaux marketing.' : 'Votre espace personnel pour préparer, analyser et suivre vos campagnes.'}</p>
         </div>
         <div className="dashboard-date-chip"><CalendarDays aria-hidden="true" /> Espace de travail</div>
       </div>
 
-      <section className="kpi-command-center">
+      {isAdmin ? <section className="kpi-command-center">
         <div className="kpi-command-header">
           <div><span className="settings-eyebrow">CENTRE DE PILOTAGE</span><h2>Performance globale du projet</h2><p>Vue consolidée des modules Marketing, mise à jour automatiquement.</p></div>
           <div className="kpi-refresh-label"><span className="kpi-pulse-dot"/>{lastUpdated ? `Actualisé à ${lastUpdated.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : 'Chargement des modules…'}</div>
@@ -228,19 +238,28 @@ export function DashboardView({
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon database"><UsersRound/></span><span>Contacts & listes</span><small>CRM</small></div><strong className="kpi-module-value">{stats.contacts.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Contacts enregistrés</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes</span></div><div><b>{teamUsers.length}</b><span>Membres</span></div><div><b>{commentaires.length}</b><span>Commentaires</span></div><div><b>{campagneMembres.length}</b><span>Affectations</span></div></div></article>
         </div>
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
-      </section>
+        <section className="workspace-panel dashboard-team-overview">
+          <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
+          {teamUsers.length === 0 ? <p className="kpi-no-data">Aucun membre disponible.</p> : <div className="dashboard-team-table-wrap"><table className="dashboard-team-table"><thead><tr><th>Membre</th><th>Équipe / rôle</th><th>Campagnes créées</th><th>Campagnes affectées</th><th>En cours</th><th>Terminées</th></tr></thead><tbody>{teamUsers.map((member) => { const owned = campagnes.filter((campaign) => campaign.user_id === member.id); const assigned = campagneMembres.filter((link) => link.user_id === member.id).length; return <tr key={member.id}><td><strong>{`${member.prenom} ${member.nom}`.trim() || member.email}</strong><span>{member.email}</span></td><td>{teamRoles.find((role) => role.id === member.role_id)?.nom ?? '—'}</td><td>{owned.length}</td><td>{assigned}</td><td>{owned.filter((campaign) => campaign.status === 'en_cours').length}</td><td>{owned.filter((campaign) => campaign.status === 'terminee').length}</td></tr> })}</tbody></table></div>}
+        </section>
+      </section> : <section className="dashboard-member-overview">
+        <div className="dashboard-member-card"><span>Mes campagnes</span><strong>{dashboardCampaigns.length}</strong><small>Créées ou affectées à votre compte</small></div>
+        <div className="dashboard-member-card"><span>En cours</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'en_cours').length}</strong><small>Campagnes actives</small></div>
+        <div className="dashboard-member-card"><span>Terminées</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'terminee').length}</strong><small>Campagnes finalisées</small></div>
+        <div className="dashboard-member-card"><span>À préparer</span><strong>{dashboardCampaigns.filter((campaign) => campaign.status === 'brouillon').length}</strong><small>Brouillons à lancer</small></div>
+      </section>}
 
       <div className="workspace-panels">
         <div className="workspace-panel">
           <div className="workspace-panel-header">
             <h2>Campagnes récentes</h2>
-            <span>{campagnes.length} au total</span>
+            <span>{dashboardCampaigns.length} au total</span>
           </div>
           {recent.length === 0 ? (
             <div className="workspace-empty">
               <BarChart3 aria-hidden="true" />
               <p>Aucune campagne pour le moment.</p>
-              <span>Créez votre première campagne depuis l’onglet « Campagnes ».</span>
+              <span>{isAdmin ? 'Les campagnes créées par les équipes apparaîtront ici.' : 'Créez votre première campagne depuis l’onglet « Campagnes ».'}</span>
             </div>
           ) : (
             <ul className="campagne-list">

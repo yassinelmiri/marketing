@@ -35,7 +35,7 @@ async function authorize() {
   }
 
   try {
-    return { admin: createAdminClient(), userId: Number(profile.id) } as const
+    return { admin: createAdminClient(), userId: Number(profile.id), isAdmin: Number(profile.role_id) === 1 } as const
   } catch {
     return { response: NextResponse.json({ error: 'Configuration serveur indisponible.' }, { status: 503 }) }
   }
@@ -76,8 +76,13 @@ export async function GET(request: NextRequest) {
       .from('whatsapp_campaigns')
       .select('id,user_id,name,source_file,message,consent_confirmed_at,status,total_recipients,created_at,updated_at')
       .eq('id', campaignId)
-      .eq('user_id', auth.userId)
       .maybeSingle()
+    if (!auth.isAdmin) {
+      const { data: ownedCampaign, error: ownershipError } = await auth.admin
+        .from('whatsapp_campaigns').select('id').eq('id', campaignId).eq('user_id', auth.userId).maybeSingle()
+      if (ownershipError) return NextResponse.json({ error: 'Vérification de la campagne impossible.' }, { status: 500 })
+      if (!ownedCampaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
+    }
 
     if (error) return NextResponse.json({ error: 'Chargement de la campagne impossible.' }, { status: 500 })
     if (!campaign) return NextResponse.json({ error: 'Campagne introuvable.' }, { status: 404 })
@@ -104,12 +109,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ campaign, recipients: recipients ?? [], counts, page, pageSize, totalPages: Math.max(1, Math.ceil(Number(count ?? 0) / pageSize)) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   }
 
-  const { data: campaigns, error } = await auth.admin
+  let campaignsQuery = auth.admin
     .from('whatsapp_campaigns')
-    .select('id,name,source_file,message,status,total_recipients,created_at,updated_at')
-    .eq('user_id', auth.userId)
+    .select('id,name,source_file,message,status,total_recipients,created_at,updated_at,user_id')
     .order('updated_at', { ascending: false })
-    .limit(50)
+    .limit(500)
+  if (!auth.isAdmin) campaignsQuery = campaignsQuery.eq('user_id', auth.userId)
+  const { data: campaigns, error } = await campaignsQuery
 
   if (error) return NextResponse.json({ error: 'Chargement des campagnes impossible.' }, { status: 500 })
   const campaignIds = (campaigns ?? []).map((campaign) => Number(campaign.id))

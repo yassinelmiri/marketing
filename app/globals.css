@@ -11,14 +11,14 @@
    ========================================================= */
 :root{
   /* Couleurs de la charte */
-  --navy: #172554;
-  --navy-700: #1e3a8a;
-  --blue: #2563eb;
-  --blue-600: #1d4ed8;
-  --blue-50: #eff6ff;
-  --teal: #0d9488;
-  --teal-600: #0f766e;
-  --teal-50: #f0fdfa;
+  --navy: #0F766E;
+  --navy-700: #115e59;
+  --blue: #0F766E;
+  --blue-600: #115e59;
+  --blue-50: #F0FDFA;
+  --teal: #0F766E;
+  --teal-600: #0F766E;
+  --teal-50: #F0FDFA;
   --amber: #f59e0b;
   --amber-50: #fffbeb;
   --red: #dc2626;
@@ -26,9 +26,9 @@
   --green: #16a34a;
   --green-50: #f0fdf4;
 
-  --bg: #f8fafc;
+  --bg: #F0FDFA;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
+  --surface-2: #F0FDFA;
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   --text: #334155;
@@ -2703,4 +2703,141 @@
 @media(max-width:380px){
  .email-suite-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
  .email-suite .email-stats-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+
+/* =========================================================
+   TEAL BUSINESS — workspace-wide visual system
+   Primary #0F766E · Background #F0FDFA · Surface #FFFFFF
+   ========================================================= */
+:root {
+  --primary: #0F766E;
+  --primary-soft: #F0FDFA;
+  --workspace-bg: #F0FDFA;
+  --workspace-surface: #FFFFFF;
+}
+.workspace-root {
+  background: #F0FDFA !important;
+}
+.workspace-root .workspace-sidebar,
+.workspace-root .workspace-topbar,
+.workspace-root .workspace-panel,
+.workspace-root .kpi-main-panel,
+.workspace-root .kpi-module-card,
+.workspace-root .dashboard-member-card,
+.workspace-root .workspace-modal,
+.workspace-root .workspace-dropdown,
+.workspace-root .workspace-card {
+  background-color: #FFFFFF;
+}
+.workspace-root .workspace-nav-item.is-active,
+.workspace-root .btn-default,
+.workspace-root .comment-form button,
+.workspace-root .workspace-primary-button {
+  background: #0F766E;
+  border-color: #0F766E;
+  color: #FFFFFF;
+}
+.workspace-root .workspace-nav-item.is-active svg,
+.workspace-root .settings-eyebrow,
+.workspace-root .dashboard-date-chip svg,
+.workspace-root .kpi-panel-title > svg,
+.workspace-root .kpi-module-value,
+.workspace-root .workspace-link,
+.workspace-root a:hover {
+  color: #0F766E;
+}
+.workspace-root .workspace-nav-item.is-active {
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.14);
+}
+.workspace-root .workspace-nav-item:hover,
+.workspace-root .btn-secondary:hover,
+.workspace-root .workspace-icon-button:hover {
+  background: #F0FDFA;
+  border-color: rgba(15, 118, 110, 0.22);
+}
+.workspace-root input:focus,
+.workspace-root textarea:focus,
+.workspace-root select:focus {
+  border-color: #0F766E;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  outline: none;
+}
+.workspace-root .dashboard-member-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 26px;
+}
+.workspace-root .dashboard-member-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 22px;
+  border: 1px solid #d7eeea;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 118, 110, 0.045);
+}
+.workspace-root .dashboard-member-card > span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workspace-root .dashboard-member-card strong {
+  color: #0F766E;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+.workspace-root .dashboard-member-card small {
+  color: #64748b;
+  font-size: 12px;
+}
+.workspace-root .dashboard-team-overview {
+  margin-top: 20px;
+}
+.workspace-root .dashboard-team-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.workspace-root .dashboard-team-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.workspace-root .dashboard-team-table th,
+.workspace-root .dashboard-team-table td {
+  padding: 13px 15px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.workspace-root .dashboard-team-table th {
+  color: #64748b;
+  background: #F0FDFA;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.workspace-root .dashboard-team-table td:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.workspace-root .dashboard-team-table td:first-child span {
+  color: #64748b;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .workspace-root .dashboard-member-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 520px) {
+  .workspace-root .dashboard-member-overview {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .workspace-root .dashboard-member-card {
+    padding: 15px;
+  }
 }

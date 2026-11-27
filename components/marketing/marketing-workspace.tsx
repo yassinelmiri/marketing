@@ -571,11 +571,6 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         </div>
 
         <div className="workspace-user">
-          <span className="workspace-user-avatar">
-            {currentUser.prenom?.charAt(0).toUpperCase() ?? '?'}
-            {currentUser.nom?.charAt(0).toUpperCase() ?? ''}
-          </span>
-
           <div>
             <strong>{userName}</strong>
             <span>{roleName}</span>
@@ -612,8 +607,8 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
         </nav>
 
         <div className="workspace-sidebar-footer">
-          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(139, 92, 246, 0.09)', border: '1px solid rgba(139, 92, 246, 0.16)' }}>
-            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#a78bfa', background: 'rgba(139, 92, 246, 0.15)' }}>
+          <div className="workspace-live-clock" aria-label="Heure actuelle au Maroc" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', marginBottom: '12px', borderRadius: '14px', background: 'rgba(15, 118, 110, 0.10)', border: '1px solid rgba(15, 118, 110, 0.20)' }}>
+            <span style={{ width: '36px', height: '36px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '11px', color: '#0F766E', background: 'rgba(15, 118, 110, 0.14)' }}>
               <Clock3 size={18} aria-hidden="true" />
             </span>
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -667,6 +662,7 @@ export function MarketingWorkspace({ initialData = null }: { initialData?: Await
               user={currentUser}
               typesCampagnes={typesCampagnes}
               teamUsers={teamUsers}
+              teamRoles={teamRoles}
               stats={stats}
               campagnes={campagnes}
               campagneMembres={campagneMembres}
