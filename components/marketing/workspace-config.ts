@@ -7,7 +7,7 @@ import {
   ShieldCheck,
   Smartphone,
   Users,
-  UsersRound,
+  Globe,
   ListTodo,
   Search,
 } from 'lucide-react'
@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavigationItem[] = [
   { key: 'campagnes', label: 'Campagnes', icon: BarChart3 },
   { key: 'prospection', label: 'Prospection', icon: Search },
   { key: 'listes', label: 'Listes & contacts', icon: Users },
-  { key: 'equipe', label: 'Équipe', icon: UsersRound },
+  { key: 'scraping', label: 'Scrapping', icon: Globe },
   { key: 'tasks', label: 'Gestion des tâches', icon: ListTodo },
   { key: 'whatsapp', label: 'Campagnes WhatsApp', icon: MessageCircle },
   { key: 'email', label: 'E-mail', icon: Mail },
@@ -52,9 +52,9 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
     title: 'Listes & contacts',
     subtitle: 'Ajoutez des contacts, classez-les dans des listes et retrouvez facilement leurs informations.',
   },
-  equipe: {
-    title: 'Équipe',
-    subtitle: 'Consultez les membres de l’équipe et identifiez clairement leur rôle.',
+  scraping: {
+    title: 'Scrapping',
+    subtitle: 'Collecte et organisation de données web — bientôt disponible.',
   },
   tasks: {
     title: 'Gestion des tâches',

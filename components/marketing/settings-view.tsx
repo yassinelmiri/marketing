@@ -25,6 +25,7 @@ export function SettingsView({ user, onSaved, isAdmin = false }: SettingsViewPro
   const [saving, setSaving] = useState(false)
   const [apiConfig, setApiConfig] = useState({ baseUrl: '', authType: 'bearer', authHeader: 'x-api-key', secret: '', secretConfigured: false, clearSecret: false, updatedAt: null as string | null })
   const [apiSaving, setApiSaving] = useState(false)
+  const [apiLoadError, setApiLoadError] = useState<string | null>(null)
   const [showSecret, setShowSecret] = useState(false)
 
   useEffect(() => {
@@ -34,11 +35,16 @@ export function SettingsView({ user, onSaved, isAdmin = false }: SettingsViewPro
       .then(async (response) => {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Chargement impossible.')
-        if (active) setApiConfig((current) => ({ ...current, ...data.config, secret: '', clearSecret: false }))
+        if (active) {
+          setApiConfig((current) => ({ ...current, ...data.config, secret: '', clearSecret: false }))
+          setApiLoadError(null)
+        }
       })
-      .catch((error) => toast.error('Configuration API', error instanceof Error ? error.message : 'Erreur de chargement.'))
+      .catch((error) => {
+        if (active) setApiLoadError(error instanceof Error ? error.message : 'Erreur de chargement de la configuration API.')
+      })
     return () => { active = false }
-  }, [isAdmin, toast])
+  }, [isAdmin])
 
   async function saveApiConfig(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -182,6 +188,7 @@ export function SettingsView({ user, onSaved, isAdmin = false }: SettingsViewPro
             <span className="settings-heading-icon settings-heading-secure"><Server aria-hidden="true" /></span>
             <div><h3>Connexion API — Prospection</h3><p>Configuration technique réservée à l’administrateur. Les membres n’ont pas accès à ces paramètres.</p></div>
           </div>
+          {apiLoadError && <div role="status" style={{ margin: '12px 0 18px', padding: '12px 14px', borderRadius: 10, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontSize: 13, lineHeight: 1.55 }}>La configuration API n’est pas encore disponible. {apiLoadError} Appliquez la migration Supabase pour activer ces réglages. Cette alerte reste affichée ici et ne bloque pas les autres paramètres.</div>}
           <form onSubmit={saveApiConfig}>
             <div className="settings-fields">
               <label className="settings-field settings-field-wide"><span>URL de base de l’API</span><div className="settings-input-icon"><Globe aria-hidden="true" /><input type="url" placeholder="https://api.exemple.com/v1" value={apiConfig.baseUrl} onChange={(e) => setApiConfig((v) => ({ ...v, baseUrl: e.target.value }))} /></div></label>
