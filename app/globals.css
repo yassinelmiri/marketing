@@ -7554,3 +7554,24 @@ button {
 .kpi-system-ok { display: flex; align-items: center; gap: 9px; color: #15803d; background: #f0fdf4; padding: 14px; border-radius: 12px; font-size: 12px; }
 @media (max-width: 1050px) { .kpi-system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi-system-alerts { grid-column: 1 / -1; } }
 @media (max-width: 640px) { .kpi-system-grid { grid-template-columns: 1fr; } .kpi-system-alerts { grid-column: auto; } .kpi-system-card { padding: 16px; } }
+
+
+/* Admin monitoring cards and live line chart */
+.kpi-system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 24px; }
+.kpi-system-speed { grid-column: 1 / -1; }
+.kpi-speed-chart-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 28px; margin: 18px 0 8px; }
+.kpi-speed-chart-summary > div:not(.kpi-system-status) { display: grid; gap: 3px; }
+.kpi-speed-chart-summary strong { color: #0f172a; font-size: 25px; letter-spacing: -.04em; }
+.kpi-speed-chart-summary strong small { font-size: 13px; }
+.kpi-speed-chart-summary span { color: #64748b; font-size: 11px; }
+.kpi-speed-chart-summary .kpi-system-status { margin: 0 0 0 auto; }
+.kpi-speed-chart-wrap { width: 100%; min-height: 210px; padding: 12px 8px 0; border: 1px solid #e8eef6; border-radius: 13px; background: linear-gradient(180deg, #fbfdff 0%, #fff 100%); }
+.kpi-speed-chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+.kpi-speed-gridline { stroke: #e8eef6; stroke-width: 1; stroke-dasharray: 4 5; }
+.kpi-speed-axis { fill: #94a3b8; font-size: 10px; }
+.kpi-speed-area { fill: rgba(37, 99, 235, .10); }
+.kpi-speed-line { fill: none; stroke: #2563eb; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.kpi-speed-dot { fill: #fff; stroke: #2563eb; stroke-width: 2.5; }
+.kpi-speed-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #94a3b8; font-size: 12px; text-align: center; }
+@media (max-width: 1050px) { .kpi-system-grid { grid-template-columns: 1fr; } .kpi-system-speed { grid-column: auto; } }
+@media (max-width: 640px) { .kpi-speed-chart-summary { gap: 14px 22px; } .kpi-speed-chart-summary .kpi-system-status { margin-left: 0; width: 100%; } .kpi-speed-chart-wrap { min-height: 160px; padding: 8px 4px 0; } }
