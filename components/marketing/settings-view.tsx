@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { KeyRound, Mail, MapPin, Phone, Save, ShieldCheck, UserRound } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { KeyRound, Mail, MapPin, Phone, Save, ShieldCheck, UserRound, Globe, LockKeyhole, Server, Eye, EyeOff } from 'lucide-react'
 import type { User } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 
 interface SettingsViewProps {
   user: User
   onSaved: () => void
+  isAdmin?: boolean
 }
 
-export function SettingsView({ user, onSaved }: SettingsViewProps) {
+export function SettingsView({ user, onSaved, isAdmin = false }: SettingsViewProps) {
   const toast = useToast()
   const [form, setForm] = useState({
     prenom: user.prenom,
@@ -22,6 +23,43 @@ export function SettingsView({ user, onSaved }: SettingsViewProps) {
     confirmPassword: '',
   })
   const [saving, setSaving] = useState(false)
+  const [apiConfig, setApiConfig] = useState({ baseUrl: '', authType: 'bearer', authHeader: 'x-api-key', secret: '', secretConfigured: false, clearSecret: false, updatedAt: null as string | null })
+  const [apiLoading, setApiLoading] = useState(false)
+  const [apiSaving, setApiSaving] = useState(false)
+  const [showSecret, setShowSecret] = useState(false)
+
+  useEffect(() => {
+    if (!isAdmin) return
+    let active = true
+    fetch('/api/admin/prospection-config', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Chargement impossible.')
+        if (active) setApiConfig((current) => ({ ...current, ...data.config, secret: '', clearSecret: false }))
+      })
+      .catch((error) => toast.error('Configuration API', error instanceof Error ? error.message : 'Erreur de chargement.'))
+    return () => { active = false }
+  }, [isAdmin, toast])
+
+  async function saveApiConfig(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setApiSaving(true)
+    try {
+      const response = await fetch('/api/admin/prospection-config', {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ baseUrl: apiConfig.baseUrl, authType: apiConfig.authType, authHeader: apiConfig.authHeader, secret: apiConfig.secret, clearSecret: apiConfig.clearSecret }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Enregistrement impossible.')
+      setApiConfig((current) => ({ ...current, secret: '', secretConfigured: result.secretConfigured, clearSecret: false, updatedAt: new Date().toISOString() }))
+      toast.success('Configuration enregistrée', 'Les paramètres API Prospection ont été mis à jour.')
+    } catch (error) {
+      toast.error('Enregistrement impossible', error instanceof Error ? error.message : 'Erreur serveur.')
+    } finally {
+      setApiSaving(false)
+    }
+  }
 
   function update(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -139,6 +177,24 @@ export function SettingsView({ user, onSaved }: SettingsViewProps) {
           </button>
         </div>
       </form>
+      {isAdmin && (
+        <section className="workspace-panel settings-card prospection-api-settings">
+          <div className="settings-section-heading">
+            <span className="settings-heading-icon settings-heading-secure"><Server aria-hidden="true" /></span>
+            <div><h3>Connexion API — Prospection</h3><p>Configuration technique réservée à l’administrateur. Les membres n’ont pas accès à ces paramètres.</p></div>
+          </div>
+          <form onSubmit={saveApiConfig}>
+            <div className="settings-fields">
+              <label className="settings-field settings-field-wide"><span>URL de base de l’API</span><div className="settings-input-icon"><Globe aria-hidden="true" /><input type="url" placeholder="https://api.exemple.com/v1" value={apiConfig.baseUrl} onChange={(e) => setApiConfig((v) => ({ ...v, baseUrl: e.target.value }))} /></div></label>
+              <label className="settings-field"><span>Type d’authentification</span><select value={apiConfig.authType} onChange={(e) => setApiConfig((v) => ({ ...v, authType: e.target.value }))}><option value="none">Aucune</option><option value="bearer">Bearer Token</option><option value="api_key">API Key (header)</option></select></label>
+              {apiConfig.authType === 'api_key' && <label className="settings-field"><span>Nom de l’en-tête</span><input value={apiConfig.authHeader} onChange={(e) => setApiConfig((v) => ({ ...v, authHeader: e.target.value }))} placeholder="x-api-key" /></label>}
+              {apiConfig.authType !== 'none' && <label className="settings-field settings-field-wide"><span>Clé secrète {apiConfig.secretConfigured ? '(déjà configurée — laisser vide pour conserver)' : ''}</span><div className="settings-input-icon"><LockKeyhole aria-hidden="true" /><input type={showSecret ? 'text' : 'password'} autoComplete="new-password" value={apiConfig.secret} onChange={(e) => setApiConfig((v) => ({ ...v, secret: e.target.value, clearSecret: false }))} placeholder={apiConfig.secretConfigured ? '••••••••••••' : 'Saisir le token API'} /><button type="button" className="settings-secret-toggle" onClick={() => setShowSecret((v) => !v)} aria-label={showSecret ? 'Masquer la clé' : 'Afficher la clé'}>{showSecret ? <EyeOff /> : <Eye />}</button></div></label>}
+            </div>
+            {apiConfig.secretConfigured && <label className="settings-api-clear"><input type="checkbox" checked={apiConfig.clearSecret} onChange={(e) => setApiConfig((v) => ({ ...v, clearSecret: e.target.checked, secret: '' }))} /> Supprimer la clé secrète enregistrée</label>}
+            <div className="settings-form-footer"><p><ShieldCheck aria-hidden="true" /> Clé chiffrée côté serveur. Jamais renvoyée au navigateur.</p><button className="workspace-primary" type="submit" disabled={apiSaving}>{apiSaving ? 'Enregistrement…' : 'Enregistrer la configuration API'}</button></div>
+          </form>
+        </section>
+      )}
     </section>
   )
 }
