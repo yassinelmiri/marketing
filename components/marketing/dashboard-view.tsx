@@ -74,6 +74,7 @@ export function DashboardView({
     alerts: { level: 'warning' | 'error'; title: string; detail: string }[]
   }>({ database: null, website: null, alerts: [] })
   const [healthLoading, setHealthLoading] = useState(false)
+  const [speedHistory, setSpeedHistory] = useState<{ time: string; ms: number }[]>([])
 
   useEffect(() => {
     if (!isAdmin) return
@@ -148,7 +149,15 @@ export function DashboardView({
         const response = await fetch('/api/admin/health', { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Diagnostic système indisponible')
-        if (active) setSystemHealth(data)
+        if (active) {
+          setSystemHealth(data)
+          if (typeof data.website?.responseMs === 'number') {
+            setSpeedHistory((history) => [
+              ...history,
+              { time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), ms: data.website.responseMs },
+            ].slice(-30))
+          }
+        }
       } catch (error) {
         if (active) setSystemHealth((current) => ({
           ...current,
@@ -271,27 +280,6 @@ export function DashboardView({
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon sms"><ContactRound/></span><span>SMS</span><small>Simulation</small></div><strong className="kpi-module-value">—</strong><span className="kpi-module-caption">Aucun envoi réel comptabilisé</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes cibles</span></div><div><b>{stats.contacts}</b><span>Contacts CRM</span></div><div><b>Non</b><span>Tracking</span></div><div><b>—</b><span>Livraisons</span></div></div></article>
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon database"><UsersRound/></span><span>Contacts & listes</span><small>CRM</small></div><strong className="kpi-module-value">{stats.contacts.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Contacts enregistrés</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes</span></div><div><b>{teamUsers.length}</b><span>Membres</span></div><div><b>{commentaires.length}</b><span>Commentaires</span></div><div><b>{campagneMembres.length}</b><span>Affectations</span></div></div></article>
         </div>
-        <section className="kpi-system-grid">
-          <article className="kpi-system-card">
-            <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Volume réel des enregistrements Supabase</span></div><UsersRound /></div>
-            <div className="kpi-system-main"><strong>{systemHealth.database ? systemHealth.database.totalRows.toLocaleString('fr-FR') : '—'}</strong><span>lignes comptabilisées</span></div>
-            <div className="kpi-system-table-list">
-              {(systemHealth.database?.tables ?? []).map((table) => <div key={table.name}><span>{table.name}</span><strong>{table.available ? Number(table.rows ?? 0).toLocaleString('fr-FR') : 'Indisponible'}</strong></div>)}
-            </div>
-            <p className="kpi-system-note">Quota disque restant : non exposé par l’API standard Supabase. Les chiffres ci-dessus représentent les lignes, pas l’espace disque.</p>
-          </article>
-          <article className="kpi-system-card">
-            <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Test dynamique de réponse de la page d’accueil</span></div><Activity /></div>
-            <div className="kpi-system-main"><strong>{systemHealth.website?.responseMs != null ? systemHealth.website.responseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>temps de réponse serveur</span></div>
-            <div className="kpi-speed-track"><i style={{ width: systemHealth.website?.responseMs == null ? '0%' : Math.min(100, Math.max(4, systemHealth.website.responseMs / 30)) + '%' }} /></div>
-            <div className="kpi-system-status"><span className={systemHealth.website?.status === 'online' ? 'good' : systemHealth.website?.status === 'slow' ? 'warn' : 'bad'} />{systemHealth.website?.status === 'online' ? 'Réponse rapide' : systemHealth.website?.status === 'slow' ? 'Réponse lente' : systemHealth.website?.status === 'offline' ? 'Site inaccessible' : 'En attente du test'}</div>
-            <p className="kpi-system-note">{healthLoading ? 'Vérification en cours…' : 'Actualisation automatique chaque minute. Mesure du serveur, différente des Core Web Vitals du navigateur.'}</p>
-          </article>
-          <article className="kpi-system-card kpi-system-alerts">
-            <div className="kpi-panel-title"><div><strong>Alertes système</strong><span>Erreurs et anomalies détectées</span></div><AlertCircle /></div>
-            {systemHealth.alerts.length ? systemHealth.alerts.map((alert, index) => <div className={'kpi-system-alert ' + alert.level} key={alert.title + index}><AlertCircle size={16}/><div><strong>{alert.title}</strong><span>{alert.detail}</span></div></div>) : <div className="kpi-system-ok"><CheckCircle2 size={18}/>Aucun problème détecté lors du dernier contrôle.</div>}
-          </article>
-        </section>
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
         <section className="workspace-panel dashboard-team-overview">
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
@@ -433,6 +421,47 @@ export function DashboardView({
             </div>
           )}
         </div>
+        <section className="kpi-system-grid">
+          <article className="kpi-system-card kpi-system-speed">
+            <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Évolution du temps de réponse — mesures réelles chaque minute</span></div><Activity /></div>
+            <div className="kpi-speed-chart-summary">
+              <div><strong>{systemHealth.website?.responseMs != null ? systemHealth.website.responseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Dernière mesure</span></div>
+              <div><strong>{speedHistory.length ? Math.round(speedHistory.reduce((sum, point) => sum + point.ms, 0) / speedHistory.length).toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>Moyenne de la session</span></div>
+              <div className="kpi-system-status"><span className={systemHealth.website?.status === 'online' ? 'good' : systemHealth.website?.status === 'slow' ? 'warn' : 'bad'} />{systemHealth.website?.status === 'online' ? 'Site opérationnel' : systemHealth.website?.status === 'slow' ? 'Réponse lente' : systemHealth.website?.status === 'offline' ? 'Site inaccessible' : 'En attente'}</div>
+            </div>
+            <div className="kpi-speed-chart-wrap">
+              {speedHistory.length > 1 ? (() => {
+                const values = speedHistory.map((point) => point.ms)
+                const min = Math.max(0, Math.min(...values) - 100)
+                const max = Math.max(min + 200, ...values) + 100
+                const coords = speedHistory.map((point, index) => ({
+                  x: 36 + (index / Math.max(1, speedHistory.length - 1)) * 688,
+                  y: 184 - ((point.ms - min) / (max - min)) * 150,
+                  ...point,
+                }))
+                return <svg viewBox="0 0 760 230" role="img" aria-label="Graphique de l'évolution du temps de réponse du site">
+                  {[34, 84, 134, 184].map((y) => <line key={y} x1="36" x2="724" y1={y} y2={y} className="kpi-speed-gridline" />)}
+                  <text x="4" y="38" className="kpi-speed-axis">{Math.round(max)} ms</text>
+                  <text x="4" y="188" className="kpi-speed-axis">{Math.round(min)} ms</text>
+                  <polygon points={`36,184 ${coords.map((point) => `${point.x},${point.y}`).join(' ')} 724,184`} className="kpi-speed-area" />
+                  <polyline points={coords.map((point) => `${point.x},${point.y}`).join(' ')} className="kpi-speed-line" />
+                  {coords.map((point, index) => <g key={index}><circle cx={point.x} cy={point.y} r="4" className="kpi-speed-dot"><title>{point.time} — {point.ms} ms</title></circle></g>)}
+                  <text x="36" y="218" className="kpi-speed-axis">{coords[0].time}</text>
+                  <text x="724" y="218" textAnchor="end" className="kpi-speed-axis">{coords[coords.length - 1].time}</text>
+                </svg>
+              })() : <div className="kpi-speed-empty"><Activity size={22}/><span>{speedHistory.length === 1 ? 'Première mesure enregistrée. Le graphique se dessinera avec les prochaines mesures.' : 'En attente des premières mesures réelles…'}</span></div>}
+            </div>
+            <p className="kpi-system-note">{healthLoading ? 'Vérification en cours…' : 'Historique conservé pendant cette session du Dashboard (30 dernières mesures). La mesure correspond au temps de réponse serveur, pas aux Core Web Vitals.'}</p>
+          </article>
+          <article className="kpi-system-card">
+            <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Volume réel des enregistrements Supabase</span></div><UsersRound /></div>
+            <div className="kpi-system-main"><strong>{systemHealth.database ? systemHealth.database.totalRows.toLocaleString('fr-FR') : '—'}</strong><span>lignes comptabilisées</span></div>
+            <div className="kpi-system-table-list">
+              {(systemHealth.database?.tables ?? []).map((table) => <div key={table.name}><span>{table.name}</span><strong>{table.available ? Number(table.rows ?? 0).toLocaleString('fr-FR') : 'Indisponible'}</strong></div>)}
+            </div>
+            <p className="kpi-system-note">Quota disque restant : non exposé par l’API standard Supabase. Les chiffres ci-dessus représentent les lignes, pas l’espace disque.</p>
+          </article>
+        </section>
       </div>
     </section>
   )
