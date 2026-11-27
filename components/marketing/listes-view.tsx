@@ -145,6 +145,8 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
   )
   const listeContacts = contacts
   const selectedContactIdSet = useMemo(() => new Set(selectedContactIds), [selectedContactIds])
+  const listeCampagneIdSet = useMemo(() => new Set(listeCampagneIds), [listeCampagneIds])
+  const contactListeIdSet = useMemo(() => new Set(contactListeIds), [contactListeIds])
   const teamUsersById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
   const contactListNamesByContactId = useMemo(
     () => buildContactListNamesByContactId(contactLinks, listes),
@@ -702,7 +704,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   {allCampagnes.length === 0 ? <p className="form-hint">Aucune campagne disponible.</p> : (
                     <div className="liste-campaign-options">
                       {allCampagnes.map((campagne) => {
-                        const checked = listeCampagneIds.includes(campagne.id)
+                        const checked = listeCampagneIdSet.has(campagne.id)
                         return (
                           <label key={campagne.id} className={`liste-campaign-option${checked ? ' is-selected' : ''}`}>
                             <input type="checkbox" checked={checked} onChange={() => setListeCampagneIds((current) => checked ? current.filter((id) => id !== campagne.id) : [...current, campagne.id])} />
@@ -798,7 +800,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
                   ) : (
                     <div className="checkbox-grid">
                       {listes.map((l) => {
-                        const checked = contactListeIds.includes(l.id)
+                        const checked = contactListeIdSet.has(l.id)
                         return (
                           <label key={l.id} className={`checkbox-card${checked ? ' is-on' : ''}`}>
                             <input type="checkbox" checked={checked} onChange={() => toggleContactListe(l.id)} />
