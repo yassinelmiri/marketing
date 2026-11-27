@@ -116,12 +116,21 @@ export async function GET(request: NextRequest) {
     endpoint.searchParams.set('per_page', String(pageSize))
     endpoint.searchParams.set('limit', String(pageSize))
     endpoint.searchParams.set('offset', String((page - 1) * pageSize))
-    const upstream = await fetch(endpoint, { headers: apiHeaders(config), cache: 'no-store', signal: AbortSignal.timeout(20000) })
-    const payload = await upstream.json().catch(() => null)
+    let upstream = await fetch(endpoint, { headers: apiHeaders(config), cache: 'no-store', signal: AbortSignal.timeout(20000) })
+    let payload = await upstream.json().catch(() => null)
+    // Some APIs reject unknown filter parameters. Retry without filters and filter
+    // the returned records locally rather than making the connector unusable.
+    if (!upstream.ok && filters.length) {
+      const fallback = new URL(endpoint)
+      for (const filter of filters) fallback.searchParams.delete(filter.field)
+      upstream = await fetch(fallback, { headers: apiHeaders(config), cache: 'no-store', signal: AbortSignal.timeout(20000) })
+      payload = await upstream.json().catch(() => null)
+    }
     if (!upstream.ok) {
       return NextResponse.json({ error: upstream.status === 401 ? 'Authentification refusée par l’API. Vérifiez le token.' : `L’API externe a répondu ${upstream.status}.`, details: payload }, { status: 502 })
     }
     let records = extractRecords(payload)
+    const rawCount = records.length
     // If the API does not implement filtering, apply the selected criteria locally
     // to the returned page, while clearly keeping the API pagination metadata.
     records = records.filter(record => filters.every(filter => !filter.value.trim() || compare(String(flatten(record)[filter.field] ?? ''), filter.operator || 'contains', filter.value)))
@@ -131,6 +140,7 @@ export async function GET(request: NextRequest) {
     const pagesValue = Number(upstream.headers.get('x-pagination-pages') || payload?.meta?.last_page || payload?.totalPages || 0)
     return NextResponse.json({
       records,
+      rawCount,
       fields,
       page,
       pageSize,
@@ -201,12 +211,18 @@ export async function POST(request: NextRequest) {
       }
     }).filter((row: any) => row.email || row.telephone || row.nom)
     if (rows.length === 0) throw new Error('Aucun contact exploitable dans les résultats.')
-    const inserted = await admin.from('contacts').insert(rows).select('id')
-    if (inserted.error || !inserted.data) throw inserted.error || new Error('Import des contacts impossible.')
-    const links = inserted.data.map((contact: {id:number}) => ({ liste_id: listId, contact_id: Number(contact.id) }))
-    const linked = await admin.from('liste_contacts').insert(links)
-    if (linked.error) throw linked.error
-    return NextResponse.json({ success: true, listId, saved: inserted.data.length })
+    const insertedIds: number[] = []
+    for (let offset = 0; offset < rows.length; offset += 250) {
+      const batch = await admin.from('contacts').insert(rows.slice(offset, offset + 250)).select('id')
+      if (batch.error || !batch.data) throw batch.error || new Error('Import des contacts impossible.')
+      insertedIds.push(...batch.data.map((contact: { id: number }) => Number(contact.id)))
+    }
+    for (let offset = 0; offset < insertedIds.length; offset += 250) {
+      const links = insertedIds.slice(offset, offset + 250).map(contact_id => ({ liste_id: listId, contact_id }))
+      const linked = await admin.from('liste_contacts').insert(links)
+      if (linked.error) throw linked.error
+    }
+    return NextResponse.json({ success: true, listId, saved: insertedIds.length })
   } catch (error) {
     console.error('[prospection] save list failed:', error)
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Sauvegarde impossible.' }, { status: 500 })
