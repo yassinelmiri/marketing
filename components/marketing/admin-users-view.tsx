@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, X, Check, LockKeyhole, Search, Users, Shield, RefreshCw } from 'lucide-react'
 import { ADMIN_ROLE_ID, SUPER_ADMIN_EMAIL, type User, type Role } from '@/lib/storage'
 import { useToast } from '@/components/ui/toast'
 import { formatDate } from './shared'
+import { filterAdminUsers, countAdminUsers } from '@/lib/admin/users-view-utils'
 
 interface AdminUsersViewProps {
   currentUser: User
@@ -56,13 +57,11 @@ export function AdminUsersView({ currentUser, onChange }: AdminUsersViewProps) {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
 
-  const filteredUsers = users.filter((user) => {
-    const query = search.trim().toLocaleLowerCase('fr')
-    const matchesSearch = !query || `${user.prenom} ${user.nom} ${user.email} ${user.telephone ?? ''}`.toLocaleLowerCase('fr').includes(query)
-    const matchesRole = roleFilter === 'all' || String(user.role_id) === roleFilter
-    return matchesSearch && matchesRole
-  })
-  const adminCount = users.filter((user) => user.role_id === ADMIN_ROLE_ID).length
+  const filteredUsers = useMemo(
+    () => filterAdminUsers(users, search, roleFilter),
+    [users, search, roleFilter],
+  )
+  const adminCount = useMemo(() => countAdminUsers(users), [users])
   const memberCount = users.length - adminCount
   const permissionLabel = (code: string) => MODULE_PERMISSIONS.find((permission) => permission.code === code)?.label ?? code
 
