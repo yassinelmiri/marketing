@@ -216,3 +216,68 @@
   .workspace-root .email-suite .email-template-header-actions{width:100%}
   .workspace-root .email-suite .email-template-header-actions button{flex:1}
 }
+
+
+/* Large, readable full-size template preview modal. */
+.workspace-root .email-suite .email-template-preview-dialog{
+  width:min(1180px,calc(100vw - 40px)) !important;
+  max-width:1180px !important;
+  max-height:92vh !important;
+  min-height:min(720px,82vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:clamp(16px,2vw,26px) !important;
+}
+.workspace-root .email-suite .email-template-preview-dialog .workspace-panel-header{
+  flex:0 0 auto;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+.workspace-root .email-suite .email-template-preview-stage{
+  flex:1 1 auto;
+  min-height:0;
+  height:calc(88vh - 120px);
+  max-height:calc(88vh - 120px);
+  overflow:auto;
+  padding:clamp(12px,2vw,24px);
+  border:1px solid var(--ui-border);
+  border-radius:14px;
+}
+.workspace-root .email-suite .email-template-preview-dialog .email-template-preview-frame{
+  width:100%;
+  max-width:100%;
+  min-height:100%;
+  margin:0 auto;
+  background:#fff;
+  border-radius:8px;
+  overflow:hidden;
+  box-shadow:0 8px 28px rgba(0,0,0,.2);
+}
+.workspace-root .email-suite .email-template-preview-dialog iframe{
+  display:block;
+  width:100%;
+  height:calc(88vh - 170px);
+  min-height:560px;
+  border:0;
+  background:#fff;
+}
+@media(max-width:700px){
+  .workspace-root .email-suite .email-template-preview-dialog{
+    width:calc(100vw - 16px) !important;
+    max-height:96vh !important;
+    min-height:88vh;
+    padding:12px !important;
+  }
+  .workspace-root .email-suite .email-template-preview-stage{
+    height:calc(90vh - 115px);
+    max-height:calc(90vh - 115px);
+    padding:8px;
+  }
+  .workspace-root .email-suite .email-template-preview-dialog iframe{
+    height:calc(90vh - 155px);
+    min-height:480px;
+  }
+}
