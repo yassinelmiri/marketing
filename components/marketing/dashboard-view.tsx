@@ -68,6 +68,12 @@ export function DashboardView({
   })
   const [moduleError, setModuleError] = useState('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [systemHealth, setSystemHealth] = useState<{
+    database: { totalRows: number; tables: { name: string; rows: number | null; available: boolean }[]; checkedAt: string } | null
+    website: { responseMs: number | null; status: 'online' | 'slow' | 'offline'; checkedAt: string } | null
+    alerts: { level: 'warning' | 'error'; title: string; detail: string }[]
+  }>({ database: null, website: null, alerts: [] })
+  const [healthLoading, setHealthLoading] = useState(false)
 
   useEffect(() => {
     if (!isAdmin) return
@@ -130,6 +136,30 @@ export function DashboardView({
     }
     void loadModules()
     const interval = window.setInterval(() => void loadModules(), 60000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [isAdmin])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    let active = true
+    const loadHealth = async () => {
+      setHealthLoading(true)
+      try {
+        const response = await fetch('/api/admin/health', { cache: 'no-store' })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Diagnostic système indisponible')
+        if (active) setSystemHealth(data)
+      } catch (error) {
+        if (active) setSystemHealth((current) => ({
+          ...current,
+          alerts: [{ level: 'error', title: 'Diagnostic indisponible', detail: error instanceof Error ? error.message : 'Impossible de vérifier le système.' }],
+        }))
+      } finally {
+        if (active) setHealthLoading(false)
+      }
+    }
+    void loadHealth()
+    const interval = window.setInterval(() => void loadHealth(), 60000)
     return () => { active = false; window.clearInterval(interval) }
   }, [isAdmin])
 
@@ -241,6 +271,27 @@ export function DashboardView({
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon sms"><ContactRound/></span><span>SMS</span><small>Simulation</small></div><strong className="kpi-module-value">—</strong><span className="kpi-module-caption">Aucun envoi réel comptabilisé</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes cibles</span></div><div><b>{stats.contacts}</b><span>Contacts CRM</span></div><div><b>Non</b><span>Tracking</span></div><div><b>—</b><span>Livraisons</span></div></div></article>
           <article className="kpi-module-card"><div className="kpi-module-heading"><span className="kpi-module-icon database"><UsersRound/></span><span>Contacts & listes</span><small>CRM</small></div><strong className="kpi-module-value">{stats.contacts.toLocaleString('fr-FR')}</strong><span className="kpi-module-caption">Contacts enregistrés</span><div className="kpi-module-pairs"><div><b>{stats.listes}</b><span>Listes</span></div><div><b>{teamUsers.length}</b><span>Membres</span></div><div><b>{commentaires.length}</b><span>Commentaires</span></div><div><b>{campagneMembres.length}</b><span>Affectations</span></div></div></article>
         </div>
+        <section className="kpi-system-grid">
+          <article className="kpi-system-card">
+            <div className="kpi-panel-title"><div><strong>Base de données</strong><span>Volume réel des enregistrements Supabase</span></div><UsersRound /></div>
+            <div className="kpi-system-main"><strong>{systemHealth.database ? systemHealth.database.totalRows.toLocaleString('fr-FR') : '—'}</strong><span>lignes comptabilisées</span></div>
+            <div className="kpi-system-table-list">
+              {(systemHealth.database?.tables ?? []).map((table) => <div key={table.name}><span>{table.name}</span><strong>{table.available ? Number(table.rows ?? 0).toLocaleString('fr-FR') : 'Indisponible'}</strong></div>)}
+            </div>
+            <p className="kpi-system-note">Quota disque restant : non exposé par l’API standard Supabase. Les chiffres ci-dessus représentent les lignes, pas l’espace disque.</p>
+          </article>
+          <article className="kpi-system-card">
+            <div className="kpi-panel-title"><div><strong>Vitesse du site</strong><span>Test dynamique de réponse de la page d’accueil</span></div><Activity /></div>
+            <div className="kpi-system-main"><strong>{systemHealth.website?.responseMs != null ? systemHealth.website.responseMs.toLocaleString('fr-FR') : '—'}<small> ms</small></strong><span>temps de réponse serveur</span></div>
+            <div className="kpi-speed-track"><i style={{ width: systemHealth.website?.responseMs == null ? '0%' : Math.min(100, Math.max(4, systemHealth.website.responseMs / 30)) + '%' }} /></div>
+            <div className="kpi-system-status"><span className={systemHealth.website?.status === 'online' ? 'good' : systemHealth.website?.status === 'slow' ? 'warn' : 'bad'} />{systemHealth.website?.status === 'online' ? 'Réponse rapide' : systemHealth.website?.status === 'slow' ? 'Réponse lente' : systemHealth.website?.status === 'offline' ? 'Site inaccessible' : 'En attente du test'}</div>
+            <p className="kpi-system-note">{healthLoading ? 'Vérification en cours…' : 'Actualisation automatique chaque minute. Mesure du serveur, différente des Core Web Vitals du navigateur.'}</p>
+          </article>
+          <article className="kpi-system-card kpi-system-alerts">
+            <div className="kpi-panel-title"><div><strong>Alertes système</strong><span>Erreurs et anomalies détectées</span></div><AlertCircle /></div>
+            {systemHealth.alerts.length ? systemHealth.alerts.map((alert, index) => <div className={'kpi-system-alert ' + alert.level} key={alert.title + index}><AlertCircle size={16}/><div><strong>{alert.title}</strong><span>{alert.detail}</span></div></div>) : <div className="kpi-system-ok"><CheckCircle2 size={18}/>Aucun problème détecté lors du dernier contrôle.</div>}
+          </article>
+        </section>
         <p className="kpi-footnote">* Le suivi détaillé des statuts destinataires WhatsApp n’est pas encore exposé par le tableau de bord global. SMS : envoi actuellement simulé, donc aucun volume réel n’est comptabilisé.</p>
         <section className="workspace-panel dashboard-team-overview">
           <div className="workspace-panel-header"><h2>Performance des membres et des équipes</h2><span>{teamUsers.length} membre(s)</span></div>
