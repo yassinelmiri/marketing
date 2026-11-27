@@ -489,7 +489,7 @@ export function ListesView({ user, listes, campagnes, campagneListes, campagneMe
               <Search aria-hidden="true" />
               <input aria-label="Rechercher une liste" value={listeSearch} onChange={(e) => { setListeSearch(e.target.value); setListePage(1) }} placeholder="Rechercher une liste…" />
             </label>
-            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => { setListeDateFilter(e.target.value); setListePage(1) }} className="workspace-select">
+            <select aria-label="Filtrer les listes par date" value={listeDateFilter} onChange={(e) => { setListeDateFilter(e.target.value as typeof listeDateFilter); setListePage(1) }} className="workspace-select">
               <option value="all">Toutes les dates</option>
               <option value="today">Aujourd’hui</option>
               <option value="7d">7 derniers jours</option>
