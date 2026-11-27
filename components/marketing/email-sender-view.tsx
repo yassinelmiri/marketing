@@ -39,7 +39,7 @@ export function EmailSenderView({listes,contactListCounts,isAdmin}:{listes:Liste
  const filteredSenders=useMemo(()=>{const query=senderQuery.toLowerCase();return active.filter(x=>(x.name+' '+x.email).toLowerCase().includes(query))},[active,senderQuery])
  const selectedSenders=useMemo(()=>active.filter(x=>selectedSenderIdSet.has(x.id)),[active,selectedSenderIdSet])
  const selectedContactCount=useMemo(()=>listeIds.reduce((total,id)=>total+(contactListCounts[id]??0),0),[listeIds,contactListCounts])
- const campaignStats=useMemo(()=>campaigns.reduce((total,campaign)=>({sent:total.sent+Number(campaign.sent_count||0),failed:total.failed+Number(campaign.failed_count||0),opened:total.opened+Number(campaign.open_count||0),clicked:total.clicked+Number(campaign.click_count||0)}),{sent:0,failed:0,opened:0,clicked:0}),[campaigns])
+ const campaignStats=useMemo(()=>campaigns.reduce((total,campaign)=>{total.sent+=Number(campaign.sent_count||0);total.failed+=Number(campaign.failed_count||0);total.opened+=Number(campaign.open_count||0);total.clicked+=Number(campaign.click_count||0);return total},{sent:0,failed:0,opened:0,clicked:0}),[campaigns])
  const {sent,failed,opened,clicked}=campaignStats
  async function refresh(showLoading=true){
   const requestId=++refreshRequestId.current
