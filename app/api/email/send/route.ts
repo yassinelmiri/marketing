@@ -9,6 +9,17 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+function getCasablancaDayStart(date: Date) {
+  const timeZone = 'Africa/Casablanca'
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '0'
+  const wallClockUtc = Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day')))
+  const offsetLabel = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(date).find((item) => item.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+  const match = offsetLabel.match(/GMT([+-])(\\d{2}):(\\d{2})/)
+  const offsetMinutes = match ? (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0
+  return new Date(wallClockUtc - offsetMinutes * 60 * 1000)
+}
+
 
 
 function getPublicOrigin(request: NextRequest) {
@@ -90,9 +101,9 @@ export async function GET(request: NextRequest) {
       counts.set(id, value)
     }
     const now = new Date()
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
-    const tomorrowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString()
-    const yesterdayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1)).toISOString()
+    const todayStart = getCasablancaDayStart(now).toISOString()
+    const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).toISOString()
+    const yesterdayStart = getCasablancaDayStart(new Date(now.getTime() - 24 * 60 * 60 * 1000)).toISOString()
     const [todaySentResult, yesterdaySentResult] = ids.length ? await Promise.all([
       admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', todayStart).lt('processed_at', tomorrowStart),
       admin.from('email_campaign_recipients').select('id', { count: 'exact', head: true }).in('campaign_id', ids).eq('status', 'sent').gte('processed_at', yesterdayStart).lt('processed_at', todayStart),
