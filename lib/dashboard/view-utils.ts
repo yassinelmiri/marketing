@@ -6,7 +6,18 @@ export type DashboardModuleStats = {
   tasks: { total: number; open: number; done: number; late: number; loaded: boolean }
 }
 
-type ApiRecord = Record<string, any>
+type NumericValue = number | string | null | undefined
+
+type ApiRecord = {
+  status?: string
+  sent_count?: NumericValue
+  failed_count?: NumericValue
+  open_count?: NumericValue
+  click_count?: NumericValue
+  total_recipients?: NumericValue
+  counts?: { sent?: NumericValue; failed?: NumericValue }
+  due_date?: string | null
+}
 
 export function createEmptyDashboardModuleStats(): DashboardModuleStats {
   return {
