@@ -39,13 +39,15 @@ const canonicalFields = [
   { key: 'address', label: 'Adresse', aliases: ['address','street','adresse'] },
 ]
 
-export function ProspectionView() {
+export function ProspectionView({ onSaved }: { onSaved?: () => void | Promise<void> }) {
   const [fields, setFields] = useState<string[]>([])
   const [filters, setFilters] = useState<FieldFilter[]>([])
   const [nextId, setNextId] = useState(1)
   const [result, setResult] = useState<SearchResult | null>(null)
   const [loadingFields, setLoadingFields] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [preparationProgress, setPreparationProgress] = useState(0)
+  const [preparationPage, setPreparationPage] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -83,7 +85,7 @@ export function ProspectionView() {
   const activeFilters = useMemo(() => filters.filter(filter => filter.value.trim()).map(({ field, operator, value }) => ({ field, operator, value })), [filters])
 
   async function searchAll() {
-    setSearching(true); setError(''); setNotice(''); setResult(null)
+    setSearching(true); setPreparationProgress(0); setPreparationPage(0); setError(''); setNotice(''); setResult(null)
     try {
       const all: Record<string, unknown>[] = []
       let page = 1
@@ -99,6 +101,8 @@ export function ProspectionView() {
         const rows = Array.isArray(data.records) ? data.records as Record<string, unknown>[] : []
         detectedFields = Array.isArray(data.fields) && data.fields.length ? data.fields : detectedFields
         total = data.total ?? total; totalPages = data.totalPages ?? totalPages
+        setPreparationPage(page)
+        setPreparationProgress(totalPages && totalPages > 0 ? Math.min(99, Math.round((page / totalPages) * 100)) : Math.min(95, Math.round((page / 50) * 95)))
         const rawCount = Number(data.rawCount ?? rows.length)
         if (rawCount === 0) break
         const firstId = String(data.rawFirstId ?? rows[0]?.id ?? rows[0]?.email ?? JSON.stringify(rows[0]))
@@ -109,6 +113,7 @@ export function ProspectionView() {
         page += 1
       }
       setFields(detectedFields)
+      setPreparationProgress(100)
       setResult({ records: all.slice(0, 5000), fields: detectedFields, total: total ?? all.length, totalPages, page: 1, pageSize: 100 })
       if (!all.length) setNotice('Aucun contact ne correspond aux critères sélectionnés.')
       else setNotice(`${all.length.toLocaleString('fr-FR')} contact(s) récupéré(s). Vous pouvez maintenant enregistrer la liste.`)
@@ -128,6 +133,7 @@ export function ProspectionView() {
       if (!response.ok) throw new Error(data.error || 'Impossible de sauvegarder la liste.')
       setNotice(`Liste « ${listName} » créée avec ${data.saved} contacts. Elle est maintenant disponible dans Listes et Campagnes.`)
       setListName(''); setListDescription('')
+      await onSaved?.()
     } catch (err) { setError(err instanceof Error ? err.message : 'Erreur de sauvegarde.') }
     finally { setSaving(false) }
   }
@@ -164,6 +170,17 @@ export function ProspectionView() {
         <button type="button" style={primary} disabled={searching||loadingFields||!fields.length} onClick={()=>void searchAll()}>{searching?<Loader2 size={16}/>:<Filter size={16}/>} {searching?'Recherche en cours…':'Lancer la recherche'}</button>
         <span style={{fontSize:12,color:'#7b8494'}}>Maximum 5 000 contacts par préparation.</span>
       </div>
+
+      {searching && <div style={progressPanel} role="status" aria-live="polite">
+        <div style={progressCircleWrap}>
+          <svg width="76" height="76" viewBox="0 0 76 76" aria-label={`Préparation à ${preparationProgress}%`}>
+            <circle cx="38" cy="38" r="31" fill="none" stroke="#ece9f8" strokeWidth="7" />
+            <circle cx="38" cy="38" r="31" fill="none" stroke="#7655d9" strokeWidth="7" strokeLinecap="round" strokeDasharray={String(2*Math.PI*31)} strokeDashoffset={String(2*Math.PI*31*(1-preparationProgress/100))} transform="rotate(-90 38 38)" style={{transition:'stroke-dashoffset .35s ease'}} />
+            <text x="38" y="42" textAnchor="middle" fill="#263047" fontSize="15" fontWeight="700">{preparationProgress}%</text>
+          </svg>
+        </div>
+        <div style={{flex:1,minWidth:180}}><strong style={{fontSize:14,color:'#263047'}}>Préparation de votre audience…</strong><p style={{...sub,marginTop:4}}>Page {preparationPage} · Les données sont récupérées et analysées.</p><p style={{...sub,marginTop:3}}>Vous pouvez continuer à utiliser les autres modules : la préparation continue en arrière-plan.</p></div>
+      </div>}
 
       {error && <div role="alert" style={errorBox}>{error}</div>}
       {notice && <div role="status" style={successBox}>{notice}</div>}
@@ -213,7 +230,7 @@ const iconButton:CSSProperties={width:38,height:38,display:'grid',placeItems:'ce
 const primary:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px 15px',border:0,borderRadius:9,background:'#7655d9',color:'#fff',fontWeight:650,cursor:'pointer',fontSize:13}
 const secondary:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'9px 12px',border:'1px solid #dfe3ec',borderRadius:9,background:'#fff',color:'#465268',fontWeight:600,cursor:'pointer',fontSize:12}
 const divider:CSSProperties={height:1,background:'#e9ecf2',margin:'26px 0'}
-const resultStats:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10}
+const progressPanel:CSSProperties={display:'flex',alignItems:'center',gap:16,marginTop:18,padding:16,border:'1px solid #e7e2f8',borderRadius:14,background:'linear-gradient(110deg,#fbfaff,#fff)'}\nconst progressCircleWrap:CSSProperties={width:76,height:76,flex:'0 0 76px',display:'grid',placeItems:'center'}\nconst resultStats:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10}
 const mappingPanel:CSSProperties={marginTop:16,padding:16,border:'1px solid #e8eaf0',borderRadius:12,background:'#fbfcfe'}
 const mappingGrid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:12}
 const th:CSSProperties={padding:'12px 13px',color:'#667085',fontSize:11,fontWeight:700,textTransform:'uppercase'}
