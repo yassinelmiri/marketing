@@ -73,10 +73,47 @@ export function CampagnesView({
   const types = useMemo(() => localTypes.filter((type) => type.actif), [localTypes])
   const normalizedSearch = search.trim().toLocaleLowerCase('fr')
   const typeNameById = useMemo(() => new Map(localTypes.map((type) => [type.id, type.nom])), [localTypes])
-  const listNameById = useMemo(() => new Map(localListes.map((list) => [list.id, list.nom])), [localListes])
   const linkedListNamesByCampaignId = useMemo(
     () => buildCampaignListNameIndex(campaignListLinks, localListes),
     [campaignListLinks, localListes],
+  )
+  const listNamesByCampaignId = useMemo(() => {
+    const names = new Map<number, string[]>()
+    for (const link of campaignListLinks) {
+      const name = localListes.find((list) => list.id === link.liste_id)?.nom
+      if (!name) continue
+      const current = names.get(link.campagne_id)
+      if (current) current.push(name)
+      else names.set(link.campagne_id, [name])
+    }
+    return names
+  }, [campaignListLinks, localListes])
+  const teamUserById = useMemo(() => new Map(teamUsers.map((member) => [member.id, member])), [teamUsers])
+  const memberNamesByCampaignId = useMemo(() => {
+    const names = new Map<number, string[]>()
+    for (const link of campagneMembres) {
+      const member = teamUserById.get(link.user_id)
+      if (!member) continue
+      const current = names.get(link.campagne_id)
+      const name = `${member.prenom} ${member.nom}`.trim()
+      if (current) current.push(name)
+      else names.set(link.campagne_id, [name])
+    }
+    return names
+  }, [campagneMembres, teamUserById])
+  const campaignStatusCounts = useMemo(() => campagnes.reduce((counts, campaign) => {
+    if (campaign.status === 'en_cours') counts.inProgress++
+    else if (campaign.status === 'brouillon') counts.drafts++
+    else if (campaign.status === 'terminee') counts.completed++
+    return counts
+  }, { inProgress: 0, drafts: 0, completed: 0 }), [campagnes])
+  const normalizedMemberSearch = memberSearch.trim().toLocaleLowerCase('fr')
+  const filteredTeamUsers = useMemo(() => teamUsers.filter((member) =>
+    `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(normalizedMemberSearch),
+  ), [teamUsers, normalizedMemberSearch])
+  const selectedTeamUsers = useMemo(
+    () => teamUsers.filter((member) => formMemberIds.includes(member.id)),
+    [teamUsers, formMemberIds],
   )
   const campaignsVisibleToUser = useMemo(
     () => getCampaignsVisibleToUser(
@@ -96,7 +133,7 @@ export function CampagnesView({
     return [campaign.titre, campaign.note, campaign.cible, campaignType, linkedListNames, STATUS_LABELS[campaign.status]]
       .join(' ').toLocaleLowerCase('fr').includes(normalizedSearch)
   }), [campaignsVisibleToUser, filter, linkedListNamesByCampaignId, normalizedSearch, typeNameById])
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const pageItems = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize])
   const editing = editingId ? campagnes.find((c) => c.id === editingId) ?? null : null
 
   function openCreate() {
@@ -176,9 +213,9 @@ export function CampagnesView({
         </header>
         <div className="data-overview-grid data-campaign-overview">
           <article className="data-overview-card"><span>Total campagnes</span><strong>{campagnes.length}</strong><small>Toutes les campagnes</small></article>
-          <article className="data-overview-card"><span>En cours</span><strong>{campagnes.filter((item) => item.status === 'en_cours').length}</strong><small>Actions actives</small></article>
-          <article className="data-overview-card"><span>Brouillons</span><strong>{campagnes.filter((item) => item.status === 'brouillon').length}</strong><small>À préparer</small></article>
-          <article className="data-overview-card"><span>Terminées</span><strong>{campagnes.filter((item) => item.status === 'terminee').length}</strong><small>Actions finalisées</small></article>
+          <article className="data-overview-card"><span>En cours</span><strong>{campaignStatusCounts.inProgress}</strong><small>Actions actives</small></article>
+          <article className="data-overview-card"><span>Brouillons</span><strong>{campaignStatusCounts.drafts}</strong><small>À préparer</small></article>
+          <article className="data-overview-card"><span>Terminées</span><strong>{campaignStatusCounts.completed}</strong><small>Actions finalisées</small></article>
         </div>
       <div className="workspace-panel data-content-panel">
         <div className="data-panel-heading">
@@ -228,24 +265,25 @@ export function CampagnesView({
               </thead>
               <tbody>
                 {pageItems.map((c) => {
-                  const type = localTypes.find((item) => item.id === c.type_campagne_id)
-                  const campaignListsForRow = campaignListLinks.filter((link) => link.campagne_id === c.id).map((link) => localListes.find((item) => item.id === link.liste_id)).filter((item): item is ListeContact => Boolean(item))
+                  const typeName = typeNameById.get(c.type_campagne_id)
+                  const campaignListNames = listNamesByCampaignId.get(c.id) ?? []
+                  const campaignMemberNames = memberNamesByCampaignId.get(c.id) ?? []
                   return (
                     <tr key={c.id}>
                       <td>
                         <strong>{c.titre}</strong>
                         <span className="campagne-table-desc">{c.note || '—'}</span>
                       </td>
-                      <td>{type?.nom ?? '—'}</td>
+                      <td>{typeName ?? '—'}</td>
                       <td>
                         <span className={`status-pill ${STATUS_COLORS[c.status]}`}>
                           {STATUS_LABELS[c.status]}
                         </span>
                       </td>
                       <td>
-                        {campaignListsForRow.length === 0 ? '—' : campaignListsForRow.map((l) => l.nom).join(', ')}
+                        {campaignListNames.length === 0 ? '—' : campaignListNames.join(', ')}
                       </td>
-                      <td>{campagneMembres.filter((link) => link.campagne_id === c.id).map((link) => teamUsers.find((member) => member.id === link.user_id)).filter(Boolean).map((member) => `${member!.prenom} ${member!.nom}`.trim()).join(', ') || '—'}</td>
+                      <td>{campaignMemberNames.join(', ') || '—'}</td>
                       <td>{formatDate(c.date_modification)}</td>
                       <td className="campagne-table-actions">
                         {user.role_id === 1 ? (
@@ -321,7 +359,7 @@ export function CampagnesView({
                       >
                         <span className="campaign-member-trigger-copy">
                           <strong>{formMemberIds.length ? `${formMemberIds.length} membre(s) sélectionné(s)` : 'Choisir les membres'}</strong>
-                          <small>{formMemberIds.length ? teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => `${member.prenom} ${member.nom}`).join(', ') : 'Aucun membre sélectionné'}</small>
+                          <small>{formMemberIds.length ? selectedTeamUsers.map((member) => `${member.prenom} ${member.nom}`).join(', ') : 'Aucun membre sélectionné'}</small>
                         </span>
                         <ChevronDown size={17} aria-hidden="true" />
                       </button>
@@ -332,7 +370,7 @@ export function CampagnesView({
                             <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Rechercher un membre…" />
                           </label>
                           <div className="campaign-member-options" role="listbox" aria-multiselectable="true" aria-label="Membres associés">
-                            {teamUsers.filter((member) => `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(memberSearch.trim().toLocaleLowerCase('fr'))).map((member) => {
+                            {filteredTeamUsers.map((member) => {
                               const checked = formMemberIds.includes(member.id)
                               return (
                                 <label key={member.id} className={`campaign-member-option${checked ? ' is-selected' : ''}`}>
@@ -343,7 +381,7 @@ export function CampagnesView({
                                 </label>
                               )
                             })}
-                            {teamUsers.filter((member) => `${member.prenom} ${member.nom} ${member.email}`.toLocaleLowerCase('fr').includes(memberSearch.trim().toLocaleLowerCase('fr'))).length === 0 && <p className="form-hint campaign-member-empty">Aucun membre correspondant.</p>}
+                            {filteredTeamUsers.length === 0 && <p className="form-hint campaign-member-empty">Aucun membre correspondant.</p>}
                           </div>
                           <div className="campaign-member-menu-footer">
                             <span>{formMemberIds.length} sélectionné(s)</span>
@@ -353,7 +391,7 @@ export function CampagnesView({
                         </div>
                       )}
                       {formMemberIds.length > 0 && <div className="campaign-member-chips">
-                        {teamUsers.filter((member) => formMemberIds.includes(member.id)).map((member) => (
+                        {selectedTeamUsers.map((member) => (
                           <button key={member.id} type="button" onClick={() => setFormMemberIds((current) => current.filter((id) => id !== member.id))} aria-label={`Retirer ${member.prenom} ${member.nom}`}>
                             {member.prenom} {member.nom}<X size={12} />
                           </button>
