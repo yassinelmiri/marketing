@@ -192,26 +192,28 @@ export async function POST(request: NextRequest) {
     const listId = Number(listResult.data.id)
     const rows = body.records.map((record: any) => {
       const values = flatten(record)
-      const get = (...names: string[]) => {
-        for (const name of names) {
+      const get = (mappedField: string | undefined, ...names: string[]) => {
+        const candidates = [mappedField, ...names].filter((name): name is string => Boolean(name))
+        for (const name of candidates) {
           const key = Object.keys(values).find(k => k.toLowerCase() === name.toLowerCase())
           if (key && values[key]) return values[key].slice(0, 500)
         }
         return ''
       }
-      const fullName = get('name', 'nom', 'full_name', 'fullname', 'contact_name')
-      const firstName = get('first_name', 'firstname', 'prenom', 'given_name')
-      const lastName = get('last_name', 'lastname', 'surname', 'family_name')
-      const email = get('email', 'e-mail', 'mail')
-      const phone = get('phone', 'telephone', 'tel', 'mobile', 'phone_number')
-      const city = get('city', 'ville', 'locality')
-      const postal = get('postal_code', 'postcode', 'zip', 'zipcode', 'code_postal')
-      const address = get('address', 'street', 'adresse')
-      const country = get('country', 'pays')
-      const age = get('age')
+      const mapping = body.mapping && typeof body.mapping === 'object' ? body.mapping as Record<string, string> : {}
+      const fullName = get(mapping.name, 'name', 'nom', 'full_name', 'fullname', 'contact_name')
+      const firstName = get(mapping.firstName, 'first_name', 'firstname', 'prenom', 'given_name')
+      const lastName = get(mapping.lastName, 'last_name', 'lastname', 'surname', 'family_name')
+      const email = get(mapping.email, 'email', 'e-mail', 'mail')
+      const phone = get(mapping.phone, 'phone', 'telephone', 'tel', 'mobile', 'phone_number')
+      const city = get(mapping.city, 'city', 'ville', 'locality')
+      const postal = get(mapping.postalCode, 'postal_code', 'postcode', 'zip', 'zipcode', 'code_postal')
+      const address = get(mapping.address, 'address', 'street', 'adresse')
+      const country = get(mapping.country, 'country', 'pays')
+      const age = get(mapping.age, 'age')
       const extra = Object.entries(values).filter(([key]) => !/^(id|name|nom|full_name|fullname|first_name|firstname|prenom|last_name|lastname|surname|family_name|email|e-mail|mail|phone|telephone|tel|mobile|phone_number|city|ville|locality|postal_code|postcode|zip|zipcode|code_postal|address|street|adresse|country|pays|age)$/i.test(key)).map(([k,v]) => `${k}: ${v}`).join(' | ')
       return {
-        nom: fullName || lastName || firstName || email || phone || 'Contact',
+        nom: fullName || [firstName, lastName].filter(Boolean).join(' ') || email || phone || 'Contact',
         prenom: firstName || null,
         email: email || null,
         telephone: phone || null,
