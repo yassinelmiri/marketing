@@ -112,26 +112,27 @@ export async function GET(request: NextRequest) {
     : { data: [], error: null }
   if (recipientError) return NextResponse.json({ error: 'Chargement des statistiques WhatsApp impossible.' }, { status: 500 })
   const countsByCampaign = new Map<number, { sent: number; failed: number; pending: number; skipped: number }>()
-  for (const row of recipientRows ?? []) {
-    const id = Number(row.campaign_id)
-    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
-    if (row.status === 'sent') counts.sent += 1
-    else if (row.status === 'failed') counts.failed += 1
-    else if (row.status === 'skipped') counts.skipped += 1
-    else counts.pending += 1
-    countsByCampaign.set(id, counts)
-  }
   const now = new Date()
   const todayStart = getCasablancaDayStart(now).getTime()
   const tomorrowStart = getCasablancaDayStart(new Date(now.getTime() + 24 * 60 * 60 * 1000)).getTime()
   const yesterdayStart = getCasablancaDayStart(new Date(now.getTime() - 24 * 60 * 60 * 1000)).getTime()
-  const dailyStats = (recipientRows ?? []).reduce((totals, row) => {
-    if (row.status !== 'sent' || !row.updated_at) return totals
-    const sentAt = new Date(row.updated_at).getTime()
-    if (sentAt >= todayStart && sentAt < tomorrowStart) totals.today_sent += 1
-    else if (sentAt >= yesterdayStart && sentAt < todayStart) totals.yesterday_sent += 1
-    return totals
-  }, { today_sent: 0, yesterday_sent: 0 })
+  const dailyStats = { today_sent: 0, yesterday_sent: 0 }
+
+  for (const row of recipientRows ?? []) {
+    const id = Number(row.campaign_id)
+    const counts = countsByCampaign.get(id) ?? { sent: 0, failed: 0, pending: 0, skipped: 0 }
+    if (row.status === 'sent') {
+      counts.sent += 1
+      if (row.updated_at) {
+        const sentAt = new Date(row.updated_at).getTime()
+        if (sentAt >= todayStart && sentAt < tomorrowStart) dailyStats.today_sent += 1
+        else if (sentAt >= yesterdayStart && sentAt < todayStart) dailyStats.yesterday_sent += 1
+      }
+    } else if (row.status === 'failed') counts.failed += 1
+    else if (row.status === 'skipped') counts.skipped += 1
+    else counts.pending += 1
+    countsByCampaign.set(id, counts)
+  }
   return NextResponse.json({
     campaigns: (campaigns ?? []).map((campaign) => ({
       ...campaign,
