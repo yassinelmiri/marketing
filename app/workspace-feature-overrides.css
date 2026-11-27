@@ -405,3 +405,271 @@
 .email-template-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 .email-template-header-actions button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 @media(max-width:680px){.email-template-header-actions{width:100%;justify-content:stretch}.email-template-header-actions button{flex:1}}
+
+
+/* =========================================================
+   DARK PREMIUM GLASSMORPHISM — SINGLE SOURCE OF TRUTH
+   Applied after legacy page styles to remove old blue/violet
+   ========================================================= */
+:root {
+  color-scheme: dark;
+  --dp-bg: #101010;
+  --dp-sidebar: #151515;
+  --dp-card: #202020;
+  --dp-card-hover: #292929;
+  --dp-border: #343434;
+  --dp-input: #252525;
+  --dp-text: #F5F5F5;
+  --dp-secondary: #A3A3A3;
+  --dp-muted: #737373;
+  --dp-orange: #E85B2A;
+  --dp-pink: #E64A9B;
+  --dp-green: #35B879;
+  --dp-red: #E05252;
+  --dp-yellow: #E5B34B;
+}
+.workspace-root {
+  color-scheme: dark !important;
+  --bg: var(--dp-bg) !important;
+  --surface: var(--dp-card) !important;
+  --surface-2: var(--dp-card-hover) !important;
+  --border: var(--dp-border) !important;
+  --border-strong: #484848 !important;
+  --text: var(--dp-secondary) !important;
+  --text-strong: var(--dp-text) !important;
+  --muted: var(--dp-muted) !important;
+  --muted-2: var(--dp-muted) !important;
+  --blue: var(--dp-orange) !important;
+  --blue-600: #CF4D22 !important;
+  --blue-50: #352018 !important;
+  --teal: var(--dp-orange) !important;
+  --teal-600: #CF4D22 !important;
+  --teal-50: #352018 !important;
+  --workspace-bg: var(--dp-bg) !important;
+  --workspace-surface: var(--dp-card) !important;
+  --workspace-input: var(--dp-input) !important;
+  --workspace-border: var(--dp-border) !important;
+  --workspace-muted: var(--dp-secondary) !important;
+  --workspace-text: var(--dp-text) !important;
+  background: var(--dp-bg) !important;
+  color: var(--dp-secondary) !important;
+}
+.workspace-root,
+.workspace-root .workspace-main,
+.workspace-root .workspace-content,
+.workspace-root .workspace-topbar {
+  background: var(--dp-bg) !important;
+  color: var(--dp-secondary) !important;
+}
+.workspace-root .workspace-sidebar {
+  background: var(--dp-sidebar) !important;
+  border-color: var(--dp-border) !important;
+  color: var(--dp-text) !important;
+  box-shadow: 12px 0 40px rgba(0,0,0,.28) !important;
+}
+.workspace-root .workspace-sidebar :is(a,button,[role="button"]) {
+  color: var(--dp-secondary) !important;
+}
+.workspace-root .workspace-sidebar :is(a:hover,button:hover,[aria-current="page"]),
+.workspace-root .workspace-nav-item.is-active {
+  color: var(--dp-text) !important;
+  background: rgba(232,91,42,.13) !important;
+  border-color: rgba(232,91,42,.28) !important;
+}
+.workspace-root .workspace-nav-item.is-active::before {
+  background: var(--dp-orange) !important;
+}
+.workspace-root .workspace-user {
+  background: #1B1B1B !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .workspace-topbar {
+  background: rgba(16,16,16,.94) !important;
+  border-color: var(--dp-border) !important;
+  color: var(--dp-text) !important;
+}
+.workspace-root :is(.workspace-panel,.metric-card,.team-card,.channel-card,
+.campagne-list-item,.campagne-table-wrap,.workspace-modal,.toast,.history-list li,
+.workspace-import-preview,.liste-item,.checkbox-card,.dashboard-card,.settings-card,
+.dashboard-note-card,.taskz-stat-card,.taskz-column,.taskz-board-card,.taskz-card,
+.data-list-panel,.data-contacts-panel,.data-content-panel,.wa-panel,.email-stat-card,
+.email-activity-dialog,.dashboard-analytics-panel,.dashboard-diagnostic-panel,
+.kpi-main-panel,.kpi-module-card,.email-panel,.email-template-editor,
+.email-template-card,.email-template-preview-dialog,.prospection-api-settings) {
+  background: var(--dp-card) !important;
+  color: var(--dp-secondary) !important;
+  border: 1px solid var(--dp-border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22) !important;
+}
+.workspace-root :is(h1,h2,h3,h4,h5,strong,.workspace-panel-header h2,
+.workspace-topbar-left h1,.taskz-heading h2,.dashboard-analytics-heading h2,
+.kpi-command-header h2,.kpi-panel-title strong,.kpi-module-value) {
+  color: var(--dp-text) !important;
+}
+.workspace-root :is(p,li,td,th,label,small,.muted,.text-muted,
+.workspace-topbar-left p,.workspace-panel-header span) {
+  color: var(--dp-secondary) !important;
+}
+.workspace-root :is(input,select,textarea,.campagne-search,.settings-field input,
+.settings-field select,.email-picker-trigger,.email-picker-popover,
+.email-picker-search,.email-options,.email-list-grid label.workspace-note) {
+  color: var(--dp-text) !important;
+  background: var(--dp-input) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root :is(input,select,textarea)::placeholder { color: var(--dp-muted) !important; }
+.workspace-root :is(input,select,textarea):focus {
+  border-color: var(--dp-orange) !important;
+  box-shadow: 0 0 0 3px rgba(232,91,42,.16) !important;
+}
+.workspace-root :is(.workspace-primary,.btn-default,.taskz-primary,
+.wa-action-button,.email-primary-button,.workspace-root .btn-primary) {
+  background: var(--dp-orange) !important;
+  border-color: var(--dp-orange) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 16px rgba(232,91,42,.2) !important;
+}
+.workspace-root :is(.workspace-primary,.btn-default,.taskz-primary,
+.wa-action-button,.email-primary-button):hover {
+  background: #F06A3A !important;
+  border-color: #F06A3A !important;
+}
+.workspace-root :is(.workspace-secondary,.btn-secondary,.wa-secondary-button) {
+  background: #292929 !important;
+  color: var(--dp-text) !important;
+  border-color: #484848 !important;
+}
+.workspace-root :is(button,a,input,select,textarea):focus-visible {
+  outline: 2px solid var(--dp-orange) !important;
+  outline-offset: 2px;
+}
+.workspace-root table th {
+  background: #292929 !important;
+  color: var(--dp-secondary) !important;
+}
+.workspace-root table :is(th,td) { border-color: var(--dp-border) !important; }
+.workspace-root table tbody tr:hover { background: #29221F !important; }
+.workspace-root :is(.email-suite,.wa-campaign,.taskz-page) {
+  --workspace-bg: var(--dp-bg) !important;
+  --workspace-surface: var(--dp-card) !important;
+  --workspace-input: var(--dp-input) !important;
+  --workspace-border: var(--dp-border) !important;
+  --workspace-muted: var(--dp-secondary) !important;
+  --workspace-accent: var(--dp-orange) !important;
+  --workspace-accent-soft: #352018 !important;
+  color: var(--dp-secondary) !important;
+}
+.workspace-root .email-suite :is(input,select,textarea,.email-options,
+.email-picker-trigger,.email-picker-popover,.email-template-editor,
+.email-template-card,.email-template-preview-dialog) {
+  background: var(--dp-input) !important;
+  color: var(--dp-text) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .email-suite :is(.email-suite-eyebrow,.email-panel-header h2 svg,
+.email-picker-trigger-meta,.email-template-mode button.active,
+.email-template-device button.active) { color: var(--dp-orange) !important; }
+.workspace-root .email-suite :is(.email-picker-option:hover,.email-picker-option:has(input:checked)) {
+  background: #352018 !important;
+  border-color: rgba(232,91,42,.35) !important;
+}
+.workspace-root .email-suite :is(.email-selected-chips,.email-template-mode) {
+  background: #292929 !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .wa-campaign :is(.wa-token-hint code,.wa-step,.wa-hero-icon,
+.wa-contact-avatar,.wa-upload-icon) {
+  background: #352018 !important;
+  color: var(--dp-orange) !important;
+}
+.workspace-root .wa-hero {
+  background: #24201E !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root :is(.dashboard-health-ring,.dashboard-health-progress span,
+.kpi-bar-row i,.wa-progress-track span) {
+  --dp-chart-accent: var(--dp-orange);
+}
+.workspace-root .dashboard-health-ring {
+  background: conic-gradient(var(--dp-orange) calc(var(--health-score)*1%),#343434 0) !important;
+}
+.workspace-root .dashboard-health-ring:before { background: var(--dp-card) !important; }
+.workspace-root .dashboard-health-progress span,
+.workspace-root .wa-progress-track span,
+.workspace-root .kpi-bar-row i { background: var(--dp-orange) !important; }
+.workspace-root .dashboard-finding-icon,
+.workspace-root .dashboard-analytics-metrics svg,
+.workspace-root .email-stat-icon,
+.workspace-root .dashboard-secondary-icon,
+.workspace-root .dashboard-note-icon {
+  color: var(--dp-orange) !important;
+  background: #352018 !important;
+}
+.workspace-root .dashboard-finding.good .dashboard-finding-icon,
+.workspace-root .kpi-module-icon.whatsapp { color: var(--dp-green) !important; background: rgba(53,184,121,.13) !important; }
+.workspace-root .dashboard-finding.warn .dashboard-finding-icon,
+.workspace-root .kpi-module-icon.database { color: var(--dp-yellow) !important; background: rgba(229,179,75,.13) !important; }
+.workspace-root .kpi-command-center {
+  background: linear-gradient(145deg,#202020,#181818) !important;
+  border: 1px solid var(--dp-border) !important;
+  color: var(--dp-text) !important;
+}
+.workspace-root .kpi-command-center :is(.kpi-main-panel,.kpi-module-card) {
+  background: #252525 !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .kpi-module-icon { background: rgba(232,91,42,.13) !important; color: var(--dp-orange) !important; }
+.workspace-root .kpi-module-icon.tasks { background: rgba(230,74,155,.13) !important; color: var(--dp-pink) !important; }
+.workspace-root .kpi-module-icon.sms { background: rgba(53,184,121,.13) !important; color: var(--dp-green) !important; }
+.workspace-root .kpi-module-icon.whatsapp { background: rgba(53,184,121,.13) !important; color: var(--dp-green) !important; }
+.workspace-root .kpi-bar-row i.violet { background: var(--dp-pink) !important; }
+.workspace-root .email-template-code textarea {
+  background: #181818 !important;
+  color: var(--dp-text) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .email-template-preview-stage {
+  background: #181818 !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .email-template-preview-frame,
+.workspace-root .email-template-preview-frame iframe,
+.workspace-root .email-campaign-preview,
+.workspace-root .email-campaign-preview iframe {
+  background: #fff !important;
+}
+.workspace-root .email-campaign-body {
+  background: var(--dp-card) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .email-campaign-body textarea {
+  background: var(--dp-input) !important;
+  color: var(--dp-text) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .global-notification-panel,
+.workspace-root .global-notification-item,
+.workspace-root .global-notification-trigger,
+.workspace-root .global-notification-actions button {
+  background: var(--dp-card) !important;
+  color: var(--dp-text) !important;
+  border-color: var(--dp-border) !important;
+}
+.workspace-root .global-notification-item:hover,
+.workspace-root .global-notification-item.unread { background: var(--dp-card-hover) !important; }
+.workspace-root .settings-heading-icon,
+.workspace-root .taskz-iconbtn {
+  background: #352018 !important;
+  color: var(--dp-orange) !important;
+}
+.workspace-root .taskz-column.is-drop-target {
+  background: #29221F !important;
+  border-color: var(--dp-orange) !important;
+}
+.workspace-root .status-pill { border-color: var(--dp-border) !important; }
+.workspace-root .workspace-modal-backdrop,
+.workspace-root .email-activity-backdrop { background: rgba(0,0,0,.72) !important; }
+.workspace-root .workspace-theme-toggle { display: none !important; }
+@media (max-width: 760px) {
+  .workspace-root .workspace-sidebar { background: var(--dp-sidebar) !important; }
+}
