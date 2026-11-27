@@ -62,3 +62,17 @@
 @media(max-width:1050px){.workspace-root .email-suite .email-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:760px){.workspace-root .prospection-page>div{padding:17px !important}.workspace-root .prospection-page [style*="grid-template-columns: minmax(150px"]{grid-template-columns:1fr !important}.workspace-root .email-suite .email-suite-heading{padding:17px}.workspace-root .email-suite .email-suite-tabs{overflow-x:auto;flex-wrap:nowrap}.workspace-root .email-suite .email-suite-tabs button{white-space:nowrap}.workspace-root .email-suite .email-stats-grid{grid-template-columns:1fr 1fr;gap:9px}.workspace-root .email-suite .workspace-panel{padding:14px !important}.workspace-root .email-suite .email-batch-grid{grid-template-columns:1fr 1fr !important}}
 @media(max-width:460px){.workspace-root .email-suite .email-stats-grid{grid-template-columns:1fr 1fr}.workspace-root .email-suite .email-suite-heading-meta{display:none}}
+
+/* Additional component hooks: cleaner spacing and hierarchy for the two target pages. */
+.workspace-root .prospection-page .prospection-panel { padding:clamp(17px,2.4vw,28px) !important; }
+.workspace-root .prospection-page .prospection-header { padding-bottom:18px; border-bottom:1px solid var(--ui-border); }
+.workspace-root .prospection-page .prospection-step-heading { margin-block:24px 14px !important; }
+.workspace-root .prospection-page .prospection-result-stats { gap:11px !important; }
+.workspace-root .prospection-page .prospection-result-stats > div { background:rgba(255,255,255,.035) !important; border:1px solid var(--ui-border) !important; border-radius:13px !important; padding:15px !important; }
+.workspace-root .prospection-page .prospection-result-stats strong { color:var(--ui-accent-strong) !important; }
+.workspace-root .prospection-page .prospection-mapping-panel { background:rgba(255,255,255,.025) !important; border:1px solid var(--ui-border) !important; border-radius:15px !important; }
+.workspace-root .prospection-page .prospection-preview-table { border-color:var(--ui-border) !important; }
+.workspace-root .prospection-page .prospection-save-grid { gap:12px !important; }
+.workspace-root .email-suite .email-suite-tab { display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+.workspace-root .email-suite .email-suite-stat { text-align:left; }
+@media(max-width:640px){.workspace-root .prospection-page .prospection-result-stats{grid-template-columns:1fr !important}.workspace-root .prospection-page .prospection-save-grid{grid-template-columns:1fr !important}.workspace-root .prospection-page .prospection-header{align-items:flex-start !important}}
